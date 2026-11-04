@@ -4,20 +4,54 @@
 
 **Stick your antenna into the Internet.** · by **fxPPC**
 
-Antennarr turns authorised IPTV sources into a small, dependable Plex channel lineup. Import URLs containing account lists, choose your channels, and let it build and maintain a roster of checked feeds. When a feed falters, it promotes a live backup and recruits another.
+**XTREAM account-list URLs in. Stable television channels out.**
+
+Antennarr is a live TV companion to Sonarr and Radarr: they look after your films and series; Antennarr tries to keep live television playing when its sources have other plans. It is an independent project, not an official part of either application.
+
+Built from the bottom up to manage thousands of accounts and source streams, Antennarr imports lists, tests sources, matches streams to your chosen channels, and maintains a pool of confirmed replacements. Plex gets consistent channel identities and tuner URLs while Antennarr deals with the mess upstream. You wanted to watch television, not become a full-time playlist curator.
+
+The aim is stable viewing and recording sessions even when individual sources are unreliable. It cannot conjure a working feed when every source is down, but it can make replacing a failed one somebody else's problem. Specifically, the program's.
 
 [Docker Hub](https://hub.docker.com/r/antennarr/antennarr) · [Releases](https://github.com/fxPPC/Antennarr/releases) · [Setup help](https://github.com/fxPPC/Antennarr/discussions) · [Report a bug](https://github.com/fxPPC/Antennarr/issues/new/choose)
 
-## What it does
+## Three phases, one less thing to babysit
 
-- Presents one stable HDHomeRun-compatible tuner to Plex, with editable channels, numbers, aliases, and exclusion keywords.
-- Maintains per-channel rosters, checks sources with provider pacing, and retires failed accounts according to your settings.
-- Races startup candidates, keeps a receiving primary and hot backup when available, and shares that pair across viewers watching the same channel.
-- Supports simultaneous different channels, configurable viewer limits, source diversity/stability preferences, and optional active-channel replenishment.
-- Copies video without transcoding; packages transport output and normalises audio to AAC.
-- Offers a mobile-friendly web interface, manual full backup/restore, shareable channel lineups, and configurable Docker logging.
+### 1. Turn lists into usable sources
 
-Go, SQLite, and FFmpeg on Debian. One container, one persistent `/data` directory. **No provider accounts, passwords, or playable streams are supplied.** Fresh installations include **143 editable US channels**; you can replace them with your own market's lineup.
+Supply URLs for account-list pages, either plain or Base64-encoded. Antennarr decodes supported encodings, retrieves supported list and paste pages, and picks out provider URLs, usernames, and passwords from the assorted formatting people apparently enjoy inventing. Equivalent accounts are deduplicated and added to the input queue.
+
+It checks account access, retrieves channel catalogues, and tests matching media streams. Channel names, aliases, country information, and negative keywords help match provider variations to your chosen lineup. Checks use connection budgets and provider pacing; a large input queue is not an invitation to hammer a server. Only selected channels receive media checks.
+
+### 2. Build and maintain channel rosters
+
+Working source streams earn places in each channel's **roster**: a configurable pool of confirmed alternatives. Rostered streams are repeatedly re-tested while background checks are allowed to run. Failed entries leave the roster, and replacements are auditioned from the input queue. Once a roster is full, recruitment for that channel stops.
+
+Choose stability or provider diversity, adjust roster targets, and let Antennarr maintain the assignments. The channel stays “CNN” even if its latest provider calls it something considerably more creative.
+
+### 3. Keep the channel playing
+
+When Plex tunes a channel, Antennarr races a configurable set of recent successful candidates. It establishes a primary feed and, when a second working source is available, keeps a **hot backup actively receiving media**. If either falters, Antennarr replaces it; a failed primary can be replaced by the already-running backup without deliberately closing the downstream session.
+
+Video is copied without transcoding. Audio is encoded to consistent AAC, and the output is packaged to help Plex tolerate source switches. Multiple viewers of the same channel share its primary/backup pair; different channels get their own pairs. Optional active-channel replenishment can keep filling roster vacancies during playback.
+
+Plex handles the programme guide and recordings. Antennarr concentrates on feeding it a stable channel. Codec changes, timing jumps, exhausted sources, and client behaviour can still interrupt playback; see [limitations](#upgrades-and-limitations). A hot backup is useful engineering, not a supernatural guarantee.
+
+## Why another IPTV project?
+
+There are good alternatives. Which one fits depends on what you want to manage.
+
+| Project | Focus | Where Antennarr takes a different approach |
+| --- | --- | --- |
+| [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) | A broader IPTV management platform, including channel/EPG organisation, VOD, and proxy streaming with shared connections and automatic failover. | Antennarr concentrates on the account-list → tested roster → stable Plex channel pipeline, with ongoing source recruitment and a receiving hot backup per active channel when available. |
+| [xTeVe](https://github.com/xteve-project/xTeVe) | An M3U proxy for Plex and Emby, with playlist/XMLTV merging, filtering, and channel mapping. | Antennarr starts with URLs containing account lists and takes on account parsing, testing, automatic stream assignment, and replacement-roster maintenance. |
+
+Those projects helped establish the territory. Antennarr's reason to exist is the combination of large account pools, repeatedly checked channel rosters, and live primary/backup management—not a claim that nobody else has thought of failover. See the [Dispatcharr documentation](https://github.com/Dispatcharr/Dispatcharr-Docs/blob/main/docs/en/index.md) and [xTeVe feature list](https://github.com/xteve-project/xTeVe#features) for their own descriptions.
+
+## Under the bonnet
+
+Go, SQLite, and FFmpeg on Debian. One container, one persistent `/data` directory, and a built-in web interface. Antennarr presents an HDHomeRun-compatible tuner, supports simultaneous channels and configurable viewer limits, and provides manual full backup/restore, shareable channel lineups, and Docker logging.
+
+**No provider accounts, passwords, or playable streams are supplied.** Bring account lists you are authorised to use. Fresh installations include **143 editable US channels**; you can replace them with your own market's lineup. Supported page formats are handled automatically; locked, script-only, or unsupported pages may need another source URL.
 
 ## Install with Docker
 
