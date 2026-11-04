@@ -1,0 +1,167 @@
+name: Approved release
+run-name: Release ${{ inputs.version }} from ${{ github.sha }}
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: New stable version (vMAJOR.MINOR.PATCH); existing versions cannot be replaced
+        required: true
+        default: v1.0.0
+permissions:
+  contents: read
+concurrency:
+  group: stable-release
+  cancel-in-progress: false
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - id: version
+        env:
+          VERSION: ${{ inputs.version }}
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          test "$REF" = refs/heads/main
+          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          if gh api "repos/$REPOSITORY/git/ref/tags/$VERSION" >/dev/null 2>&1; then
+            echo 'This version already exists; publish a new patch version.' >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+  verify-source:
+    needs: preflight
+    uses: ./.github/workflows/source-checks.yml
+    permissions:
+      contents: read
+  candidate:
+    needs: [preflight, verify-source]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          platforms: linux/${{ matrix.arch }}
+          outputs: type=oci,dest=/tmp/candidate.tar
+          provenance: false
+          sbom: false
+          build-args: |
+            VERSION=${{ needs.preflight.outputs.version }}
+            REVISION=${{ github.sha }}
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+          skopeo copy oci-archive:/tmp/candidate.tar docker-daemon:antennarr:candidate
+          ANTENNARR_TEST_IMAGE=antennarr:candidate python3 packaging/test-permissions.py
+      - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          image: antennarr:candidate
+          format: spdx-json
+          output-file: /tmp/sbom-${{ matrix.arch }}.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Record candidate identity
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          mkdir -p release
+          mv /tmp/candidate.tar "release/image-$ARCH.tar"
+          mv "/tmp/sbom-$ARCH.spdx.json" release/
+          python3 scripts/candidate-digest.py "release/image-$ARCH.tar" > "release/digest-$ARCH.txt"
+          printf '### Verified %s candidate\n\n`%s`\n' "$ARCH" "$(cat "release/digest-$ARCH.txt")" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: candidate-${{ matrix.arch }}
+          path: release/
+          retention-days: 7
+          if-no-files-found: error
+  publish:
+    needs: [preflight, candidate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.preflight.outputs.version }}
+      IMAGE: antennarr/antennarr
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: candidate-*
+          merge-multiple: true
+          path: release
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Publish exactly the approved candidates
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Recheck after approval to prevent accidental release replacement.
+          if gh api "repos/$REPOSITORY/git/ref/tags/$VERSION" >/dev/null 2>&1; then exit 1; fi
+          if docker buildx imagetools inspect "$IMAGE:$VERSION" >/dev/null 2>&1; then exit 1; fi
+          sudo apt-get update
+          sudo apt-get install -y skopeo
+          for arch in amd64 arm64; do
+            digest=$(cat "release/digest-$arch.txt")
+            test "$digest" = "$(python3 scripts/candidate-digest.py "release/image-$arch.tar")"
+            # Upload by digest: no temporary architecture tags or rebuilds.
+            skopeo copy --authfile "$HOME/.docker/config.json" --preserve-digests \
+              "oci-archive:release/image-$arch.tar" "docker://$IMAGE@$digest"
+          done
+          docker buildx imagetools create --tag "$IMAGE:$VERSION" \
+            "$IMAGE@$(cat release/digest-amd64.txt)" "$IMAGE@$(cat release/digest-arm64.txt)"
+          digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
+          test "${digest#sha256:}" != "$digest"
+          printf '%s@%s\n' "$IMAGE" "$digest" > release/IMAGE-DIGEST.txt
+          docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE@$digest"
+          test "$digest" = "$(docker buildx imagetools inspect "$IMAGE:latest" --format '{{json .Manifest}}' | jq -r .digest)"
+          printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
+          git archive --format=tar.gz --prefix="antennarr-$VERSION/" HEAD > "release/antennarr-$VERSION-source.tar.gz"
+          cd release
+          sha256sum antennarr-*-source.tar.gz sbom-*.spdx.json IMAGE-DIGEST.txt > SHA256SUMS
+        id: publication
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-name: index.docker.io/antennarr/antennarr
+          subject-digest: ${{ steps.publication.outputs.digest }}
+          push-to-registry: false
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$VERSION" --target "$GITHUB_SHA" --draft --title "Antennarr $VERSION" \
+            --notes-file docs/RELEASE-NOTES.md \
+            release/antennarr-*-source.tar.gz release/sbom-*.spdx.json release/SHA256SUMS release/IMAGE-DIGEST.txt
+          # Attach every asset before publishing an immutable release.
+          gh release edit "$VERSION" --draft=false --latest
+          cat release/IMAGE-DIGEST.txt >> "$GITHUB_STEP_SUMMARY"

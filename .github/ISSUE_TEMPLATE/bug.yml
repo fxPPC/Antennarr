@@ -1,0 +1,51 @@
+name: Bug report
+description: Report a reproducible problem with Antennarr.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not upload credentials, provider URLs, account lists, backups, or private server details. Report vulnerabilities privately using the Security tab. Redact logs before posting."
+  - type: input
+    id: version
+    attributes:
+      label: Antennarr version and image digest
+      placeholder: v1.0.0; sha256:…
+    validations:
+      required: true
+  - type: dropdown
+    id: architecture
+    attributes:
+      label: CPU architecture
+      options: [amd64, arm64, Other or unknown]
+    validations:
+      required: true
+  - type: input
+    id: installation
+    attributes:
+      label: Installation and client
+      description: Docker host OS, Docker/Compose versions, installation method, and Plex client if relevant. No private addresses.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: What did you do, what happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs
+      description: Include relevant Docker log lines and approximate timestamps. Remove secrets and provider details.
+      render: text
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Before submitting
+      options:
+        - label: I removed credentials, provider links, account lists, and private details.
+          required: true
+        - label: I searched existing issues and discussions.
+          required: true

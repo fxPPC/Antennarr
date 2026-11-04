@@ -1,0 +1,12 @@
+# Optional overlay: add -f compose.network.yaml to use Plex's existing network.
+services:
+  antennarr:
+    environment:
+      ANTENNARR_BASE_URL: http://antennarr:9192
+    networks:
+      plex:
+        aliases: [antennarr]
+networks:
+  plex:
+    external: true
+    name: ${PLEX_NETWORK:?Set PLEX_NETWORK to Plex's existing Docker network}
