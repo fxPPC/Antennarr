@@ -51,7 +51,7 @@ There are good alternatives. Which one fits depends on what you want to manage.
 | [Dispatcharr](https://github.com/Dispatcharr/Dispatcharr) | A broader IPTV management platform, including channel/EPG organisation, VOD, and proxy streaming with shared connections and automatic failover. | Antennarr concentrates on the account-list → tested roster → stable Plex channel pipeline, with ongoing source recruitment and a receiving hot backup per active channel when available. |
 | [xTeVe](https://github.com/xteve-project/xTeVe) | An M3U proxy for Plex and Emby, with playlist/XMLTV merging, filtering, and channel mapping. | Antennarr starts with URLs containing account lists and takes on account parsing, testing, automatic stream assignment, and replacement-roster maintenance. |
 
-Those projects helped establish the territory. Antennarr's reason to exist is the combination of large account pools, repeatedly checked channel rosters, and live primary/backup management—not a claim that nobody else has thought of failover. See the [Dispatcharr documentation](https://github.com/Dispatcharr/Dispatcharr-Docs/blob/main/docs/en/index.md) and [xTeVe feature list](https://github.com/xteve-project/xTeVe#features) for their own descriptions.
+Those projects helped establish the territory. Antennarr's reason to exist is the combination of large account pools, repeatedly checked channel rosters, and live primary/backup management. See the [Dispatcharr documentation](https://github.com/Dispatcharr/Dispatcharr-Docs/blob/main/docs/en/index.md) and [xTeVe feature list](https://github.com/xteve-project/xTeVe#features) for their own descriptions.
 
 ## Under the bonnet
 
