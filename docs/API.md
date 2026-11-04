@@ -1,6 +1,6 @@
 # HTTP API
 
-The tuner listener (9192) serves Plex over a private network. The administration listener (9193) requires HTTP Basic authentication; use HTTPS when publishing it through a reverse proxy. Administration mutations require `X-Antennarr-Request: 1`. Bodies are bounded, and errors omit credentials.
+The main listener defaults to `:9192` and serves tuner routes plus authenticated administration routes. Setting `ANTENNARR_ADMIN_LISTEN=:9193` enables a separate administration listener that omits tuner discovery/playback. Administration requires HTTP Basic authentication; `/healthz` and `/branding/logo.png` are public exceptions. Keep the main listener private and use HTTPS for remote administration. See [listener and proxy setup](INSTALL.md#addresses-and-docker-networking). Administration mutations require `X-Antennarr-Request: 1`. Bodies are bounded, and errors omit credentials.
 
 ## Tuner
 
@@ -46,7 +46,25 @@ An additional viewer beyond the configured limit receives 503; an unknown channe
 | POST `/api/restore` | Upload/validate/restore a full backup; requires idle playback |
 | POST `/api/reset` | Confirmed application reset; requires idle playback |
 
-Use the current UI request shapes for destructive-operation confirmation. Backups contain secrets and are only created manually. Restoring the same tuner identity, channels, and reachable URL preserves Antennarr's side of Plex registration; Plex's own database is separate.
+### Operation payloads
+
+Send JSON with `Content-Type: application/json` and `X-Antennarr-Request: 1`, plus Basic authentication:
+
+| Operation | JSON body | Playback requirement |
+| --- | --- | --- |
+| POST `/api/input/clear` | `{"confirmed":true}` | Active/rostered accounts are protected |
+| POST `/api/channels/bulk` — clear | `{"confirmed":true,"default_us":false}` | Idle |
+| POST `/api/channels/bulk` — US preset | `{"confirmed":true,"default_us":true}` | Idle |
+| POST `/api/reset` | `{"confirmed":true}` | Idle; restarts the application |
+| POST `/api/lineup` | `{"confirmed":true,"lineup":{"version":1,"channels":[...]}}` | Idle; replaces channels and rebuilds rosters |
+
+Lineup JSON is limited to 2 MiB and 1,000 channels. Export `GET /api/lineup` for the complete portable structure; each channel carries `id`, `number`, `name`, `region`, `enabled`, `aliases`, and `policy` (`target`, `preference`, `race`). IDs and numbers must be unique. Policy zero/empty values inherit output settings.
+
+POST `/api/restore` uses **multipart/form-data**, with the ZIP in a file field named `backup`; it is not JSON and needs no `confirmed` field. Keep the request header and Basic authentication. The ZIP limit is 128 MiB, with at most 256 MiB of expanded files. Playback must be idle. Success returns `restoring`, `restart_required`, and the saved `tuner_url`, then restarts the application.
+
+POST `/api/backup` needs the request header and authentication, but no JSON body. It returns `backup` (the archive name) and `download` (an authenticated relative download URL). Existing backup archives and Docker deployment configuration are not included.
+
+Conflicting maintenance operations or non-idle playback where required return 409. Confirmation is an explicit request field, not a substitute for authentication. Backups contain secrets and are only created manually. Restoring the same tuner identity, channels, and reachable URL preserves Antennarr's side of Plex registration; Plex's own database is separate.
 
 ## Matching and checking
 

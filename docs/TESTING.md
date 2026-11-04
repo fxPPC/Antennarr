@@ -1,6 +1,6 @@
 # Validation
 
-Run `go vet ./...` and `go test -race ./...`. Generate controlled media with `sh scripts/fixtures.sh /tmp/antennarr-fixtures`, then set `ANTENNARR_TEST_FIXTURES=/tmp/antennarr-fixtures` when running the suite. Tests must not contact real providers. Docker permission smoke tests use isolated volumes and network-disabled containers; see packaging/README.md.
+Run `go vet ./...` and `go test -race -p 1 -timeout 15m ./...`. Generate controlled media with `sh scripts/fixtures.sh /tmp/antennarr-fixtures`, then set `ANTENNARR_TEST_FIXTURES=/tmp/antennarr-fixtures` when running the suite. The `-p 1` option runs packages serially to reduce contention in timing-sensitive media tests; race detection stays enabled. Tests must not contact real providers. Docker permission smoke tests use isolated volumes and network-disabled containers; see packaging/README.md.
 
 ## Published-version upgrade and manual restore
 
