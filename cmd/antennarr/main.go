@@ -39,6 +39,8 @@ func main() {
 		slog.Error("invalid logging level")
 		os.Exit(1)
 	}
+	// Storage/tool locations are trusted deployment configuration, never values
+	// taken from HTTP requests, provider catalogues, or imported lists.
 	root := env("ANTENNARR_DATA", "/data")
 	if err := recovery.ApplyReset(root); err != nil {
 		startupError("reset failed", root, err)

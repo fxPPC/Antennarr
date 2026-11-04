@@ -73,6 +73,8 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		if s.ReadLogin != nil {
 			login = s.ReadLogin()
 		}
+		// Fixed-size digests are used only for constant-time comparison,
+		// not as stored password hashes.
 		got := sha256.Sum256([]byte(p))
 		want := sha256.Sum256([]byte(login.Password))
 		if !ok || u != login.Username || login.Password == "" || subtle.ConstantTimeCompare(got[:], want[:]) != 1 {

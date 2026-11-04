@@ -1,5 +1,7 @@
 # v1.0.0
 
+- Restore extraction uses a filesystem-rooted staging handle as well as ZIP-name validation. Provider connection counts are bounded before integer conversion so oversized occupancy remains full instead of wrapping negative.
+
 - Verified roster entries survive unused startup-race cancellation and temporary account capacity limits. Actual media/account failures and explicit channel edits retain their removal policies.
 - Optional playing-channel replenishment fills active-channel vacancies while routine checks and idle-channel recruitment remain paused. Connection budgets and provider pacing still apply.
 - Status distinguishes queued reserves from runnable work when rosters are full, and shows provider retry windows instead of a false stalled-checker warning.
