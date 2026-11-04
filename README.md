@@ -36,6 +36,12 @@ Video is copied without transcoding. Audio is encoded to consistent AAC, and the
 
 Plex handles the programme guide and recordings. Antennarr concentrates on feeding it a stable channel. Codec changes, timing jumps, exhausted sources, and client behaviour can still interrupt playback; see [limitations](#upgrades-and-limitations). A hot backup is useful engineering, not a supernatural guarantee.
 
+## Feed flow
+
+The same diagram is available under **Admin → Feed flow diagram**.
+
+![Feed flow: input queue, stream auditions, verified rosters, repeated checks, primary and hot-backup Plex playback, and failure handling](docs/images/feed-flow.svg)
+
 ## Why another IPTV project?
 
 There are good alternatives. Which one fits depends on what you want to manage.
