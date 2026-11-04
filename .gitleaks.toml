@@ -1,0 +1,18 @@
+# Retain the standard secret rules. These exceptions match public guide IDs and
+# a parameterised SQL statement, not credentials or arbitrary fixture contents.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Public Plex guide identifiers are not authentication tokens"
+condition = "AND"
+paths = ['''(^|/)internal/catalog/testdata/us-manhattan-(88|expanded)\.json$''']
+regexTarget = "line"
+regexes = ['''^\s*"plex_channel_key": "[0-9a-f-]+",?$''']
+
+[[allowlists]]
+description = "Parameterised account upsert contains SQL column names, not a secret"
+condition = "AND"
+paths = ['''(^|/)internal/catalog/store\.go$''']
+regexTarget = "line"
+regexes = ['''^\s*_, e = tx\.Exec\(`INSERT INTO accounts\(id,identity,provider,kind,secret,created,rate_key\).*ON CONFLICT\(identity\) DO UPDATE SET secret=excluded\.secret,rate_key=excluded\.rate_key`, identity, u\.Host, entry\.Kind, protected, now, ProviderKey\(u\.Host\)\)$''']

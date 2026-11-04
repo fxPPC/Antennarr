@@ -1,0 +1,35 @@
+# A clean release context contains only cross-compiled binaries, test binaries,
+# and third-party notices. Never build this from a live container filesystem.
+FROM debian:trixie-slim AS runtime
+ARG TARGETARCH
+ARG VERSION=v1.0.0
+ARG REVISION
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl tini util-linux && rm -rf /var/lib/apt/lists/* && useradd -u 10001 -m antennarr
+WORKDIR /opt/antennarr
+COPY licenses /usr/share/doc/antennarr/licenses
+COPY LICENSE /usr/share/doc/antennarr/LICENSE
+COPY binaries/antennarr-${TARGETARCH} /usr/local/bin/antennarr
+LABEL org.opencontainers.image.licenses="GPL-3.0-or-later" \
+      org.opencontainers.image.title="Antennarr" \
+      org.opencontainers.image.description="IPTV-to-Plex virtual tuner with shared streams and live hot-backup failover. v1.0.0." \
+      org.opencontainers.image.authors="fxPPC" \
+      org.opencontainers.image.url="https://hub.docker.com/r/antennarr/antennarr" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.revision="${REVISION}"
+COPY packaging/entrypoint.sh /usr/local/bin/antennarr-entrypoint
+RUN chmod 755 /usr/local/bin/antennarr-entrypoint
+USER 0:0
+EXPOSE 9192 9193
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s CMD curl -fsS http://127.0.0.1:9192/healthz || exit 1
+ENTRYPOINT ["/usr/local/bin/antennarr-entrypoint"]
+
+# Tests and generated test data live only in this throwaway stage. The final
+# image inherits runtime, and copies only a successful verification receipt.
+FROM runtime AS verified
+ARG TARGETARCH
+COPY tests/*-${TARGETARCH}.test /tmp/tests/
+RUN set -eu; for test in /tmp/tests/*.test; do "$test" -test.timeout=10m; done; ffmpeg -version >/dev/null; ffprobe -version >/dev/null; printf 'Release package tests and media binary checks passed.\n' > /tmp/verified.txt
+
+FROM runtime AS release
+COPY --from=verified /tmp/verified.txt /usr/share/doc/antennarr/verified.txt
+COPY source.tar.gz /usr/share/doc/antennarr/source.tar.gz

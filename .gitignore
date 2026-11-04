@@ -1,0 +1,17 @@
+/data/
+/dist/
+*.db
+*.db-wal
+*.db-shm
+/testdata/*.ts
+/fixtures/*.ts
+.env
+/secrets/
+/backups/
+*.key
+*.pem
+
+/antennarr
+
+__pycache__/
+*.pyc

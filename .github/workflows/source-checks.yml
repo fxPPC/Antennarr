@@ -1,0 +1,33 @@
+name: Source and media checks
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Source and media tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.3'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: test -z "$(gofmt -l cmd internal)"
+      - run: node --test scripts/ui.test.mjs
+      - run: go vet ./...
+      - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+      - run: sh scripts/fixtures.sh /tmp/antennarr-fixtures
+      - run: ANTENNARR_TEST_FIXTURES=/tmp/antennarr-fixtures go test -race -p 1 -timeout 15m ./...
+      - run: python3 scripts/make-upgrade-fixture.py /tmp/antennarr-upgrade-fixture
+      - run: ANTENNARR_UPGRADE_FIXTURE=/tmp/antennarr-upgrade-fixture go test ./internal/recovery -run TestPublishedBeta3UpgradeAndManualRestore -count=1
+      - run: GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o /tmp/antennarr-arm64 ./cmd/antennarr
+      - run: docker compose -f compose.portable.yaml config --quiet
+      - run: docker build -t antennarr:source-check .
+      - run: ANTENNARR_TEST_IMAGE=antennarr:source-check python3 packaging/test-permissions.py

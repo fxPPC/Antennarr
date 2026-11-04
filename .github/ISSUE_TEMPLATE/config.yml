@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Setup help and feature ideas
+    url: https://github.com/fxPPC/Antennarr/discussions
+    about: Ask questions and discuss ideas before opening implementation work.
+  - name: Report a security vulnerability privately
+    url: https://github.com/fxPPC/Antennarr/security/advisories/new
+    about: Never post vulnerability details or credentials in a public issue.

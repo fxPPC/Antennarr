@@ -1,0 +1,32 @@
+# Source build: docker compose -f compose.portable.yaml up -d --build
+# Set ANTENNARR_BIND to your server's LAN IP to allow LAN access.
+services:
+  antennarr:
+    image: ${ANTENNARR_IMAGE:-antennarr:local}
+    build: .
+    restart: unless-stopped
+    environment:
+      PUID: ${PUID:-10001}
+      PGID: ${PGID:-10001}
+      ANTENNARR_BASE_URL: ${ANTENNARR_BASE_URL:-http://127.0.0.1:9192}
+      ANTENNARR_ADMIN_LISTEN: ":9193"
+      ANTENNARR_TRUSTED_PROXIES: ${ANTENNARR_TRUSTED_PROXIES:-}
+    ports:
+      - "${ANTENNARR_BIND:-127.0.0.1}:${ANTENNARR_ADMIN_PORT:-39192}:9193"
+      - "${ANTENNARR_BIND:-127.0.0.1}:${ANTENNARR_TUNER_PORT:-9192}:9192"
+    volumes:
+      - "${ANTENNARR_DATA_DIR:-./data}:/data"
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, SETUID, SETGID]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+    cpu_shares: 128
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5000000"
+        max-file: "2"

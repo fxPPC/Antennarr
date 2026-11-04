@@ -1,0 +1,26 @@
+{
+  "device_id": "12345674",
+  "tuners": 3,
+  "grace_seconds": 5,
+  "settings": {
+    "max_outgoing_streams": 4,
+    "startup_race": 5,
+    "global_connections": 15,
+    "provider_connections": 3,
+    "buffer_seconds": 3,
+    "stall_timeout_ms": 1500,
+    "probe_seconds": 5,
+    "roster_target": 20,
+    "selection_preference": "stability",
+    "allow_uhd": false,
+    "count_full_connections_as_failures": false,
+    "check_api_seconds": 33,
+    "check_global_seconds": 2,
+    "check_stream_seconds": 63,
+    "check_stream_global_seconds": 6,
+    "catalogue_hours": 144,
+    "logging_level": "debug",
+    "replenish_while_playing": false
+  },
+  "channels": []
+}
