@@ -1,4 +1,7 @@
 {
+  "format_version": 1,
+  "profile_id": "primary",
+  "extensions": {},
   "device_id": "12345674",
   "tuners": 3,
   "grace_seconds": 5,

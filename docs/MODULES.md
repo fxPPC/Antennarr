@@ -17,6 +17,8 @@ The application is a modular monolith. `cmd/antennarr` is the composition root: 
 
 ## Future-compatible data
 
+The application saves configuration at `/data/config/config.json`; normal setup uses the UI and environment variables. `config.example.json` illustrates the structure, not a file to copy over an existing installation: keep each installation's generated device identity.
+
 Configuration has `format_version`, a stable `profile_id` (`primary`), and an `extensions` object preserved through saves. Unsupported future versions fail rather than being silently rewritten. SQLite user version 8 adds `output_profiles` and `output_assignments`; the primary assignment mirrors existing channel edits. Accounts and canonical channel IDs remain shared. Profiles can retain market, country, time zone, guide location, and extension data without changing tuner URLs.
 
 v1 still enforces one active profile and globally unique channel numbers. A future multi-profile migration must lift that constraint, route profile-specific endpoints, and prove Plex guide behaviour. The current schema is a foundation, not a claim that multiple tuners already work. Existing DeviceID remains authoritative in configuration; it is preserved when opening existing v1 data.
