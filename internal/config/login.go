@@ -79,6 +79,8 @@ func (l *AdminLogin) Current() AdminCredentials {
 func (l *AdminLogin) Change(currentPassword, username, password string) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	// These ephemeral digests equalise constant-time comparison lengths; they
+	// are not persisted password hashes or a password-storage KDF.
 	got := sha256.Sum256([]byte(currentPassword))
 	want := sha256.Sum256([]byte(l.credentials.Password))
 	if subtle.ConstantTimeCompare(got[:], want[:]) != 1 {

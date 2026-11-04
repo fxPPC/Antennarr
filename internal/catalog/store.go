@@ -164,6 +164,8 @@ func open(root string, defaults bool) (*Store, error) {
 	return store, nil
 }
 func (s *Store) Close() error { return s.DB.Close() }
+
+// fingerprint is a catalogue deduplication key, never an authentication hash.
 func fingerprint(v string) string {
 	sum := sha256.Sum256([]byte(v))
 	return hex.EncodeToString(sum[:])

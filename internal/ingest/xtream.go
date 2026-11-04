@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -75,10 +76,35 @@ func numeric(v any) int64 {
 		i, _ := strconv.ParseInt(n, 10, 64)
 		return i
 	case float64:
+		// JSON numbers arrive as float64. Saturate before conversion so an
+		// oversized connection count cannot wrap negative and look available.
+		if math.IsNaN(n) {
+			return 0
+		}
+		if n >= float64(math.MaxInt64) {
+			return math.MaxInt64
+		}
+		if n <= float64(math.MinInt64) {
+			return math.MinInt64
+		}
 		return int64(n)
 	}
 	return 0
 }
+
+// connectionCount keeps untrusted provider occupancy non-negative and portable
+// even on a future 32-bit build. Saturation preserves the important "full" state.
+func connectionCount(v any) int {
+	n := numeric(v)
+	if n < 0 {
+		return 0
+	}
+	if n > math.MaxInt32 {
+		return math.MaxInt32
+	}
+	return int(n)
+}
+
 func (x Xtream) Validate(ctx context.Context, a Entry) (AccountInfo, error) {
 	var r struct {
 		User map[string]any `json:"user_info"`
@@ -89,7 +115,7 @@ func (x Xtream) Validate(ctx context.Context, a Entry) (AccountInfo, error) {
 	if r.User == nil {
 		return AccountInfo{}, ProviderError{Kind: "malformed_response"}
 	}
-	limit := int(numeric(r.User["max_connections"]))
+	limit := connectionCount(r.User["max_connections"])
 	if limit < 1 {
 		limit = 1
 	}
@@ -108,7 +134,7 @@ func (x Xtream) Validate(ctx context.Context, a Entry) (AccountInfo, error) {
 			reason = "expired_account"
 		}
 	}
-	return AccountInfo{FailureKind: reason, Active: active, Expires: expires, Limit: limit, ActiveConnections: int(numeric(r.User["active_cons"]))}, nil
+	return AccountInfo{FailureKind: reason, Active: active, Expires: expires, Limit: limit, ActiveConnections: connectionCount(r.User["active_cons"])}, nil
 }
 func fmtString(v any) string { s, _ := v.(string); return s }
 func (x Xtream) Live(ctx context.Context, a Entry) ([]Entry, error) {

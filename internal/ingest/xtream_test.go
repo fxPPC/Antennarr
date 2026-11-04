@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"strings"
 	"testing"
@@ -70,5 +71,42 @@ func TestCatalogueEntryLimit(t *testing.T) {
 				t.Fatalf("count=%d error=%v", len(entries), err)
 			}
 		})
+	}
+}
+
+// Providers mix strings and JSON numbers. Oversized occupancy must remain full,
+// not wrap to zero/negative and turn a temporary capacity wait into a failure.
+func TestProviderConnectionCountBounds(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		value any
+		want  int
+	}{
+		{"ordinary string", "3", 3},
+		{"ordinary number", float64(3), 3},
+		{"negative string", "-1", 0},
+		{"negative number", float64(-1), 0},
+		{"large string", "9223372036854775807", math.MaxInt32},
+		{"overflowing string", "999999999999999999999999", math.MaxInt32},
+		{"large number", float64(1e30), math.MaxInt32},
+		{"int32 boundary", float64(math.MaxInt32), math.MaxInt32},
+		{"invalid", "not a count", 0},
+		{"missing", nil, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := connectionCount(tc.value); got != tc.want {
+				t.Fatalf("got %d, want %d", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestOversizedProviderOccupancyStillReportsFull(t *testing.T) {
+	x := Xtream{Client: &http.Client{Transport: roundtrip(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"user_info":{"auth":1,"status":"Active","max_connections":1e30,"active_cons":1e30}}`))}, nil
+	})}}
+	info, err := x.Validate(context.Background(), Entry{Endpoint: "https://fixture.example"})
+	if err != nil || !info.Active || info.Limit != 20 || info.ActiveConnections < info.Limit {
+		t.Fatalf("oversized occupancy lost its full state: %+v, %v", info, err)
 	}
 }

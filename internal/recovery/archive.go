@@ -159,6 +159,13 @@ func Stage(root string, input io.ReaderAt, size int64) (Manifest, error) {
 		return m, e
 	}
 	defer os.RemoveAll(temp)
+	// Rooted filesystem operations enforce the staging boundary independently
+	// of ZIP-name validation, including symlink/path-resolution escape attempts.
+	staging, e := os.OpenRoot(temp)
+	if e != nil {
+		return m, e
+	}
+	defer staging.Close()
 	hashes := map[string]string{}
 	var total int64
 	for _, f := range z.File {
@@ -179,12 +186,12 @@ func Stage(root string, input io.ReaderAt, size int64) (Manifest, error) {
 		if e != nil {
 			return m, e
 		}
-		target := filepath.Join(temp, filepath.FromSlash(f.Name))
-		if e = os.MkdirAll(filepath.Dir(target), 0700); e != nil {
+		target := filepath.FromSlash(f.Name)
+		if e = staging.MkdirAll(filepath.Dir(target), 0700); e != nil {
 			source.Close()
 			return m, e
 		}
-		dest, e := os.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		dest, e := staging.OpenFile(target, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 		if e != nil {
 			source.Close()
 			return m, e

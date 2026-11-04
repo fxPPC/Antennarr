@@ -80,6 +80,10 @@ func Client(timeout time.Duration) *http.Client {
 		return nil
 	}}
 }
+
+// Request validates the logical URL. Production clients retain Client's
+// public-IP-pinned transport and redirect checks; injected transports are used
+// only by trusted composition code and controlled fixtures.
 func Request(ctx context.Context, client *http.Client, method, raw string) (*http.Response, error) {
 	u, e := url.Parse(raw)
 	if e != nil || URL(u) != nil {

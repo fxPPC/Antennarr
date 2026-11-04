@@ -197,3 +197,33 @@ func TestFullBackupRestoresCustomAdminLogin(t *testing.T) {
 		t.Fatal("custom login lost on restore")
 	}
 }
+
+func TestArchiveStagingRejectsSymlinkEscape(t *testing.T) {
+	outside := t.TempDir()
+	marker := filepath.Join(outside, "untouched")
+	if e := os.WriteFile(marker, []byte("original"), 0600); e != nil {
+		t.Fatal(e)
+	}
+	var b bytes.Buffer
+	z := zip.NewWriter(&b)
+	h := &zip.FileHeader{Name: "config/link", Method: zip.Store}
+	h.SetMode(os.ModeSymlink | 0777)
+	w, e := z.CreateHeader(h)
+	if e != nil {
+		t.Fatal(e)
+	}
+	w.Write([]byte(outside))
+	w, _ = z.Create("config/link/untouched")
+	w.Write([]byte("overwritten"))
+	z.Close()
+	root := t.TempDir()
+	if _, e := recovery.Stage(root, bytes.NewReader(b.Bytes()), int64(b.Len())); e == nil {
+		t.Fatal("accepted an archive symlink")
+	}
+	if data, e := os.ReadFile(marker); e != nil || string(data) != "original" {
+		t.Fatal("archive escaped staging directory")
+	}
+	if _, e := os.Stat(filepath.Join(root, "restore-pending")); !os.IsNotExist(e) {
+		t.Fatal("staged rejected archive")
+	}
+}
