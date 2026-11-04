@@ -101,6 +101,7 @@ jobs:
       contents: write
       id-token: write
       attestations: write
+      artifact-metadata: write
     env:
       VERSION: ${{ needs.preflight.outputs.version }}
       IMAGE: antennarr/antennarr
@@ -142,6 +143,11 @@ jobs:
           digest=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
           test "${digest#sha256:}" != "$digest"
           printf '%s@%s\n' "$IMAGE" "$digest" > release/IMAGE-DIGEST.txt
+          # Both platform candidates were tested natively. Pull the published
+          # index on this amd64 runner and repeat fresh-install checks before
+          # promoting latest, so registry delivery is also exercised.
+          docker pull "$IMAGE@$digest"
+          ANTENNARR_TEST_IMAGE="$IMAGE@$digest" python3 packaging/test-permissions.py
           docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE@$digest"
           test "$digest" = "$(docker buildx imagetools inspect "$IMAGE:latest" --format '{{json .Manifest}}' | jq -r .digest)"
           printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"

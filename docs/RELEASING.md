@@ -4,6 +4,8 @@ Stable releases use `vMAJOR.MINOR.PATCH` tags and the same Docker Hub version. A
 
 ## Checks and candidates
 
+Before starting a new version, update the startup version in `cmd/antennarr/main.go`, the UI footer in `internal/admin/index.html`, Dockerfile version defaults, and release notes together. The workflow labels images with the selected version; it does not rewrite application source or UI branding.
+
 Source checks run on pushes and pull requests using GitHub-hosted runners. Controlled media fixtures and disposable upgrade data never use live provider accounts. Fork checks receive no publication secrets.
 
 Run **Actions → Approved release** from `main`, entering a new version. The workflow runs the full source/media/upgrade checks, then builds native Linux amd64 and ARM64 candidates. It tests image permissions and fresh defaults, generates SPDX inventories, and records candidate manifest digests. Candidates are uploaded as short-lived workflow artifacts; they are not public Docker tags yet.
