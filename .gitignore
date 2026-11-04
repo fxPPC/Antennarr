@@ -6,6 +6,7 @@
 /testdata/*.ts
 /fixtures/*.ts
 .env
+.env.*
 /secrets/
 /backups/
 *.key
