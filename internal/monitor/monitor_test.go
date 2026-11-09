@@ -69,12 +69,17 @@ func TestSummaryFailureRetainsPreviousCounts(t *testing.T) {
 func waitSnapshot(t *testing.T, c *Collector) (Snapshot, error) {
 	t.Helper()
 	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); {
-		v, e := c.Snapshot(context.Background())
+		_, e := c.Snapshot(context.Background())
+		if e != nil {
+			return Snapshot{}, e
+		}
 		c.mu.Lock()
 		done := !c.refreshing
 		c.mu.Unlock()
 		if done {
-			return v, e
+			// Refresh can finish after Snapshot copied its previous cache but
+			// before this completion check. Read the now-completed cache again.
+			return c.Snapshot(context.Background())
 		}
 		time.Sleep(time.Millisecond)
 	}
