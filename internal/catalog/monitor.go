@@ -54,11 +54,17 @@ func (s *Store) MonitorSummary(ctx context.Context, now int64) (MonitorSummary, 
 	var out MonitorSummary
 	out.Collected = now
 	out.Channels = map[string]string{}
-	tx, e := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	tx, e := s.DB.Conn(ctx)
 	if e != nil {
 		return out, e
 	}
-	defer tx.Rollback()
+	defer tx.Close()
+	// The writer pool uses BEGIN IMMEDIATE. Explicit DEFERRED keeps this read
+	// snapshot from reserving SQLite's writer lock while the dashboard scans.
+	if _, e = tx.ExecContext(ctx, "BEGIN DEFERRED"); e != nil {
+		return out, e
+	}
+	defer tx.ExecContext(context.Background(), "ROLLBACK")
 	target := 30
 	if p := s.rosterPolicy.Load(); p != nil {
 		target = p.Target
@@ -171,11 +177,12 @@ func (s *Store) MonitorSummary(ctx context.Context, now int64) (MonitorSummary, 
 	if e != nil {
 		return out, e
 	}
-	out.Pass, e = checkPassStatus(tx)
+	out.Pass, e = checkPassStatus(monitorQuery{ctx: ctx, conn: tx})
 	if e != nil {
 		return out, e
 	}
-	return out, tx.Commit()
+	_, e = tx.ExecContext(ctx, "COMMIT")
+	return out, e
 }
 
 // Background collection is bounded independently of the HTTP request. Large
@@ -184,4 +191,14 @@ func (s *Store) ReadMonitor(ctx context.Context) (MonitorSummary, error) {
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	return s.MonitorSummary(ctx, time.Now().Unix())
+}
+
+// Adapt the context-bound connection to the saved-pass read interface.
+type monitorQuery struct {
+	ctx  context.Context
+	conn *sql.Conn
+}
+
+func (q monitorQuery) QueryRow(query string, args ...any) *sql.Row {
+	return q.conn.QueryRowContext(q.ctx, query, args...)
 }
