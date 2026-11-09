@@ -178,9 +178,10 @@ func (s *Store) MonitorSummary(ctx context.Context, now int64) (MonitorSummary, 
 	return out, tx.Commit()
 }
 
-// Collectors use a short deadline so a dashboard cannot monopolise SQLite.
+// Background collection is bounded independently of the HTTP request. Large
+// existing catalogues need time to return their first snapshot during cleanup.
 func (s *Store) ReadMonitor(ctx context.Context) (MonitorSummary, error) {
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 	return s.MonitorSummary(ctx, time.Now().Unix())
 }
