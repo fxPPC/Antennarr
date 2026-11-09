@@ -76,6 +76,9 @@ func open(root string, defaults bool) (*Store, error) {
 	q.Set("_txlock", "immediate")
 	q.Add("_pragma", "journal_mode(WAL)")
 	q.Add("_pragma", "foreign_keys(1)")
+	// Catalogue sorting must not exhaust a container's small /tmp tmpfs.
+	// Working sets shrink after bounded reserve cleanup; no video is stored here.
+	q.Add("_pragma", "temp_store(MEMORY)")
 	q.Add("_pragma", "busy_timeout(30000)")
 	u.RawQuery = q.Encode()
 	db, e := sql.Open("sqlite", u.String())
