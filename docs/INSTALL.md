@@ -99,7 +99,7 @@ Include the network overlay in both commands if you use it. A `docker run` insta
 
 **Admin → Backup & restore** downloads an archive containing accounts and credentials, queue, rosters, check progress, configuration, channel/output assignments, login, and tuner identity. It does not include older backup archives or Plex's database. Keep it private. No backup is made automatically.
 
-Stop viewing before uploading a backup. Restore accepts a ZIP up to **128 MiB**, with at most **256 MiB** of expanded files. It replaces application state and restarts the service. Keep the original tuner URL and Plex server to retain Plex's own Live TV setup. The application backup does not recreate Docker mounts, networking, environment variables, or the reverse proxy; keep your deployment configuration separately.
+Stop viewing before uploading a backup. Restore accepts a ZIP up to **1 GiB**, with at most **2 GiB** of expanded files. It replaces application state and restarts the service. Keep the original tuner URL and Plex server to retain Plex's own Live TV setup. The application backup does not recreate Docker mounts, networking, environment variables, or the reverse proxy; keep your deployment configuration separately.
 
 **Output → Channel lineup export & import** shares definitions without accounts, passwords, source streams, or rosters. Imports replace all channels and rebuild rosters. Use a full manual backup when source state must also be retained.
 
