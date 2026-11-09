@@ -98,7 +98,7 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
 			return out, err
 		}
 	}
-	if err = recordCatalogueRemovals(tx, ""); err != nil {
+	if err = recordCatalogueRemovals(tx, "", true); err != nil {
 		return out, err
 	}
 	for _, q := range []string{
