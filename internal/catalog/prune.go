@@ -45,10 +45,13 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
  SELECT m.channel_id,s.id,a.rate_key,s.score,s.last_success,
  row_number() OVER(PARTITION BY m.channel_id,a.rate_key ORDER BY s.score DESC,s.last_success DESC,s.id) provider_position
  FROM mappings m JOIN streams s ON s.id=m.stream_id JOIN accounts a ON a.id=s.account_id
- WHERE m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked')),
+ WHERE m.origin!='manual' AND m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked')),
  ranked AS (SELECT *,row_number() OVER(PARTITION BY channel_id ORDER BY provider_position,score DESC,last_success DESC,id) position FROM provider_rank)
  SELECT DISTINCT r.id FROM ranked r LEFT JOIN channel_policies p ON p.channel_id=r.channel_id
  WHERE r.position<=max(60,3*coalesce(nullif(p.target,0),?))`, target); err != nil {
+		return out, err
+	}
+	if _, err = tx.Exec("CREATE UNIQUE INDEX reserve_keep_id ON reserve_keep(id)"); err != nil {
 		return out, err
 	}
 	if _, err = tx.Exec(`CREATE TEMP TABLE excess_streams AS SELECT s.id FROM streams s
@@ -57,6 +60,9 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
  AND NOT EXISTS(SELECT 1 FROM mappings m WHERE m.stream_id=s.id AND m.origin='manual')
  AND NOT EXISTS(SELECT 1 FROM prune_protected p WHERE p.id=s.account_id)
  AND NOT EXISTS(SELECT 1 FROM work_leases l WHERE l.until>? AND ((l.kind='account' AND l.resource=s.account_id) OR(l.kind='stream' AND l.resource=s.id)))`, now); err != nil {
+		return out, err
+	}
+	if _, err = tx.Exec("CREATE UNIQUE INDEX excess_streams_id ON excess_streams(id)"); err != nil {
 		return out, err
 	}
 	// Mark only accounts losing their last candidate for rediscovery; do not retire
