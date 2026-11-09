@@ -24,35 +24,49 @@ type Snapshot struct {
 	Checker       roster.CheckerState    `json:"checker"`
 }
 type Collector struct {
-	Store     *catalog.Store
-	Playback  func() stream.Status
-	Live      func() []engine.Status
-	Work      func() activity.Snapshot
-	Checker   func() roster.CheckerState
-	mu        sync.Mutex
-	cached    catalog.MonitorSummary
-	at        time.Time
-	lastError string
+	Store      *catalog.Store
+	Playback   func() stream.Status
+	Live       func() []engine.Status
+	Work       func() activity.Snapshot
+	Checker    func() roster.CheckerState
+	mu         sync.Mutex
+	cached     catalog.MonitorSummary
+	at         time.Time
+	refreshing bool
+	lastError  string
 }
 
 func (c *Collector) Snapshot(ctx context.Context) (Snapshot, error) {
 	c.mu.Lock()
-	if time.Since(c.at) > 5*time.Second {
-		v, e := c.Store.ReadMonitor(ctx)
-		if e != nil {
-			c.lastError = "Catalogue summary delayed; showing last available counts"
-			slog.Warn("status catalogue query failed", "error", e, "cached", c.cached.Collected > 0)
-			if c.cached.Channels == nil {
-				c.cached.Channels = map[string]string{}
-			}
-		} else {
-			c.cached = v
-			c.lastError = ""
+	if c.cached.Channels == nil {
+		c.cached.Channels = map[string]string{}
+	}
+	if time.Since(c.at) > 5*time.Second && !c.refreshing {
+		c.refreshing = true
+		if c.cached.Collected == 0 {
+			c.lastError = "Statistics loading; live activity remains available"
 		}
-		c.at = time.Now()
+		// A slow catalogue must not delay live playback/status responses. At most
+		// one bounded read runs per collector, and completed counts replace atomically.
+		go c.refresh()
 	}
 	db := c.cached
 	dbError := c.lastError
 	c.mu.Unlock()
 	return Snapshot{DatabaseError: dbError, Collected: time.Now().Unix(), Database: db, Playback: c.Playback(), Live: c.Live(), Work: c.Work(), Checker: c.Checker()}, nil
+}
+
+func (c *Collector) refresh() {
+	v, e := c.Store.ReadMonitor(context.Background())
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if e != nil {
+		c.lastError = "Catalogue summary delayed; showing last available counts"
+		slog.Warn("status catalogue query failed", "error", e, "cached", c.cached.Collected > 0)
+	} else {
+		c.cached = v
+		c.lastError = ""
+	}
+	c.at = time.Now()
+	c.refreshing = false
 }
