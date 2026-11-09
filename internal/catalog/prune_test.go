@@ -231,3 +231,35 @@ func TestReserveBoundPreservesRosterAndManualSources(t *testing.T) {
 		}
 	}
 }
+
+func TestAutomaticReserveCleanupUsesOneNotice(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	_, err = s.DB.Exec(`INSERT INTO channels(id,number,name) VALUES('bulk','998','Bulk');
+ INSERT INTO accounts(id,identity,provider,rate_key,kind,secret,state,created,catalogue_checked) VALUES(900,'bulk-account','fixture.invalid','fixture.invalid','xtream','{}','healthy',1,1);
+ WITH RECURSIVE n(x) AS(VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<20000)
+ INSERT INTO streams(id,account_id,identity,name,secret) SELECT x,900,'bulk-'||x,'Bulk','{}' FROM n;
+ INSERT INTO mappings(channel_id,stream_id,origin) SELECT 'bulk',id,'automatic' FROM streams;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := s.PruneCatalogue(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Streams != 19910 {
+		t.Fatal(result)
+	}
+	var n int
+	s.DB.QueryRow("SELECT count(*) FROM events WHERE kind='catalogue_trimmed'").Scan(&n)
+	if n != 1 {
+		t.Fatal("expected one trim notice", n)
+	}
+	s.DB.QueryRow("SELECT count(*) FROM events WHERE kind='stream_removed'").Scan(&n)
+	if n != 0 {
+		t.Fatal("reserve trim flooded failure events", n)
+	}
+}
