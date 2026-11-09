@@ -54,8 +54,16 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
 	if _, err = tx.Exec("CREATE UNIQUE INDEX reserve_keep_id ON reserve_keep(id)"); err != nil {
 		return out, err
 	}
+	// A single matching candidate is the queue's evidence that a healthy account
+	// serves selected channels, even when other accounts fill every reserve.
+	if _, err = tx.Exec(`CREATE TEMP TABLE reserve_account_keep AS SELECT min(s.id) id FROM streams s
+ WHERE s.enabled=1 AND s.state NOT IN ('retired','manually_blocked') AND EXISTS(SELECT 1 FROM mappings m JOIN channels c ON c.id=m.channel_id WHERE m.stream_id=s.id AND m.enabled=1) GROUP BY s.account_id;
+ CREATE UNIQUE INDEX reserve_account_keep_id ON reserve_account_keep(id)`); err != nil {
+		return out, err
+	}
 	if _, err = tx.Exec(`CREATE TEMP TABLE excess_streams AS SELECT s.id FROM streams s
  WHERE NOT EXISTS(SELECT 1 FROM reserve_keep k WHERE k.id=s.id)
+ AND NOT EXISTS(SELECT 1 FROM reserve_account_keep k WHERE k.id=s.id)
  AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id)
  AND NOT EXISTS(SELECT 1 FROM mappings m WHERE m.stream_id=s.id AND m.origin='manual')
  AND NOT EXISTS(SELECT 1 FROM prune_protected p WHERE p.id=s.account_id)
@@ -185,7 +193,7 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
 			}
 		}
 	}
-	for _, q := range []string{"DROP TABLE prune_streams", "DROP TABLE prune_accounts", "DROP TABLE prune_protected", "DROP TABLE reserve_keep", "DROP TABLE excess_streams"} {
+	for _, q := range []string{"DROP TABLE prune_streams", "DROP TABLE prune_accounts", "DROP TABLE prune_protected", "DROP TABLE reserve_keep", "DROP TABLE excess_streams", "DROP TABLE reserve_account_keep"} {
 		if _, err = tx.Exec(q); err != nil {
 			return out, err
 		}

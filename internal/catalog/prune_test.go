@@ -294,3 +294,28 @@ func TestUHDReserveDoesNotBlockHDDiscovery(t *testing.T) {
 		t.Fatal("quality reserves competed for capacity", v, err)
 	}
 }
+
+func TestBoundedReserveRetainsOneCandidatePerAccount(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	_, err = s.DB.Exec(`INSERT INTO channels(id,number,name) VALUES('anchor','996','Anchor');
+ WITH RECURSIVE n(x) AS(VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<64)
+ INSERT INTO accounts(id,identity,provider,rate_key,kind,secret,state,created,catalogue_checked) SELECT x,'anchor-account-'||x,'fixture.invalid','fixture.invalid','xtream','{}','healthy',1,1 FROM n;
+ INSERT INTO streams(id,account_id,identity,name,secret) SELECT id,id,'anchor-stream-'||id,'Anchor HD','{}' FROM accounts;
+ INSERT INTO mappings(channel_id,stream_id,origin) SELECT 'anchor',id,'automatic' FROM streams;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.rosterPolicy.Store(&RosterPolicy{Target: 20})
+	entries, err := s.RelevantEntries([]ingest.Entry{{Name: "Anchor HD"}})
+	if err != nil || len(entries) != 1 {
+		t.Fatal("new account lost matching evidence at reserve capacity", entries, err)
+	}
+	result, err := s.PruneCatalogue(nil)
+	if err != nil || result.Accounts != 0 || result.Streams != 0 {
+		t.Fatal("healthy queued account lost its final candidate", result, err)
+	}
+}

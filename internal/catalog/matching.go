@@ -243,6 +243,7 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		matchers = append(matchers, compileChannel(c))
 	}
 	out := []ingest.Entry{}
+	var anchor *ingest.Entry
 	for _, entry := range entries {
 		if !s.UHDAllowed() && IsUHD(entry.Name) {
 			continue
@@ -254,9 +255,15 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 			candidateRoom = uhdRoom
 		}
 		for _, c := range matchers {
-			if candidateRoom[c.channel.ID] > 0 && c.channel.Enabled && !c.excludes(label) && (c.matches(label) || (entry.TVGID != "" && c.compatible(label) && known["tvg:"+strings.ToLower(entry.TVGID)][c.channel.ID])) {
-				candidateRoom[c.channel.ID]--
-				match = true
+			if c.channel.Enabled && !c.excludes(label) && (c.matches(label) || (entry.TVGID != "" && c.compatible(label) && known["tvg:"+strings.ToLower(entry.TVGID)][c.channel.ID])) {
+				if anchor == nil {
+					candidate := entry
+					anchor = &candidate
+				}
+				if candidateRoom[c.channel.ID] > 0 {
+					candidateRoom[c.channel.ID]--
+					match = true
+				}
 				break
 			}
 		}
@@ -264,6 +271,9 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		if match {
 			out = append(out, entry)
 		}
+	}
+	if len(out) == 0 && anchor != nil {
+		out = append(out, *anchor)
 	}
 	return out, nil
 }
