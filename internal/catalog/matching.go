@@ -220,6 +220,22 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 	if e != nil {
 		return nil, e
 	}
+	// Fetch a bounded reserve only where output still needs alternatives.
+	state, e := s.RosterState()
+	if e != nil {
+		return nil, e
+	}
+	room := map[string]int{}
+	for _, ch := range state.Channels {
+		if ch.Count >= ch.Policy.Target {
+			continue
+		}
+		var saved int
+		if e = s.DB.QueryRow(`SELECT count(*) FROM mappings m JOIN streams s ON s.id=m.stream_id WHERE m.channel_id=? AND m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked')`, ch.ChannelID).Scan(&saved); e != nil {
+			return nil, e
+		}
+		room[ch.ChannelID] = max(0, max(60, 3*ch.Policy.Target)-saved)
+	}
 	matchers := make([]channelMatcher, 0, len(channels))
 	for _, c := range channels {
 		matchers = append(matchers, compileChannel(c))
@@ -232,7 +248,8 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		match := false
 		label := sourceLabelWithID(entry.Name, entry.Region, entry.TVGID)
 		for _, c := range matchers {
-			if c.channel.Enabled && !c.excludes(label) && (c.matches(label) || (entry.TVGID != "" && c.compatible(label) && known["tvg:"+strings.ToLower(entry.TVGID)][c.channel.ID])) {
+			if room[c.channel.ID] > 0 && c.channel.Enabled && !c.excludes(label) && (c.matches(label) || (entry.TVGID != "" && c.compatible(label) && known["tvg:"+strings.ToLower(entry.TVGID)][c.channel.ID])) {
+				room[c.channel.ID]--
 				match = true
 				break
 			}

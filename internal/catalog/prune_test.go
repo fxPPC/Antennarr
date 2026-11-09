@@ -197,3 +197,37 @@ func TestAccountLeaseProtectsRetiredAccountAndItsStreams(t *testing.T) {
 		t.Fatal("lease never released")
 	}
 }
+
+func TestReserveBoundPreservesRosterAndManualSources(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	_, err = s.DB.Exec(`INSERT INTO channels(id,number,name) VALUES('bounded','999','Bounded');
+ INSERT INTO accounts(id,identity,provider,rate_key,kind,secret,state,created,catalogue_checked) VALUES(901,'bounded-account','fixture.invalid','fixture.invalid','xtream','{}','healthy',1,1);
+ WITH RECURSIVE n(x) AS(VALUES(1001) UNION ALL SELECT x+1 FROM n WHERE x<1100)
+ INSERT INTO streams(id,account_id,identity,name,secret) SELECT x,901,'bounded-'||x,'Bounded','{}' FROM n;
+ INSERT INTO mappings(channel_id,stream_id,origin) SELECT 'bounded',id,'auto' FROM streams;
+ UPDATE mappings SET origin='manual' WHERE stream_id=1100;
+ INSERT INTO roster(channel_id,stream_id,account_id,admitted,verified,due) VALUES('bounded',1099,901,1,1,1);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.rosterPolicy.Store(&RosterPolicy{Target: 20})
+	result, err := s.PruneCatalogue(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	s.DB.QueryRow("SELECT count(*) FROM streams WHERE account_id=901").Scan(&n)
+	if n != 62 || result.Streams != 38 {
+		t.Fatalf("retained=%d removed=%d", n, result.Streams)
+	}
+	for _, id := range []int{1099, 1100} {
+		s.DB.QueryRow("SELECT count(*) FROM streams WHERE id=?", id).Scan(&n)
+		if n != 1 {
+			t.Fatal("protected source lost", id)
+		}
+	}
+}
