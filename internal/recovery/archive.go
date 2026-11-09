@@ -18,8 +18,8 @@ import (
 	"antennarr/internal/config"
 )
 
-const MaxArchive = 128 << 20
-const MaxExpanded = 256 << 20
+const MaxArchive = 1 << 30
+const MaxExpanded = 2 << 30
 
 var dirs = []string{"config", "database", "secrets", "sources", "logs"}
 
@@ -138,7 +138,7 @@ func Create(root, base string, store *catalog.Store) (string, error) {
 	}
 	st, e := os.Stat(out.Name())
 	if e != nil || st.Size() > MaxArchive {
-		return "", errors.New("compressed backup exceeds 128 MiB")
+		return "", errors.New("compressed backup exceeds 1 GiB")
 	}
 	ok = true
 	return name, nil
@@ -148,7 +148,7 @@ func Create(root, base string, store *catalog.Store) (string, error) {
 func Stage(root string, input io.ReaderAt, size int64) (Manifest, error) {
 	var m Manifest
 	if size <= 0 || size > MaxArchive {
-		return m, errors.New("backup exceeds 128 MiB")
+		return m, errors.New("backup exceeds 1 GiB")
 	}
 	z, e := zip.NewReader(input, size)
 	if e != nil {

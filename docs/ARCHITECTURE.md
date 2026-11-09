@@ -21,3 +21,9 @@ TS packaging repairs continuity counters and handles source timestamp discontinu
 ## State and recovery
 
 All persistent state is under /data. Config format/profile identities and SQLite schema 8 support additive metadata while preserving tuner/channel identity. v1 exposes one tuner profile. Backups/restores are manual, bounded, validated, and include application state; Plex state is external. Startup integrity failure refuses the database rather than replacing it. See INSTALL.md for upgrades and recovery.
+
+## Bounded candidate reserves
+
+Automatic catalogue discovery saves additional reserves for enabled channels below their roster target, while retaining one matching candidate per queued account. Saved alternatives are limited to three times the target, with a minimum of 60 per channel and quality class. Idle cleanup retains a provider-diverse reserve ranked by score and recent success. Current roster members, explicit manual assignments, and reserved/leased sources remain protected even above that limit. One matching candidate per queued account is retained so healthy accounts do not appear unmatched merely because other accounts fill the reserves. Explicit imports are trimmed by the same idle policy unless manually assigned.
+
+SQLite reuses freed pages; the file size does not immediately shrink after rows are deleted. Offline compaction is a separate maintenance operation.

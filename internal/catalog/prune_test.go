@@ -167,7 +167,10 @@ func TestLargeCataloguePruningRemainsResponsive(t *testing.T) {
 	if err != nil || result.Accounts+result.Streams != 0 {
 		t.Fatal(result, err)
 	}
-	if elapsed := time.Since(start); elapsed > 3*time.Second {
+	// Race-instrumented pure-Go SQLite is substantially slower on shared CI
+	// runners. This budget tolerates that overhead while catching the quadratic
+	// anchor lookup regression, which took over two minutes on this fixture.
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
 		t.Fatalf("cleanup holds reservations too long: %s", elapsed)
 	}
 	t.Logf("2000 accounts / 20000 streams: %s", time.Since(start))
@@ -195,5 +198,127 @@ func TestAccountLeaseProtectsRetiredAccountAndItsStreams(t *testing.T) {
 	s.DB.QueryRow("SELECT count(*) FROM accounts WHERE id=2").Scan(&n)
 	if n != 0 {
 		t.Fatal("lease never released")
+	}
+}
+
+func TestReserveBoundPreservesRosterAndManualSources(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	_, err = s.DB.Exec(`INSERT INTO channels(id,number,name) VALUES('bounded','999','Bounded');
+ INSERT INTO accounts(id,identity,provider,rate_key,kind,secret,state,created,catalogue_checked) VALUES(901,'bounded-account','fixture.invalid','fixture.invalid','xtream','{}','healthy',1,1);
+ WITH RECURSIVE n(x) AS(VALUES(1001) UNION ALL SELECT x+1 FROM n WHERE x<1100)
+ INSERT INTO streams(id,account_id,identity,name,secret) SELECT x,901,'bounded-'||x,'Bounded','{}' FROM n;
+ INSERT INTO mappings(channel_id,stream_id,origin) SELECT 'bounded',id,'auto' FROM streams;
+ UPDATE mappings SET origin='manual' WHERE stream_id=1100;
+ INSERT INTO roster(channel_id,stream_id,account_id,admitted,verified,due) VALUES('bounded',1099,901,1,1,1);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.rosterPolicy.Store(&RosterPolicy{Target: 20})
+	result, err := s.PruneCatalogue(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var n int
+	s.DB.QueryRow("SELECT count(*) FROM streams WHERE account_id=901").Scan(&n)
+	if n != 62 || result.Streams != 38 {
+		t.Fatalf("retained=%d removed=%d", n, result.Streams)
+	}
+	for _, id := range []int{1099, 1100} {
+		s.DB.QueryRow("SELECT count(*) FROM streams WHERE id=?", id).Scan(&n)
+		if n != 1 {
+			t.Fatal("protected source lost", id)
+		}
+	}
+}
+
+func TestAutomaticReserveCleanupUsesOneNotice(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	_, err = s.DB.Exec(`INSERT INTO channels(id,number,name) VALUES('bulk','998','Bulk');
+ INSERT INTO accounts(id,identity,provider,rate_key,kind,secret,state,created,catalogue_checked) VALUES(900,'bulk-account','fixture.invalid','fixture.invalid','xtream','{}','healthy',1,1);
+ WITH RECURSIVE n(x) AS(VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<20000)
+ INSERT INTO streams(id,account_id,identity,name,secret) SELECT x,900,'bulk-'||x,'Bulk','{}' FROM n;
+ INSERT INTO mappings(channel_id,stream_id,origin) SELECT 'bulk',id,'automatic' FROM streams;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := s.PruneCatalogue(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Streams != 19910 {
+		t.Fatal(result)
+	}
+	var n int
+	s.DB.QueryRow("SELECT count(*) FROM events WHERE kind='catalogue_trimmed'").Scan(&n)
+	if n != 1 {
+		t.Fatal("expected one trim notice", n)
+	}
+	s.DB.QueryRow("SELECT count(*) FROM events WHERE kind='stream_removed'").Scan(&n)
+	if n != 0 {
+		t.Fatal("reserve trim flooded failure events", n)
+	}
+}
+
+func TestUHDReserveDoesNotBlockHDDiscovery(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	_, err = s.DB.Exec(`INSERT INTO channels(id,number,name) VALUES('quality','997','Quality');
+ INSERT INTO accounts(id,identity,provider,rate_key,kind,secret,state,created,catalogue_checked) VALUES(899,'quality-account','fixture.invalid','fixture.invalid','xtream','{}','healthy',1,1);
+ WITH RECURSIVE n(x) AS(VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<60)
+ INSERT INTO streams(id,account_id,identity,name,secret) SELECT x,899,'quality-'||x,'Quality UHD','{}' FROM n;
+ INSERT INTO mappings(channel_id,stream_id,origin) SELECT 'quality',id,'automatic' FROM streams;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.rosterPolicy.Store(&RosterPolicy{Target: 20})
+	entries, err := s.RelevantEntries([]ingest.Entry{{Name: "Quality HD"}})
+	if err != nil || len(entries) != 1 {
+		t.Fatal("UHD reserve blocked HD discovery", entries, err)
+	}
+	_, err = s.DB.Exec(`WITH RECURSIVE n(x) AS(VALUES(61) UNION ALL SELECT x+1 FROM n WHERE x<120)
+ INSERT INTO streams(id,account_id,identity,name,secret) SELECT x,899,'quality-'||x,'Quality HD','{}' FROM n;
+ INSERT INTO mappings(channel_id,stream_id,origin) SELECT 'quality',id,'automatic' FROM streams WHERE id>60;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := s.PruneCatalogue(nil)
+	if err != nil || v.Streams != 0 {
+		t.Fatal("quality reserves competed for capacity", v, err)
+	}
+}
+
+func TestBoundedReserveRetainsOneCandidatePerAccount(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	_, err = s.DB.Exec(`INSERT INTO channels(id,number,name) VALUES('anchor','996','Anchor');
+ WITH RECURSIVE n(x) AS(VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<64)
+ INSERT INTO accounts(id,identity,provider,rate_key,kind,secret,state,created,catalogue_checked) SELECT x,'anchor-account-'||x,'fixture.invalid','fixture.invalid','xtream','{}','healthy',1,1 FROM n;
+ INSERT INTO streams(id,account_id,identity,name,secret) SELECT id,id,'anchor-stream-'||id,'Anchor HD','{}' FROM accounts;
+ INSERT INTO mappings(channel_id,stream_id,origin) SELECT 'anchor',id,'automatic' FROM streams;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.rosterPolicy.Store(&RosterPolicy{Target: 20})
+	entries, err := s.RelevantEntries([]ingest.Entry{{Name: "Anchor HD"}})
+	if err != nil || len(entries) != 1 {
+		t.Fatal("new account lost matching evidence at reserve capacity", entries, err)
+	}
+	result, err := s.PruneCatalogue(nil)
+	if err != nil || result.Accounts != 0 || result.Streams != 0 {
+		t.Fatal("healthy queued account lost its final candidate", result, err)
 	}
 }

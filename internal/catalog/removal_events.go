@@ -9,7 +9,7 @@ import (
 
 // Removal notices outlive their source rows. Only IDs, provider hostnames, fixed failure categories, and
 // counts are retained; the existing bounded event history limits their lifetime.
-func recordCatalogueRemovals(tx *sql.Tx, providerReason string) error {
+func recordCatalogueRemovals(tx *sql.Tx, providerReason string, reserveTrim ...bool) error {
 	if err := detachRemovalEvents(tx, "prune_streams"); err != nil {
 		return err
 	}
@@ -32,9 +32,18 @@ func recordCatalogueRemovals(tx *sql.Tx, providerReason string) error {
 			return e
 		}
 	}
-	_, err = tx.Exec(`INSERT INTO events(happened,kind,reason)
+	query := `INSERT INTO events(happened,kind,reason)
  SELECT unixepoch(),'stream_removed','Deleted stream #'||s.id||' from account #'||s.account_id||': '||CASE WHEN s.consecutive_failures>0 THEN s.consecutive_failures||' consecutive failed media checks' ELSE 'stream retired' END
- FROM streams s JOIN prune_streams p ON p.id=s.id WHERE NOT EXISTS(SELECT 1 FROM prune_accounts a WHERE a.id=s.account_id)`)
+ FROM streams s JOIN prune_streams p ON p.id=s.id WHERE NOT EXISTS(SELECT 1 FROM prune_accounts a WHERE a.id=s.account_id)`
+	if len(reserveTrim) > 0 && reserveTrim[0] {
+		query += " AND NOT EXISTS(SELECT 1 FROM excess_streams x WHERE x.id=s.id)"
+	}
+	if _, err = tx.Exec(query); err != nil {
+		return err
+	}
+	if len(reserveTrim) > 0 && reserveTrim[0] {
+		_, err = tx.Exec(`INSERT INTO events(happened,kind,reason) SELECT unixepoch(),'catalogue_trimmed',count(*)||' unused candidate streams removed; account records retained for rediscovery' FROM excess_streams HAVING count(*)>0`)
+	}
 	return err
 }
 

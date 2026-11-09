@@ -227,3 +227,41 @@ func TestArchiveStagingRejectsSymlinkEscape(t *testing.T) {
 		t.Fatal("staged rejected archive")
 	}
 }
+
+// Large catalogue installations must remain recoverable above the old 256 MiB cap.
+func TestBackupAboveFormerExpandedLimit(t *testing.T) {
+	root := t.TempDir()
+	if _, err := config.Load(root); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := config.AdminPassword(root); err != nil {
+		t.Fatal(err)
+	}
+	s, err := catalog.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	p := filepath.Join(root, "sources", "large-fixture")
+	f, err := os.Create(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = f.Truncate(257 << 20); err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	name, err := recovery.Create(root, "http://fixture.invalid", s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archive, err := os.Open(filepath.Join(root, "backups", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer archive.Close()
+	st, _ := archive.Stat()
+	if _, err = recovery.Stage(root, archive, st.Size()); err != nil {
+		t.Fatal(err)
+	}
+}

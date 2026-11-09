@@ -60,7 +60,7 @@ Send JSON with `Content-Type: application/json` and `X-Antennarr-Request: 1`, pl
 
 Lineup JSON is limited to 2 MiB and 1,000 channels. Export `GET /api/lineup` for the complete portable structure; each channel carries `id`, `number`, `name`, `region`, `enabled`, `aliases`, and `policy` (`target`, `preference`, `race`). IDs and numbers must be unique. Policy zero/empty values inherit output settings.
 
-POST `/api/restore` uses **multipart/form-data**, with the ZIP in a file field named `backup`; it is not JSON and needs no `confirmed` field. Keep the request header and Basic authentication. The ZIP limit is 128 MiB, with at most 256 MiB of expanded files. Playback must be idle. Success returns `restoring`, `restart_required`, and the saved `tuner_url`, then restarts the application.
+POST `/api/restore` uses **multipart/form-data**, with the ZIP in a file field named `backup`; it is not JSON and needs no `confirmed` field. Keep the request header and Basic authentication. The ZIP limit is 1 GiB, with at most 2 GiB of expanded files. Playback must be idle. Success returns `restoring`, `restart_required`, and the saved `tuner_url`, then restarts the application.
 
 POST `/api/backup` needs the request header and authentication, but no JSON body. It returns `backup` (the archive name) and `download` (an authenticated relative download URL). Existing backup archives and Docker deployment configuration are not included.
 

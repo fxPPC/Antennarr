@@ -19,13 +19,13 @@ func TestCollectorCachesDatabaseButRefreshesLiveState(t *testing.T) {
 	defer s.Close()
 	viewers := 0
 	c := Collector{Store: s, Playback: func() stream.Status { return stream.Status{Viewers: viewers} }, Live: func() []engine.Status { return nil }, Work: func() activity.Snapshot { return activity.Snapshot{} }, Checker: func() roster.CheckerState { return roster.CheckerState{} }}
-	a, e := c.Snapshot(context.Background())
+	a, e := waitSnapshot(t, &c)
 	if e != nil {
 		t.Fatal(e)
 	}
 	s.SaveChannel(catalog.Channel{Name: "CNN", Number: "1", Enabled: true})
 	viewers = 1
-	b, e := c.Snapshot(context.Background())
+	b, e := waitSnapshot(t, &c)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -41,7 +41,7 @@ func TestSummaryFailureKeepsLiveStatusAndWarning(t *testing.T) {
 	}
 	c := Collector{Store: store, Playback: func() stream.Status { return stream.Status{Viewers: 2} }, Live: func() []engine.Status { return nil }, Work: func() activity.Snapshot { return activity.Snapshot{} }, Checker: func() roster.CheckerState { return roster.CheckerState{} }}
 	store.Close()
-	v, err := c.Snapshot(context.Background())
+	v, err := waitSnapshot(t, &c)
 	if err != nil || v.DatabaseError == "" || v.Playback.Viewers != 2 || v.Database.Channels == nil {
 		t.Fatal("failed summary blanked live status", v, err)
 	}
@@ -54,13 +54,51 @@ func TestSummaryFailureRetainsPreviousCounts(t *testing.T) {
 	}
 	store.SaveChannel(catalog.Channel{Name: "CNN", Number: "1", Enabled: true})
 	c := Collector{Store: store, Playback: func() stream.Status { return stream.Status{} }, Live: func() []engine.Status { return nil }, Work: func() activity.Snapshot { return activity.Snapshot{} }, Checker: func() roster.CheckerState { return roster.CheckerState{} }}
-	if _, err = c.Snapshot(context.Background()); err != nil {
+	if _, err = waitSnapshot(t, &c); err != nil {
 		t.Fatal(err)
 	}
 	store.Close()
 	c.at = time.Time{}
-	v, err := c.Snapshot(context.Background())
+	v, err := waitSnapshot(t, &c)
 	if err != nil || v.DatabaseError == "" || v.Database.Coverage.Total != 1 {
 		t.Fatal("lost cached counts", v, err)
 	}
+}
+
+// Wait only in tests that assert database contents; HTTP callers never wait.
+func waitSnapshot(t *testing.T, c *Collector) (Snapshot, error) {
+	t.Helper()
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); {
+		v, e := c.Snapshot(context.Background())
+		c.mu.Lock()
+		done := !c.refreshing
+		c.mu.Unlock()
+		if done {
+			return v, e
+		}
+		time.Sleep(time.Millisecond)
+	}
+	t.Fatal("summary refresh did not finish")
+	return Snapshot{}, nil
+}
+
+func TestSlowDatabaseDoesNotBlockLiveStatus(t *testing.T) {
+	s, e := catalog.Open(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer s.Close()
+	s.DB.SetMaxOpenConns(1)
+	tx, e := s.DB.Begin()
+	if e != nil {
+		t.Fatal(e)
+	}
+	c := Collector{Store: s, Playback: func() stream.Status { return stream.Status{Viewers: 2} }, Live: func() []engine.Status { return nil }, Work: func() activity.Snapshot { return activity.Snapshot{} }, Checker: func() roster.CheckerState { return roster.CheckerState{} }}
+	start := time.Now()
+	v, e := c.Snapshot(context.Background())
+	if e != nil || v.Playback.Viewers != 2 || time.Since(start) > 100*time.Millisecond {
+		t.Fatal("live status blocked", e)
+	}
+	tx.Rollback()
+	waitSnapshot(t, &c)
 }

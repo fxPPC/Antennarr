@@ -13,7 +13,7 @@ docker run -d --name antennarr --restart unless-stopped \
   -e ANTENNARR_BASE_URL=http://YOUR_SERVER_LAN_IP:9192 \
   --log-driver json-file --log-opt max-size=5m --log-opt max-file=2 \
   -v /YOUR/APPDATA/antennarr:/data \
-  antennarr/antennarr:v1.0.0
+  antennarr/antennarr:v1.0.1
 ```
 
 Open `http://YOUR_SERVER_LAN_IP:39192`. Initial login is **admin/admin**; change it under **Admin → Change login** before remote exposure. Import authorised account-list URLs under Input and choose channels under Output. Working sources must fill the channel rosters before playback is available.
@@ -43,7 +43,7 @@ cp portable.env.example .env
 
 Edit `.env`: set `ANTENNARR_BIND` to your server's LAN address, `ANTENNARR_BASE_URL` to the tuner address Plex can reach, and `ANTENNARR_DATA_DIR` to your dedicated appdata directory. Defaults bind to loopback for local development.
 
-For the published image, set `ANTENNARR_IMAGE=antennarr/antennarr:v1.0.0`, then:
+For the published image, set `ANTENNARR_IMAGE=antennarr/antennarr:v1.0.1`, then:
 
 ```sh
 docker compose -f compose.portable.yaml pull
@@ -99,7 +99,7 @@ Include the network overlay in both commands if you use it. A `docker run` insta
 
 **Admin → Backup & restore** downloads an archive containing accounts and credentials, queue, rosters, check progress, configuration, channel/output assignments, login, and tuner identity. It does not include older backup archives or Plex's database. Keep it private. No backup is made automatically.
 
-Stop viewing before uploading a backup. Restore accepts a ZIP up to **128 MiB**, with at most **256 MiB** of expanded files. It replaces application state and restarts the service. Keep the original tuner URL and Plex server to retain Plex's own Live TV setup. The application backup does not recreate Docker mounts, networking, environment variables, or the reverse proxy; keep your deployment configuration separately.
+Stop viewing before uploading a backup. Restore accepts a ZIP up to **1 GiB**, with at most **2 GiB** of expanded files. It replaces application state and restarts the service. Keep the original tuner URL and Plex server to retain Plex's own Live TV setup. The application backup does not recreate Docker mounts, networking, environment variables, or the reverse proxy; keep your deployment configuration separately.
 
 **Output → Channel lineup export & import** shares definitions without accounts, passwords, source streams, or rosters. Imports replace all channels and rebuild rosters. Use a full manual backup when source state must also be retained.
 

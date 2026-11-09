@@ -2,6 +2,8 @@ package admin
 
 import (
 	"antennarr/internal/recovery"
+	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -24,7 +26,8 @@ func (a *API) fullBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	name, e := recovery.Create(a.DataRoot, a.BaseURL, a.Store)
 	if e != nil {
-		failure(w, 500, "Full backup failed")
+		slog.Error("full backup failed", "error", e)
+		failure(w, 500, "Full backup failed; check Docker logs")
 		return
 	}
 	response(w, map[string]string{"backup": name, "download": "/api/backups/" + name})
@@ -54,19 +57,50 @@ func (a *API) restoreBackup(w http.ResponseWriter, r *http.Request) {
 		failure(w, 409, "Stop watching before restoring a backup")
 		return
 	}
-	r.Body = http.MaxBytesReader(w, r.Body, recovery.MaxArchive+1<<20)
-	if e := r.ParseMultipartForm(4 << 20); e != nil {
-		failure(w, 400, "Choose a backup ZIP of at most 128 MiB")
+	// Stage uploads on the persistent filesystem rather than the bounded RAM
+	// temporary directory. Streaming multipart avoids buffering large archives.
+	r.Body = http.MaxBytesReader(w, r.Body, recovery.MaxArchive+(1<<20))
+	reader, e := r.MultipartReader()
+	if e != nil {
+		failure(w, 400, "Choose a backup ZIP of at most 1 GiB")
 		return
 	}
-	defer r.MultipartForm.RemoveAll()
-	f, h, e := r.FormFile("backup")
+	f, e := os.CreateTemp(filepath.Join(a.DataRoot, "backups"), ".restore-upload-*")
 	if e != nil {
+		failure(w, 500, "Could not stage backup upload")
+		return
+	}
+	defer os.Remove(f.Name())
+	defer f.Close()
+	var size int64
+	found := false
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			failure(w, 400, "Invalid backup upload")
+			return
+		}
+		if part.FormName() != "backup" || found {
+			part.Close()
+			failure(w, 400, "Choose one backup ZIP")
+			return
+		}
+		found = true
+		size, err = io.Copy(f, io.LimitReader(part, recovery.MaxArchive+1))
+		part.Close()
+		if err != nil || size > recovery.MaxArchive {
+			failure(w, 400, "Backup exceeds 1 GiB or upload failed")
+			return
+		}
+	}
+	if !found || size == 0 {
 		failure(w, 400, "Choose a backup ZIP")
 		return
 	}
-	defer f.Close()
-	manifest, e := recovery.Stage(a.DataRoot, f, h.Size)
+	manifest, e := recovery.Stage(a.DataRoot, f, size)
 	if e != nil {
 		failure(w, 400, e.Error())
 		return

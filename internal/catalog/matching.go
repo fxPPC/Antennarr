@@ -220,20 +220,50 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 	if e != nil {
 		return nil, e
 	}
+	// Fetch a bounded reserve only where output still needs alternatives.
+	state, e := s.RosterState()
+	if e != nil {
+		return nil, e
+	}
+	room := map[string]int{}
+	uhdRoom := map[string]int{}
+	for _, ch := range state.Channels {
+		if ch.Count >= ch.Policy.Target {
+			continue
+		}
+		var saved, savedUHD int
+		if e = s.DB.QueryRow(`SELECT coalesce(sum(instr(upper(s.name),'UHD')=0),0),coalesce(sum(instr(upper(s.name),'UHD')>0),0) FROM mappings m JOIN streams s ON s.id=m.stream_id WHERE m.channel_id=? AND m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked')`, ch.ChannelID).Scan(&saved, &savedUHD); e != nil {
+			return nil, e
+		}
+		room[ch.ChannelID] = max(0, max(60, 3*ch.Policy.Target)-saved)
+		uhdRoom[ch.ChannelID] = max(0, max(60, 3*ch.Policy.Target)-savedUHD)
+	}
 	matchers := make([]channelMatcher, 0, len(channels))
 	for _, c := range channels {
 		matchers = append(matchers, compileChannel(c))
 	}
 	out := []ingest.Entry{}
+	var anchor *ingest.Entry
 	for _, entry := range entries {
 		if !s.UHDAllowed() && IsUHD(entry.Name) {
 			continue
 		}
 		match := false
 		label := sourceLabelWithID(entry.Name, entry.Region, entry.TVGID)
+		candidateRoom := room
+		if IsUHD(entry.Name) {
+			candidateRoom = uhdRoom
+		}
 		for _, c := range matchers {
 			if c.channel.Enabled && !c.excludes(label) && (c.matches(label) || (entry.TVGID != "" && c.compatible(label) && known["tvg:"+strings.ToLower(entry.TVGID)][c.channel.ID])) {
-				match = true
+				if anchor == nil {
+					candidate := entry
+					anchor = &candidate
+				}
+				if candidateRoom[c.channel.ID] > 0 {
+					candidateRoom[c.channel.ID]--
+					match = true
+				}
 				break
 			}
 		}
@@ -241,6 +271,9 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		if match {
 			out = append(out, entry)
 		}
+	}
+	if len(out) == 0 && anchor != nil {
+		out = append(out, *anchor)
 	}
 	return out, nil
 }

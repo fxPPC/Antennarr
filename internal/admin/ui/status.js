@@ -19,7 +19,7 @@ export async function init() {
 const age = t => t ? date(t) : 'No saved result yet';
 const stat = (root, value, label, cls = '') => {
   const box = el('article', undefined, 'status-metric ' + cls);
-  box.append(el('strong', compactNumber(value)), el('span', label)); root.append(box)
+  box.append(el('strong', value == null ? '…' : compactNumber(value)), el('span', label)); root.append(box)
 };
 function taskLabel(j, result=false) {
  let text=j.message;
@@ -38,9 +38,9 @@ export async function refresh() {
   $('#status-hero').replaceChildren(el('span', status.viewers ? 'PLAYBACK NOW' : 'NO ACTIVE VIEWERS'), el('h3', `${status.viewers} / ${status.max_outgoing_streams} viewers · ${status.active_channels} channel${status.active_channels === 1 ? '' : 's'} streaming`));
   const coverage = $('#channel-coverage'); coverage.replaceChildren();
   const partial = Math.max(0, c.total - c.empty - c.full);
-  stat(coverage, c.empty, 'Roster empty', c.empty ? 'bad' : '');
-  stat(coverage, partial, 'Partial roster', partial ? 'warning' : '');
-  stat(coverage, c.full, 'Full roster', 'good');
+  stat(coverage, db.collected ? c.empty : null, 'Roster empty', c.empty ? 'bad' : '');
+  stat(coverage, db.collected ? partial : null, 'Partial roster', partial ? 'warning' : '');
+  stat(coverage, db.collected ? c.full : null, 'Full roster', 'good');
   const root = $('#live-streams'); root.replaceChildren();
   let unprotected = 0;
   for (const out of status.outgoing_streams || []) {
@@ -62,7 +62,7 @@ export async function refresh() {
   const recruitment = $('#recruitment'), queueExpanded = recruitment.querySelector('details')?.open || false; recruitment.replaceChildren();
   recruitment.append(el('h3', `${compactNumber(c.verified)} / ${compactNumber(c.target)} verified roster places`), el('p', `${compactNumber(need)} vacancies · ${db.check_pass?.remaining || 0} streams left in this check pass`), el('p', `Past hour: ${compactNumber(p.successful)} successful media results · ${compactNumber(p.failed)} failed results · ${compactNumber(p.added)} roster additions · ${compactNumber(p.removed)} removals`));
   const stages = el('div', undefined, 'status-metrics');
-  stat(stages, q.access, 'Awaiting access check'); stat(stages, q.discovery, 'Awaiting channel discovery'); stat(stages, q.available, 'Examined reserve accounts'); stat(stages, q.resting, 'Provider / access waiting'); stat(stages, q.in_rosters, 'Accounts supplying rosters');
+  stat(stages, db.collected ? q.access : null, 'Awaiting access check'); stat(stages, db.collected ? q.discovery : null, 'Awaiting channel discovery'); stat(stages, db.collected ? q.available : null, 'Examined reserve accounts'); stat(stages, db.collected ? q.resting : null, 'Provider / access waiting'); stat(stages, db.collected ? q.in_rosters : null, 'Accounts supplying rosters');
   const details = el('details'); details.open = queueExpanded; details.append(el('summary', 'Account stages and queued streams'), stages, el('p', `${compactNumber(q.streams)} known streams waiting outside rosters. Streams and accounts are different units; each eligible account appears in exactly one stage. Accounts can supply several channels.`)); recruitment.append(details);
   const attention = $('#needs-attention'); attention.replaceChildren();
  if(snapshot.database_error)attention.append(el('p',snapshot.database_error,'warning-text'));
@@ -71,7 +71,7 @@ export async function refresh() {
   if (need && !queued && !db.eligible_media && !db.eligible_discovery) attention.append(el('p','New account lists are needed: channel rosters have vacancies and no accounts are waiting in the input queue.','warning-text'));
   else if (need && queued<10) attention.append(el('p',`Input queue is low: ${queued} accounts remain for ${compactNumber(need)} roster vacancies. Consider importing more authorised lists.`,'warning-text'));
   else if (c.empty && !db.eligible_media && !db.eligible_discovery && !q.resting) attention.append(el('p','No eligible sources currently match the empty channels. Import more accounts or review channel aliases, exclusions, country, and UHD settings.','warning-text'));
-  if (!c.total) attention.append(el('p','No enabled channels. Add channels under Output, or use Bulk operations to restore the default US selection.','warning-text'));
+  if (db.collected && !c.total) attention.append(el('p','No enabled channels. Add channels under Output, or use Bulk operations to restore the default US selection.','warning-text'));
   if (q.resting && need) attention.append(el('p',`${compactNumber(q.resting)} accounts are waiting for provider pacing or access retry limits. Stream requeueing itself has no cooldown.`));
   const pass=db.check_pass || {};
   if (pass.generation && c.total) recruitment.append(el('p',`Check pass ${compactNumber(pass.generation)}: ${compactNumber(pass.checked)} / ${compactNumber(pass.total)} unique streams checked · ${compactNumber(pass.remaining)} pending · ${compactNumber(pass.deferred||0)} temporarily deferred · ${compactNumber(pass.released)} released for replacement.`));
@@ -87,7 +87,7 @@ export async function refresh() {
   const next = $('#upcoming'); next.replaceChildren();
   if (need) next.append(el('article', `${compactNumber(need)} roster vacancies. ${compactNumber(db.eligible_discovery)} accounts eligible for initial discovery now. Media auditions retain global and provider pacing.`, 'schedule-card'));
   if (db.next_discovery / 1000 > snapshot.collected) next.append(el('article', 'Earliest initial-discovery provider slot ' + countdown(db.next_discovery / 1000), 'schedule-card'));
-  if (!next.childNodes.length) next.append(el('p', c.total ? 'Rosters are full; continuous check passes continue.' : 'Add channels under Output to begin recruitment.'));
+  if (!next.childNodes.length) next.append(el('p', !db.collected ? 'Loading catalogue statistics…' : c.total ? 'Rosters are full; continuous check passes continue.' : 'Add channels under Output to begin recruitment.'));
   const recent = $('#recent-events'); recent.replaceChildren();
   const records = [...(work.recent || []).filter(j => (!['deferred', 'paused'].includes(j.outcome)||['rate_limited','oversized_catalogue','oversized_response'].includes(j.failure_kind))).map(j => ({time: j.finished, text: taskLabel(j,true)})), ...events.map(e => ({time: e.happened, text: [names.get(e.channel_id),e.kind.replaceAll('_',' '),e.reason,e.stream_id?'stream #'+e.stream_id:''].filter(Boolean).join(' · ')}))].sort((a,b) => b.time-a.time);
   const seen = new Set();
