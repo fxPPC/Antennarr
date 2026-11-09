@@ -24,6 +24,6 @@ All persistent state is under /data. Config format/profile identities and SQLite
 
 ## Bounded candidate reserves
 
-Automatic catalogue discovery saves candidates only for enabled channels below their roster target. Saved alternatives are limited to three times the target, with a minimum of 60 per channel. Idle cleanup retains a provider-diverse reserve ranked by score and recent success. Current roster members, explicit manual assignments, and reserved/leased sources remain protected even above that limit. Accounts that lose their final cached candidate return to discovery instead of being deleted merely to save space. Explicit imports are trimmed by the same idle policy unless manually assigned.
+Automatic catalogue discovery saves candidates only for enabled channels below their roster target. Saved alternatives are limited to three times the target, with a minimum of 60 per channel and quality class. Idle cleanup retains a provider-diverse reserve ranked by score and recent success. Current roster members, explicit manual assignments, and reserved/leased sources remain protected even above that limit. Accounts that lose their final cached candidate return to discovery instead of being deleted merely to save space. Explicit imports are trimmed by the same idle policy unless manually assigned.
 
 SQLite reuses freed pages; the file size does not immediately shrink after rows are deleted. Offline compaction is a separate maintenance operation.

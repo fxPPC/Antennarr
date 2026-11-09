@@ -263,3 +263,34 @@ func TestAutomaticReserveCleanupUsesOneNotice(t *testing.T) {
 		t.Fatal("reserve trim flooded failure events", n)
 	}
 }
+
+func TestUHDReserveDoesNotBlockHDDiscovery(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	_, err = s.DB.Exec(`INSERT INTO channels(id,number,name) VALUES('quality','997','Quality');
+ INSERT INTO accounts(id,identity,provider,rate_key,kind,secret,state,created,catalogue_checked) VALUES(899,'quality-account','fixture.invalid','fixture.invalid','xtream','{}','healthy',1,1);
+ WITH RECURSIVE n(x) AS(VALUES(1) UNION ALL SELECT x+1 FROM n WHERE x<60)
+ INSERT INTO streams(id,account_id,identity,name,secret) SELECT x,899,'quality-'||x,'Quality UHD','{}' FROM n;
+ INSERT INTO mappings(channel_id,stream_id,origin) SELECT 'quality',id,'automatic' FROM streams;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.rosterPolicy.Store(&RosterPolicy{Target: 20})
+	entries, err := s.RelevantEntries([]ingest.Entry{{Name: "Quality HD"}})
+	if err != nil || len(entries) != 1 {
+		t.Fatal("UHD reserve blocked HD discovery", entries, err)
+	}
+	_, err = s.DB.Exec(`WITH RECURSIVE n(x) AS(VALUES(61) UNION ALL SELECT x+1 FROM n WHERE x<120)
+ INSERT INTO streams(id,account_id,identity,name,secret) SELECT x,899,'quality-'||x,'Quality HD','{}' FROM n;
+ INSERT INTO mappings(channel_id,stream_id,origin) SELECT 'quality',id,'automatic' FROM streams WHERE id>60;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, err := s.PruneCatalogue(nil)
+	if err != nil || v.Streams != 0 {
+		t.Fatal("quality reserves competed for capacity", v, err)
+	}
+}

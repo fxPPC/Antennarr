@@ -33,7 +33,7 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
 		}
 	}
 	now := time.Now().Unix()
-	// Bound saved alternatives to three roster targets per channel (at least 60).
+	// Bound saved alternatives to three roster targets per channel/quality class (at least 60).
 	// Rank providers first, then their strongest/recent streams, to retain diversity.
 	// Accounts remain import-queue records and can rediscover discarded candidates.
 	target := 30
@@ -42,11 +42,11 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
 	}
 	if _, err = tx.Exec(`CREATE TEMP TABLE reserve_keep AS
  WITH provider_rank AS (
- SELECT m.channel_id,s.id,a.rate_key,s.score,s.last_success,
- row_number() OVER(PARTITION BY m.channel_id,a.rate_key ORDER BY s.score DESC,s.last_success DESC,s.id) provider_position
+ SELECT m.channel_id,s.id,a.rate_key,s.score,s.last_success,(instr(upper(s.name),'UHD')>0) quality,
+ row_number() OVER(PARTITION BY m.channel_id,(instr(upper(s.name),'UHD')>0),a.rate_key ORDER BY s.score DESC,s.last_success DESC,s.id) provider_position
  FROM mappings m JOIN streams s ON s.id=m.stream_id JOIN accounts a ON a.id=s.account_id
  WHERE m.origin!='manual' AND m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked')),
- ranked AS (SELECT *,row_number() OVER(PARTITION BY channel_id ORDER BY provider_position,score DESC,last_success DESC,id) position FROM provider_rank)
+ ranked AS (SELECT *,row_number() OVER(PARTITION BY channel_id,quality ORDER BY provider_position,score DESC,last_success DESC,id) position FROM provider_rank)
  SELECT DISTINCT r.id FROM ranked r LEFT JOIN channel_policies p ON p.channel_id=r.channel_id
  WHERE r.position<=max(60,3*coalesce(nullif(p.target,0),?))`, target); err != nil {
 		return out, err
