@@ -56,9 +56,12 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
 	}
 	// A single matching candidate is the queue's evidence that a healthy account
 	// serves selected channels, even when other accounts fill every reserve.
-	if _, err = tx.Exec(`CREATE TEMP TABLE reserve_account_keep AS SELECT min(s.id) id FROM streams s
- WHERE s.enabled=1 AND s.state NOT IN ('retired','manually_blocked') AND EXISTS(SELECT 1 FROM mappings m JOIN channels c ON c.id=m.channel_id WHERE m.stream_id=s.id AND m.enabled=1) GROUP BY s.account_id;
- CREATE UNIQUE INDEX reserve_account_keep_id ON reserve_account_keep(id)`); err != nil {
+	// Declare integer affinity explicitly: CTAS over min(id) creates an untyped
+	// column and SQLite can scan it for each stream instead of using its index.
+	if _, err = tx.Exec(`CREATE TEMP TABLE reserve_account_keep(id INTEGER PRIMARY KEY);
+ INSERT INTO reserve_account_keep SELECT min(s.id)
+	 FROM mappings m JOIN streams s ON s.id=m.stream_id JOIN channels c ON c.id=m.channel_id
+	 WHERE m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked') GROUP BY s.account_id`); err != nil {
 		return out, err
 	}
 	if _, err = tx.Exec(`CREATE TEMP TABLE excess_streams AS SELECT s.id FROM streams s
