@@ -1,3 +1,15 @@
+# v1.0.1
+
+- Dashboard statistics refresh in the background, keeping live activity responsive. Loading counts are explicit, saved counts remain visible during failures, and read snapshots no longer reserve SQLite's writer lock.
+- Automatic discovery stops saving candidates for full rosters. Idle cleanup bounds saved alternatives to three roster targets (minimum 60 per channel), retaining provider diversity, current rosters, explicit assignments, and reserved sources. Accounts remain available for rediscovery.
+- Bulk reserve trimming produces one summary event instead of flooding removal history. SQLite temporary sorting uses RAM to avoid exhausting small container temporary filesystems. Database failure codes are logged without credential-bearing error text.
+- Full backups support up to 1 GiB compressed / 2 GiB expanded. Restore uploads stream to appdata staging instead of filling RAM-backed temporary storage. Backup failures are reported in Docker logs.
+- Update modernc.org/sqlite from 1.61.0 to 1.61.1.
+
+Schema 8 is retained. Existing accounts, channels, settings, and tuner identity are preserved. Excess unrostered automatic candidates may be removed during idle cleanup and rediscovered later; rostered/manual/reserved sources are protected. SQLite reuses freed pages, so an existing database file may remain large until separately compacted. Backups remain manual. Reverse proxies must allow the chosen restore upload size.
+
+---
+
 # v1.0.0
 
 - Restore extraction uses a filesystem-rooted staging handle as well as ZIP-name validation. Provider connection counts are bounded before integer conversion so oversized occupancy remains full instead of wrapping negative.

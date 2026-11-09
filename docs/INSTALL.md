@@ -13,7 +13,7 @@ docker run -d --name antennarr --restart unless-stopped \
   -e ANTENNARR_BASE_URL=http://YOUR_SERVER_LAN_IP:9192 \
   --log-driver json-file --log-opt max-size=5m --log-opt max-file=2 \
   -v /YOUR/APPDATA/antennarr:/data \
-  antennarr/antennarr:v1.0.0
+  antennarr/antennarr:v1.0.1
 ```
 
 Open `http://YOUR_SERVER_LAN_IP:39192`. Initial login is **admin/admin**; change it under **Admin → Change login** before remote exposure. Import authorised account-list URLs under Input and choose channels under Output. Working sources must fill the channel rosters before playback is available.
@@ -43,7 +43,7 @@ cp portable.env.example .env
 
 Edit `.env`: set `ANTENNARR_BIND` to your server's LAN address, `ANTENNARR_BASE_URL` to the tuner address Plex can reach, and `ANTENNARR_DATA_DIR` to your dedicated appdata directory. Defaults bind to loopback for local development.
 
-For the published image, set `ANTENNARR_IMAGE=antennarr/antennarr:v1.0.0`, then:
+For the published image, set `ANTENNARR_IMAGE=antennarr/antennarr:v1.0.1`, then:
 
 ```sh
 docker compose -f compose.portable.yaml pull
