@@ -167,7 +167,10 @@ func TestLargeCataloguePruningRemainsResponsive(t *testing.T) {
 	if err != nil || result.Accounts+result.Streams != 0 {
 		t.Fatal(result, err)
 	}
-	if elapsed := time.Since(start); elapsed > 3*time.Second {
+	// Race-instrumented pure-Go SQLite is substantially slower on shared CI
+	// runners. This budget tolerates that overhead while catching the quadratic
+	// anchor lookup regression, which took over two minutes on this fixture.
+	if elapsed := time.Since(start); elapsed > 10*time.Second {
 		t.Fatalf("cleanup holds reservations too long: %s", elapsed)
 	}
 	t.Logf("2000 accounts / 20000 streams: %s", time.Since(start))
