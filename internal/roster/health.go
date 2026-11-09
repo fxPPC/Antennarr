@@ -1,6 +1,7 @@
 package roster
 
 import (
+	"errors"
 	"log/slog"
 	"time"
 )
@@ -58,5 +59,12 @@ func (s *Service) report(operation string, err error) {
 	s.health.LastError = operation
 	s.health.ErrorAt = time.Now().Unix()
 	s.mu.Unlock()
-	slog.Warn("checker operation failed", "operation", operation)
+	// Database error codes are safe diagnostics; raw errors from network work
+	// can contain credential-bearing URLs and must never be logged here.
+	var coded interface{ Code() int }
+	if errors.As(err, &coded) {
+		slog.Warn("checker operation failed", "operation", operation, "database_code", coded.Code())
+	} else {
+		slog.Warn("checker operation failed", "operation", operation)
+	}
 }
