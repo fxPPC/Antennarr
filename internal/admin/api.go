@@ -54,6 +54,7 @@ type API struct {
 	Restart               func()
 	operations            sync.RWMutex
 	importing             atomic.Bool
+	backingUp             atomic.Bool
 	maintenance           atomic.Bool
 	Activity              *activity.Tracker
 	ReadSettings          func() (config.Settings, error)
@@ -131,13 +132,27 @@ func (a *API) Register(mux *http.ServeMux, auth func(http.HandlerFunc) http.Hand
 				http.Error(w, "Required request header missing", 403)
 				return
 			}
-			exclusive := (r.URL.Path == "/api/lineup" && r.Method == "POST") || r.URL.Path == "/api/reset" || r.URL.Path == "/api/channels/bulk" || r.URL.Path == "/api/backup" || r.URL.Path == "/api/restore" || r.URL.Path == "/api/input/clear"
+			// Backup releases its own operations lock after taking an immutable
+			// snapshot; ZIP compression must not block status reads or new viewers.
+			if r.URL.Path == "/api/backup" {
+				fn(w, r)
+				return
+			}
+			exclusive := (r.URL.Path == "/api/lineup" && r.Method == "POST") || r.URL.Path == "/api/reset" || r.URL.Path == "/api/channels/bulk" || r.URL.Path == "/api/restore" || r.URL.Path == "/api/input/clear"
 			if exclusive {
+				if a.backingUp.Load() {
+					failure(w, 409, "Backup is being packaged; try again shortly")
+					return
+				}
 				if !a.operations.TryLock() {
 					failure(w, 409, "Another operation is running; try again shortly")
 					return
 				}
 				defer a.operations.Unlock()
+				if a.backingUp.Load() {
+					failure(w, 409, "Backup is being packaged; try again shortly")
+					return
+				}
 			} else {
 				a.operations.RLock()
 				defer a.operations.RUnlock()

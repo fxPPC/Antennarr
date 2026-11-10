@@ -447,6 +447,12 @@ func (s *Store) AccountSecret(id int64) (ingest.Entry, error) {
 func (s *Store) Backup() (string, error) {
 	name := fmt.Sprintf("catalogue-%d.db", time.Now().UnixNano())
 	path := filepath.Join(s.root, "backups", name)
+	complete := false
+	defer func() {
+		if !complete {
+			_ = os.Remove(path)
+		}
+	}()
 	_, e := s.DB.Exec("VACUUM INTO '" + strings.ReplaceAll(path, "'", "''") + "'")
 	if e != nil {
 		return "", e
@@ -454,6 +460,7 @@ func (s *Store) Backup() (string, error) {
 	if e = os.Chmod(path, 0600); e != nil {
 		return "", e
 	}
+	complete = true
 	return name, nil
 }
 

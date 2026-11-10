@@ -9,24 +9,23 @@ import (
 )
 
 type Settings struct {
-	ReplenishWhilePlaying          bool   `json:"replenish_while_playing"`
-	LoggingLevel                   string `json:"logging_level"`
-	CountFullConnectionsAsFailures bool   `json:"count_full_connections_as_failures"`
-	AllowUHD                       bool   `json:"allow_uhd"`
-	RosterTarget                   int    `json:"roster_target"`
-	SelectionPreference            string `json:"selection_preference"`
-	MaxOutgoingStreams             int    `json:"max_outgoing_streams"`
-	StartupRace                    int    `json:"startup_race"`
-	GlobalConnections              int    `json:"global_connections"`
-	ProviderConnections            int    `json:"provider_connections"`
-	BufferSeconds                  int    `json:"buffer_seconds"`
-	StallTimeoutMS                 int    `json:"stall_timeout_ms"`
-	ProbeSeconds                   int    `json:"probe_seconds"`
-	CheckAPISeconds                int    `json:"check_api_seconds"`
-	CheckGlobalSeconds             int    `json:"check_global_seconds"`
-	CheckStreamSeconds             int    `json:"check_stream_seconds"`
-	CheckStreamGlobalSeconds       int    `json:"check_stream_global_seconds"`
-	CatalogueHours                 int    `json:"catalogue_hours"`
+	ReplenishWhilePlaying    bool   `json:"replenish_while_playing"`
+	LoggingLevel             string `json:"logging_level"`
+	AllowUHD                 bool   `json:"allow_uhd"`
+	RosterTarget             int    `json:"roster_target"`
+	SelectionPreference      string `json:"selection_preference"`
+	MaxOutgoingStreams       int    `json:"max_outgoing_streams"`
+	StartupRace              int    `json:"startup_race"`
+	GlobalConnections        int    `json:"global_connections"`
+	ProviderConnections      int    `json:"provider_connections"`
+	BufferSeconds            int    `json:"buffer_seconds"`
+	StallTimeoutMS           int    `json:"stall_timeout_ms"`
+	ProbeSeconds             int    `json:"probe_seconds"`
+	CheckAPISeconds          int    `json:"check_api_seconds"`
+	CheckGlobalSeconds       int    `json:"check_global_seconds"`
+	CheckStreamSeconds       int    `json:"check_stream_seconds"`
+	CheckStreamGlobalSeconds int    `json:"check_stream_global_seconds"`
+	CatalogueHours           int    `json:"catalogue_hours"`
 }
 
 // FreshSettings is applied only when config.json is absent. Defaults below

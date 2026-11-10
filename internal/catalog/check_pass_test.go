@@ -158,7 +158,7 @@ func TestPassRepairsReleasedMarkersForSurvivingMemberships(t *testing.T) {
 	}
 }
 
-func TestFullRosterAccountDefersOncePerPassWithoutEviction(t *testing.T) {
+func TestFullRosterAccountReleasesPlacesWithoutStrike(t *testing.T) {
 	s, _, cs := rosterFixture(t, 3)
 	s.EnableRosters(RosterPolicy{30, "stability", 5})
 	for _, c := range cs {
@@ -179,7 +179,23 @@ func TestFullRosterAccountDefersOncePerPassWithoutEviction(t *testing.T) {
 	s.DB.QueryRow("SELECT status FROM roster_pass_work WHERE stream_id=?", cs[0].StreamID).Scan(&status)
 	s.DB.QueryRow("SELECT count(*) FROM roster").Scan(&n)
 	p, err := s.CheckPassStatus()
-	if err != nil || status != 2 || n != 3 || p.Deferred != 1 || p.Released != 0 {
+	if err != nil || status != 2 || n != 2 || p.Deferred != 0 || p.Released != 1 {
 		t.Fatal("full account was rearmed/removed", status, n, p, err)
+	}
+}
+
+func TestNewPassPrioritisesOldestVerification(t *testing.T) {
+	s, _, cs := rosterFixture(t, 3)
+	s.EnableRosters(RosterPolicy{30, "stability", 5})
+	for i, c := range cs {
+		s.Record(c.StreamID, Result{Success: true})
+		s.DB.Exec("UPDATE roster SET verified=? WHERE stream_id=?", 100+i, c.StreamID)
+	}
+	if e := s.EnsureRosterPass(time.Now().Unix()); e != nil {
+		t.Fatal(e)
+	}
+	c, _, e := s.NextRosterCheck(time.Now().Unix())
+	if e != nil || c.StreamID != cs[0].StreamID {
+		t.Fatal(c, e)
 	}
 }

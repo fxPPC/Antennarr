@@ -31,3 +31,29 @@ func TestProbeDistinguishesDeadlineFromCancellation(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+
+func TestProbeFailureDiagnosticsAreSafe(t *testing.T) {
+	for _, tc := range []struct {
+		err     error
+		invalid bool
+		want    string
+	}{
+		{nil, false, "source ended before sample completed"},
+		{errors.New("partial transport packet"), false, "partial transport packet"},
+		{errors.New("https://example.test/private-password"), false, "source adapter failed"},
+		{context.Canceled, true, "invalid transport packet"},
+	} {
+		if got := probeEndReason(tc.err, tc.invalid); got != tc.want {
+			t.Fatal(got)
+		}
+	}
+	g, e := NewGateway(&http.Client{})
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer g.Close()
+	r := g.Probe(context.Background(), "/nonexistent/ffmpeg", "https://fixture.example/1.ts", time.Millisecond)
+	if r.Success || r.Reason != "media process failed to start" {
+		t.Fatal(r)
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"log/slog"
 	"os/exec"
 	"sort"
 	"sync"
@@ -106,7 +107,13 @@ func (m *Manager) Subscribe(id, fixture string) (<-chan []byte, func(), error) {
 				<-previous.done
 			}
 			if ctx.Err() == nil {
-				_ = m.runner(ctx, fixture, func(b []byte) { m.broadcast(c, b) })
+				started := time.Now()
+				err := m.runner(ctx, fixture, func(b []byte) { m.broadcast(c, b) })
+				if ctx.Err() == nil {
+					slog.Warn("channel pipeline ended", "channel_id", id, "reason", pipelineReason(err), "duration_ms", time.Since(started).Milliseconds())
+				} else {
+					slog.Debug("channel pipeline stopped", "channel_id", id, "reason", "cancelled", "duration_ms", time.Since(started).Milliseconds())
+				}
 			}
 			m.finish(id, c)
 		}()
@@ -141,6 +148,7 @@ func (m *Manager) broadcast(c *channel, b []byte) {
 					break draining
 				}
 			}
+			slog.Warn("viewer disconnected", "channel_id", c.id, "reason", "viewer_buffer_full", "buffer_slots", subscriberSlots)
 			close(sub)
 			delete(c.subscribers, sub)
 			m.active--
@@ -271,4 +279,20 @@ func (m *Manager) WithIdle(fn func() error) error {
 	m.mu.Unlock()
 	defer func() { m.mu.Lock(); m.admissionPaused = false; m.mu.Unlock() }()
 	return fn()
+}
+
+// Only fixed internal messages are public diagnostics; arbitrary runner errors
+// can contain upstream credentials and are deliberately reduced to a category.
+func pipelineReason(err error) string {
+	if err == nil {
+		return "unexpected_end"
+	}
+	switch err.Error() {
+	case "no eligible sources configured":
+		return "no_eligible_sources"
+	case "output backpressure":
+		return "output_backpressure"
+	default:
+		return "pipeline_error"
+	}
 }

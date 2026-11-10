@@ -41,13 +41,82 @@ func allowed(name string) bool {
 	}
 	return false
 }
-func Create(root, base string, store *catalog.Store) (string, error) {
+
+// Create stages an immutable copy before compression. An optional callback lets
+// the caller release its administration lock once all input files are captured.
+func Create(root, base string, store *catalog.Store, captured ...func()) (string, error) {
 	// VACUUM INTO produces a consistent SQLite snapshot while WAL writers continue.
 	snapshot, e := store.Backup()
 	if e != nil {
 		return "", e
 	}
 	defer os.Remove(filepath.Join(root, "backups", snapshot))
+	stage, e := os.MkdirTemp(filepath.Join(root, "backups"), ".backup-stage-")
+	if e != nil {
+		return "", e
+	}
+	defer os.RemoveAll(stage)
+	var stagedBytes int64
+	for _, d := range dirs {
+		e = filepath.WalkDir(filepath.Join(root, d), func(path string, entry os.DirEntry, err error) error {
+			if os.IsNotExist(err) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if entry.Type()&os.ModeSymlink != 0 {
+				return errors.New("backup cannot include symlinks")
+			}
+			if entry.IsDir() {
+				return nil
+			}
+			if !entry.Type().IsRegular() {
+				return errors.New("unsupported backup file")
+			}
+			rel, err := filepath.Rel(root, path)
+			if err != nil {
+				return err
+			}
+			if !allowed(filepath.ToSlash(rel)) {
+				return nil
+			}
+			if filepath.ToSlash(rel) == "database/antennarr.db" {
+				path = filepath.Join(root, "backups", snapshot)
+			}
+			in, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+			defer in.Close()
+			dest := filepath.Join(stage, rel)
+			if err = os.MkdirAll(filepath.Dir(dest), 0700); err != nil {
+				return err
+			}
+			out, err := os.OpenFile(dest, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+			if err != nil {
+				return err
+			}
+			n, copyErr := io.Copy(out, io.LimitReader(in, MaxExpanded-stagedBytes+1))
+			closeErr := out.Close()
+			stagedBytes += n
+			if stagedBytes > MaxExpanded {
+				return errors.New("application data exceeds backup limit")
+			}
+			if copyErr != nil {
+				return copyErr
+			}
+			return closeErr
+		})
+		if e != nil {
+			return "", e
+		}
+	}
+	for _, ready := range captured {
+		if ready != nil {
+			ready()
+		}
+	}
 	name := fmt.Sprintf("antennarr-%d.zip", time.Now().UnixNano())
 	out, e := os.OpenFile(filepath.Join(root, "backups", name), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if e != nil {
@@ -89,7 +158,7 @@ func Create(root, base string, store *catalog.Store) (string, error) {
 		return nil
 	}
 	for _, d := range dirs {
-		e = filepath.WalkDir(filepath.Join(root, d), func(path string, entry os.DirEntry, err error) error {
+		e = filepath.WalkDir(filepath.Join(stage, d), func(path string, entry os.DirEntry, err error) error {
 			if os.IsNotExist(err) {
 				return nil
 			}
@@ -105,11 +174,8 @@ func Create(root, base string, store *catalog.Store) (string, error) {
 			if !entry.Type().IsRegular() {
 				return errors.New("unsupported backup file")
 			}
-			rel, _ := filepath.Rel(root, path)
+			rel, _ := filepath.Rel(stage, path)
 			rel = filepath.ToSlash(rel)
-			if rel == "database/antennarr.db" {
-				return add(rel, filepath.Join(root, "backups", snapshot))
-			}
 			if !allowed(rel) {
 				return nil
 			}

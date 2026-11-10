@@ -92,3 +92,24 @@ func TestBackupDownloadRestoreAndGating(t *testing.T) {
 		t.Fatal(e)
 	}
 }
+
+func TestBackupPackagingAllowsReadsAndTunesButBlocksDestructiveWork(t *testing.T) {
+	a := &API{}
+	a.backingUp.Store(true)
+	release, ok := a.BeginTune()
+	if !ok {
+		t.Fatal("packaging blocked tune")
+	}
+	release()
+	mux := http.NewServeMux()
+	a.Register(mux, func(h http.HandlerFunc) http.HandlerFunc { return h })
+	for _, path := range []string{"/api/backup", "/api/reset", "/api/restore"} {
+		r := httptest.NewRequest("POST", path, bytes.NewBufferString("{}"))
+		r.Header.Set("X-Antennarr-Request", "1")
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		if w.Code != 409 {
+			t.Fatal(path, w.Code)
+		}
+	}
+}

@@ -16,7 +16,7 @@ func (s *Store) DiscoveryFailed(id int64, inactive bool, catalogue ...bool) erro
 }
 
 // A full account is temporarily unusable, not proof of invalid credentials.
-// Keep verified memberships and randomise its queue position without changing
+// Release memberships and randomise its queue position without changing
 // the genuine-failure streak or invalidating its saved channel catalogue.
 func (s *Store) AccountFull(id int64) error {
 	return s.accountUnavailable(id, false, false, "full_connections", "access", 0)
@@ -65,9 +65,21 @@ func (s *Store) accountUnavailable(id int64, inactive, countFailure bool, kind, 
 	if _, e = tx.Exec("DELETE FROM roster_pass_accounts WHERE account_id=?", id); e != nil {
 		return e
 	}
+	releaseRoster := countFailure || kind == "full_connections"
 	reason := "Account unavailable; recruiting replacement"
+	if kind == "full_connections" {
+		reason = "Account connections full; returned to queue without a strike"
+		// A quality-mode cache must not resurrect a removed membership after the
+		// account becomes free. It must pass a new media audition first.
+		if _, e = tx.Exec("INSERT INTO work_leases(kind,resource,until) SELECT 'quality_invalid',id,? FROM streams WHERE account_id=? ON CONFLICT(kind,resource) DO UPDATE SET until=max(until,excluded.until)", time.Now().Unix()+3600, id); e != nil {
+			return e
+		}
+		if _, e = tx.Exec("UPDATE queue_positions SET position=random() & 9223372036854775807 WHERE kind='stream' AND source_id IN(SELECT id FROM streams WHERE account_id=?)", id); e != nil {
+			return e
+		}
+	}
 
-	if countFailure {
+	if releaseRoster {
 		if _, e = tx.Exec(`INSERT INTO events(happened,kind,channel_id,source_id,reason) SELECT ?,'roster_removed',channel_id,stream_id,? FROM roster WHERE account_id=?`, time.Now().Unix(), reason, id); e != nil {
 			return e
 		}
@@ -76,7 +88,7 @@ func (s *Store) accountUnavailable(id int64, inactive, countFailure bool, kind, 
 			return e
 		}
 	}
-	if countFailure {
+	if releaseRoster {
 		if _, e = tx.Exec("DELETE FROM roster WHERE account_id=?", id); e != nil {
 			return e
 		}

@@ -1,3 +1,4 @@
+import {withDeadline} from './request.js';
 export const $ = s => document.querySelector(s);
 export const el = (tag, text, cls) => {
   const n = document.createElement(tag);
@@ -11,6 +12,7 @@ export const notice = s => {
 };
 let authorization = null;
 export async function api(path, method = 'GET', body) {
+ return withDeadline(async signal => {
   const headers = new Headers({
     'X-Antennarr-Request': '1'
   });
@@ -24,6 +26,7 @@ export async function api(path, method = 'GET', body) {
   try {
     r = await fetch(path, {
       method,
+      signal,
       headers,
       body: payload
     })
@@ -40,6 +43,7 @@ export async function api(path, method = 'GET', body) {
   } catch {
     throw new Error('Antennarr returned an unexpected response. Retry shortly.')
   }
+ }, method === 'GET' ? 15000 : 180000);
 }
 export const button = (text, fn) => {
   const b = el('button', text);

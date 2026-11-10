@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // BeginTune closes the gap between checking idle state and subscribing a viewer.
@@ -20,11 +21,28 @@ func (a *API) BeginTune() (func(), bool) {
 	return a.operations.RUnlock, true
 }
 func (a *API) fullBackup(w http.ResponseWriter, r *http.Request) {
+	if !a.backingUp.CompareAndSwap(false, true) {
+		failure(w, 409, "Another backup is running; try again shortly")
+		return
+	}
+	defer a.backingUp.Store(false)
+	if !a.operations.TryLock() {
+		failure(w, 409, "Another operation is running; try again shortly")
+		return
+	}
+	var once sync.Once
+	release := func() { once.Do(a.operations.Unlock) }
+	defer release()
 	if a.DataRoot == "" {
 		failure(w, 503, "Full backup unavailable")
 		return
 	}
-	name, e := recovery.Create(a.DataRoot, a.BaseURL, a.Store)
+
+	if a.maintenance.Load() {
+		failure(w, 503, "Antennarr is restarting after an administration operation")
+		return
+	}
+	name, e := recovery.Create(a.DataRoot, a.BaseURL, a.Store, release)
 	if e != nil {
 		slog.Error("full backup failed", "error", e)
 		failure(w, 500, "Full backup failed; check Docker logs")

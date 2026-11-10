@@ -167,3 +167,42 @@ func TestQualityCacheAllowsFreshSnapshotAfterEarlierFailure(t *testing.T) {
 		t.Fatal("old failure invalidated a newer healthy snapshot", len(members))
 	}
 }
+
+func TestFullAccountCannotReturnThroughQualityCache(t *testing.T) {
+	s, ch, cs := rosterFixture(t, 3)
+	s.EnableRosters(RosterPolicy{30, "stability", 5})
+	for _, c := range cs {
+		s.Record(c.StreamID, Result{Success: true})
+	}
+	now := time.Now().Unix()
+	if e := s.setUHDAllowedAt(true, now); e != nil {
+		t.Fatal(e)
+	}
+	if e := s.AccountFull(cs[0].AccountID); e != nil {
+		t.Fatal(e)
+	}
+	// Even if metadata becomes free, require a new audition rather than reviving
+	// a cached verification made before capacity became unavailable.
+	s.AccountMetadata(cs[0].AccountID, 2, 0, 0)
+	s.AccountUsable(cs[0].AccountID)
+	s.DB.Exec("UPDATE accounts SET state='healthy' WHERE id=?", cs[0].AccountID)
+	if e := s.setUHDAllowedAt(false, now+1); e != nil {
+		t.Fatal(e)
+	}
+	members, e := s.RosterMembers(ch)
+	if e != nil || len(members) != 2 {
+		t.Fatal(len(members), e)
+	}
+	for _, c := range members {
+		if c.AccountID == cs[0].AccountID {
+			t.Fatal("restored full account")
+		}
+	}
+	if e := s.Record(cs[0].StreamID, Result{Success: true}); e != nil {
+		t.Fatal(e)
+	}
+	members, e = s.RosterMembers(ch)
+	if e != nil || len(members) != 3 {
+		t.Fatal("fresh audition did not restore membership", len(members), e)
+	}
+}

@@ -16,7 +16,6 @@
     "roster_target": 20,
     "selection_preference": "stability",
     "allow_uhd": false,
-    "count_full_connections_as_failures": false,
     "check_api_seconds": 33,
     "check_global_seconds": 2,
     "check_stream_seconds": 63,

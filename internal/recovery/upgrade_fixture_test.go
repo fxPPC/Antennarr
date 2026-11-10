@@ -57,7 +57,7 @@ func TestPublishedBeta3UpgradeAndManualRestore(t *testing.T) {
 		t.Fatal(e)
 	}
 	originalID := c.DeviceID
-	if c.Settings.CountFullConnectionsAsFailures {
+	if c.Settings.ReplenishWhilePlaying {
 		t.Fatal("legacy configuration did not default to false")
 	}
 	s, e := catalog.Open(root)
@@ -69,7 +69,7 @@ func TestPublishedBeta3UpgradeAndManualRestore(t *testing.T) {
 		t.Fatal(e)
 	}
 	c.Settings.RosterTarget = 20
-	c.Settings.CountFullConnectionsAsFailures = true
+	c.Settings.ReplenishWhilePlaying = true
 	if e = config.Save(root, c); e != nil {
 		t.Fatal(e)
 	}
@@ -103,7 +103,7 @@ func TestPublishedBeta3UpgradeAndManualRestore(t *testing.T) {
 		if schema != 8 {
 			t.Fatal(schema)
 		}
-		if c.DeviceID != originalID || c.Settings.RosterTarget != 20 || !c.Settings.CountFullConnectionsAsFailures {
+		if c.DeviceID != originalID || c.Settings.RosterTarget != 20 || !c.Settings.ReplenishWhilePlaying {
 			t.Fatal("configuration changed")
 		}
 		server := tuner.Server{Config: c, BaseURL: expected["base"], ChannelList: func() []config.Channel {

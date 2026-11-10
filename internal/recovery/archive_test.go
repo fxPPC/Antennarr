@@ -8,6 +8,7 @@ import (
 	"antennarr/internal/tuner"
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -264,4 +265,56 @@ func TestBackupAboveFormerExpandedLimit(t *testing.T) {
 	if _, err = recovery.Stage(root, archive, st.Size()); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestBackupCapturesFilesBeforeReleasingLock(t *testing.T) {
+	root := t.TempDir()
+	c, e := config.Load(root)
+	if e != nil {
+		t.Fatal(e)
+	}
+	s, e := catalog.Open(root)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer s.Close()
+	original := c.Settings.RosterTarget
+	captured := false
+	name, e := recovery.Create(root, "http://tuner:9192", s, func() {
+		captured = true
+		c.Settings.RosterTarget = 99
+		if err := config.Save(root, c); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if e != nil || !captured {
+		t.Fatal(name, e, captured)
+	}
+	z, e := zip.OpenReader(filepath.Join(root, "backups", name))
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer z.Close()
+	for _, f := range z.File {
+		if f.Name == "config/config.json" {
+			r, e := f.Open()
+			if e != nil {
+				t.Fatal(e)
+			}
+			defer r.Close()
+			var saved config.Config
+			if e = json.NewDecoder(r).Decode(&saved); e != nil {
+				t.Fatal(e)
+			}
+			if saved.Settings.RosterTarget != original {
+				t.Fatal("archive included later changes")
+			}
+			stages, _ := filepath.Glob(filepath.Join(root, "backups", ".backup-stage-*"))
+			if len(stages) != 0 {
+				t.Fatal("staging leaked")
+			}
+			return
+		}
+	}
+	t.Fatal("configuration absent")
 }
