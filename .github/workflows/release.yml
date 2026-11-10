@@ -171,3 +171,10 @@ jobs:
           # Attach every asset before publishing an immutable release.
           gh release edit "$VERSION" --draft=false --latest
           cat release/IMAGE-DIGEST.txt >> "$GITHUB_STEP_SUMMARY"
+      - name: Update Docker Hub overview
+        # Documentation failure must not invite republishing an immutable image.
+        continue-on-error: true
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: python3 scripts/update-hub-description.py

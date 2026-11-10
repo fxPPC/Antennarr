@@ -25,3 +25,5 @@ Before publication, confirm version/tag absence and ensure the candidate source 
 After publication, verify both platform manifests and matching version/latest digests; pull by digest and test fresh startup. Confirm source revision labels, embedded source, defaults, and zero accounts. Record actual test coverage, including any unverified Plex-client or multi-hour viewing scenarios.
 
 Changing runtime appdata is separate from publishing. Backups remain manual. Never include runtime data, host operations, Docker credentials, test executables, or private development history in the public repository or final image.
+
+After publication, the workflow synchronises `docs/DOCKER-HUB.md` to the existing Docker Hub overview and verifies the saved text. This uses the release environment credentials only. Check that step's result: documentation failure does not undo or republish an immutable image. Correct the overview separately if Docker Hub rejects the update.
