@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -157,6 +158,7 @@ func (g *Gateway) Probe(ctx context.Context, binary, raw string, duration time.D
 		}
 	}()
 	var a Analyzer
+	var invalid atomic.Bool
 	var sampleMu sync.Mutex
 	sample := make([]byte, 0, 512<<10)
 	first := make(chan time.Time, 1)
@@ -169,6 +171,7 @@ func (g *Gateway) Probe(ctx context.Context, binary, raw string, duration time.D
 			}
 			sampleMu.Unlock()
 			if a.Push(b) != nil {
+				invalid.Store(true)
 				cancel()
 				return
 			}
@@ -182,25 +185,42 @@ func (g *Gateway) Probe(ctx context.Context, binary, raw string, duration time.D
 	select {
 	case at := <-first:
 		result.StartupMS = at.Sub(start).Milliseconds()
-	case <-done:
+	case err := <-done:
+		result.Reason = probeEndReason(err, invalid.Load())
 		result.DurationMS = time.Since(start).Milliseconds()
 		return result
 	case <-ctx.Done():
 		result.DurationMS = time.Since(start).Milliseconds()
 		<-done
+		if invalid.Load() {
+			result.Reason = "invalid transport packet"
+		}
 		return result
 	}
 	timer := time.NewTimer(duration)
 	defer timer.Stop()
 	select {
 	case <-timer.C:
-	case <-done:
+	case err := <-done:
+		result.Reason = probeEndReason(err, invalid.Load())
 		result.DurationMS = time.Since(start).Milliseconds()
 		return result
 	case <-ctx.Done():
 	}
 	stats := a.Snapshot()
 	result.Success = stats.VideoChanges >= 3 && stats.AudioChanges >= 3 && time.Since(stats.LastVideo) < 2*time.Second && time.Since(stats.LastAudio) < 2*time.Second
+	if !result.Success {
+		switch {
+		case invalid.Load():
+			result.Reason = "invalid transport packet"
+		case stats.VideoChanges < 3:
+			result.Reason = "video timestamps did not progress"
+		case stats.AudioChanges < 3:
+			result.Reason = "audio timestamps did not progress"
+		default:
+			result.Reason = "media stalled during sample"
+		}
+	}
 	if result.Success {
 		sampleMu.Lock()
 		snapshot := append([]byte(nil), sample...)
@@ -224,4 +244,20 @@ func (g *Gateway) Probe(ctx context.Context, binary, raw string, duration time.D
 	<-done
 	result.DurationMS = time.Since(start).Milliseconds()
 	return result
+}
+
+// Keep diagnostic categories fixed: subprocess/network errors may contain URLs.
+func probeEndReason(err error, invalid bool) string {
+	if invalid {
+		return "invalid transport packet"
+	}
+	if err == nil {
+		return "source ended before sample completed"
+	}
+	switch err.Error() {
+	case "source URL blocked", "media process failed to start", "partial transport packet", "source media process stopped":
+		return err.Error()
+	default:
+		return "source adapter failed"
+	}
 }

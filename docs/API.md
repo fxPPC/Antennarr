@@ -79,7 +79,7 @@ Use `account:42` or `stream:42` (also `account #42` / `stream #42`) for an exact
 
 UI URLs retain filters: `#input?q=account%3A42`, `#input?q=provider&offset=50`, and `#output?q=stream%3A42`. An absent explicit ID displays a removed/unavailable message. Output includes saved candidates outside rosters and can expand matching channels; detail results are capped, but all matching channel IDs are returned.
 
-`count_full_connections_as_failures` in `/api/settings` defaults to false. Full valid accounts return to the queue without gaining a failure; true opts into failure-based deletion. Roster targets govern admission only: reducing global or channel targets preserves existing eligible members.
+Full valid accounts release roster places and return to the queue without gaining a failure. The former `count_full_connections_as_failures` setting is no longer exposed or honoured; old saved configuration still loads. Antennarr-owned live connections do not count as external occupancy. Roster targets govern admission only: reducing global or channel targets preserves existing eligible members.
 
 Large imports commit in bounded batches, yielding to playback health writes. Malformed endpoints are rejected before any batch is committed. If a later database operation fails, its batch rolls back and earlier batches remain; retrying deduplicates existing entries.
 

@@ -189,7 +189,7 @@ func (s *Service) probe(parent context.Context, c catalog.Candidate, v config.Se
 			kind = "timeout"
 		}
 		job.Detail("media", kind, 0)
-		slog.Debug("media probe result", "account_id", c.AccountID, "stream_id", c.StreamID, "failure_kind", kind, "duration_ms", result.DurationMS, "startup_ms", result.StartupMS)
+		slog.Debug("media probe result", "account_id", c.AccountID, "stream_id", c.StreamID, "failure_kind", kind, "duration_ms", result.DurationMS, "startup_ms", result.StartupMS, "reason", result.Reason)
 	}
 	if result.TimedOut {
 		outcome = "timeout"
@@ -277,15 +277,11 @@ func (s *Service) checkAccount(ctx context.Context, id int64, force, reset bool,
 		return false, "deferred"
 	}
 	// An authenticated account without a free connection cannot supply a fallback.
-	// Keep verified memberships for temporary full capacity; an explicit failure
-	// policy may evict them. Ordinary cancellation is handled before this branch.
+	// Release memberships without a strike so vacancies can recruit usable sources.
+	// Ordinary cancellation and our own live connections are handled above.
 	if info.ActiveConnections >= max(1, info.Limit) {
 		job.Detail("access", "full_connections", 0)
-		if s.settings().CountFullConnectionsAsFailures {
-			s.accountFailureReason(id, false, "full_connections", "access", 0)
-		} else {
-			s.report("Return full account to queue", s.Store.AccountFull(id))
-		}
+		s.report("Return full account to queue", s.Store.AccountFull(id))
 		return false, "unavailable"
 	}
 	// Cached catalogue plus refreshed access is a complete usable account check.

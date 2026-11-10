@@ -153,3 +153,28 @@ func TestFreshDefaultsDoNotOverwriteExistingSettings(t *testing.T) {
 		t.Fatal("saved settings overwritten", err)
 	}
 }
+
+func TestObsoleteFullAccountStrikeSettingDoesNotSurviveSave(t *testing.T) {
+	var c Config
+	if e := json.Unmarshal([]byte(`{"settings":{"count_full_connections_as_failures":true,"roster_target":20}}`), &c); e != nil {
+		t.Fatal(e)
+	}
+	raw, e := json.Marshal(c)
+	if e != nil {
+		t.Fatal(e)
+	}
+	var saved map[string]json.RawMessage
+	if e = json.Unmarshal(raw, &saved); e != nil {
+		t.Fatal(e)
+	}
+	var settings map[string]json.RawMessage
+	if e = json.Unmarshal(saved["settings"], &settings); e != nil {
+		t.Fatal(e)
+	}
+	if _, ok := settings["count_full_connections_as_failures"]; ok {
+		t.Fatal("obsolete strike option persisted")
+	}
+	if c.Settings.RosterTarget != 20 {
+		t.Fatal("existing settings changed")
+	}
+}

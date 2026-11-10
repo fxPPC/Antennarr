@@ -4,7 +4,8 @@ import (
 	"database/sql"
 )
 
-// Each pass snapshots unique roster streams in random order. Provider pacing
+// Each pass snapshots unique roster streams oldest-verification first, with
+// random ties. Input queue ordering remains random. Provider pacing
 // leaves work pending, and released memberships are counted separately.
 // These optional schema-8 tables preserve progress through restarts and backups.
 func (s *Store) ensureCheckPass() error {
@@ -79,7 +80,7 @@ func (s *Store) EnsureRosterPass(now int64) error {
 	if _, e = tx.Exec("DELETE FROM roster_pass_work; DELETE FROM roster_pass_accounts"); e != nil {
 		return e
 	}
-	if _, e = tx.Exec(`INSERT INTO roster_pass_work(stream_id,position) SELECT DISTINCT stream_id,random() & 9223372036854775807 FROM roster GROUP BY stream_id`); e != nil {
+	if _, e = tx.Exec(`INSERT INTO roster_pass_work(stream_id,position) SELECT stream_id,row_number() OVER (ORDER BY min(verified),random()) FROM roster GROUP BY stream_id`); e != nil {
 		return e
 	}
 	elapsed := int64(0)

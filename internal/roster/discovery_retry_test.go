@@ -118,50 +118,6 @@ func TestVacanciesGetDiscoveryTurnsDuringContinuousMaintenance(t *testing.T) {
 	}
 }
 
-// Full upstream accounts are not playable reserves. A failed access attempt
-// releases every membership, retries through the random queue, and obeys policy.
-func TestOptInBusyAccountLeavesRostersAndIsDeletedAtThreshold(t *testing.T) {
-	s, _, _, _, _ := fixture(t)
-	s.Settings = func() config.Settings {
-		v := config.Settings{}
-		v.Defaults()
-		v.CountFullConnectionsAsFailures = true
-		return v
-	}
-	s.Store.SaveRemovalPolicy(catalog.RemovalPolicy{AccountFailures: 2, StreamFailures: 2})
-	entry, _ := ingest.FromURL("https://busy.example/live/fixture/fixture/1.ts", "MTV", "")
-	s.Store.Import([]ingest.Entry{entry}, "fixture")
-	var id, sid int64
-	s.Store.DB.QueryRow("SELECT id FROM accounts WHERE kind='xtream'").Scan(&id)
-	s.Store.DB.QueryRow("SELECT id FROM streams WHERE account_id=?", id).Scan(&sid)
-	s.Store.CatalogueChecked(id, time.Now().Unix())
-	s.Store.Record(sid, catalog.Result{Success: true})
-	s.Store.EnsureRosterPass(time.Now().Unix())
-	s.Client = &http.Client{Transport: roundTripCheck(func(r *http.Request) (*http.Response, error) {
-		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"user_info":{"auth":1,"status":"Active","max_connections":1,"active_cons":1}}`))}, nil
-	})}
-	settings := config.Settings{}
-	settings.Defaults()
-	for attempt := 1; attempt <= 2; attempt++ {
-		if ok, outcome := s.checkAccount(context.Background(), id, true, true, nil); ok || outcome != "unavailable" {
-			t.Fatal(ok, outcome)
-		}
-		s.pruneFailedAccounts()
-		var members, n int
-		s.Store.DB.QueryRow("SELECT count(*) FROM roster WHERE account_id=?", id).Scan(&members)
-		s.Store.DB.QueryRow("SELECT count(*) FROM accounts WHERE id=?", id).Scan(&n)
-		if members != 0 || n != 2-attempt {
-			t.Fatal(attempt, members, n)
-		}
-		if attempt == 1 {
-			a, e := s.Store.QueueAccount(time.Now().Unix(), time.Hour)
-			if e != nil || a.ID != id {
-				t.Fatal("cached failed account not queued", a, e)
-			}
-		}
-	}
-}
-
 type roundTripCheck func(*http.Request) (*http.Response, error)
 
 func (f roundTripCheck) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
@@ -245,8 +201,8 @@ func TestFullAccountDefaultPreservesAccountAndFailureStreak(t *testing.T) {
 			t.Fatal(failures, checked, e)
 		}
 		s.Store.DB.QueryRow("SELECT count(*) FROM roster WHERE account_id=?", id).Scan(&members)
-		if members != 1 {
-			t.Fatal("full account lost verified roster membership")
+		if members != 0 {
+			t.Fatal("full account retained unavailable roster membership")
 		}
 		a, e := s.Store.QueueAccount(time.Now().Unix(), time.Hour)
 		if e != nil || a.ID != id {

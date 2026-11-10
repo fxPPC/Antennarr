@@ -1,3 +1,16 @@
+# v1.0.2
+
+- Full accounts release their roster places and return to the random input queue without gaining or resetting strikes. Their accounts and catalogue remain available for later auditions. Antennarr's own live feeds are excluded from external occupancy. The old option to count full connections as failures has been removed, including when loading an older saved configuration.
+- Cached UHD rosters cannot restore streams evicted for account capacity. A new successful media audition is required.
+- New roster check passes prioritise the oldest verification, with random ties. Input accounts and retry queue positions remain random; checks still run in continuous passes and yield to playback.
+- Browser API requests have deadlines, allowing status refreshes to recover from a hanging request. Read requests time out after 15 seconds; mutations allow three minutes and are never retried automatically.
+- Docker logs identify unexpected pipeline termination and slow-viewer disconnections without revealing source credentials. Media probes distinguish early endings, process failures, invalid transport, missing timestamp progression, and stalled samples.
+- Backup creation releases the administration lock after capturing its input files, before ZIP compression. Snapshot failures and completed staging clean up temporary files. Backups remain manual.
+
+Schema 8 is unchanged. Existing channels, accounts, login, and tuner identity are preserved. Full accounts already saved in rosters are evaluated on their next access check, not removed based solely on old metadata. Controlled tests cover recovery and sharing; they do not establish uninterrupted playback across every provider and Plex client.
+
+---
+
 # v1.0.1
 
 - Dashboard statistics refresh in the background, keeping live activity responsive. Loading counts are explicit, saved counts remain visible during failures, and read snapshots no longer reserve SQLite's writer lock.

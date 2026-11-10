@@ -46,7 +46,7 @@ func TestLineupRoundTripKeepsAccountsButRebuildsRosters(t *testing.T) {
 		t.Fatal("invalid upload changed channels")
 	}
 }
-func TestFullAccountAndLocalLimitsPreserveRosters(t *testing.T) {
+func TestFullAccountReleasesRostersButLocalLimitsPreserveThem(t *testing.T) {
 	s, _, cs := rosterFixture(t, 3)
 	s.EnableRosters(RosterPolicy{30, "stability", 5})
 	for _, c := range cs {
@@ -57,14 +57,19 @@ func TestFullAccountAndLocalLimitsPreserveRosters(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	var before int
+	s.DB.QueryRow("SELECT count(*) FROM roster").Scan(&before)
+	if before != 3 {
+		t.Fatal("local limit evicted rosters", before)
+	}
 	if err := s.AccountFull(cs[0].AccountID); err != nil {
 		t.Fatal(err)
 	}
 	var n, f int
 	s.DB.QueryRow("SELECT count(*) FROM roster").Scan(&n)
 	s.DB.QueryRow("SELECT failures FROM accounts WHERE id=?", cs[0].AccountID).Scan(&f)
-	if n != 3 || f != 0 {
-		t.Fatal("non-media condition evicted verified streams", n, f)
+	if n != 2 || f != 0 {
+		t.Fatal("full account roster release or strike incorrect", n, f)
 	}
 }
 

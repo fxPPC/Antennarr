@@ -4,7 +4,7 @@
 
 **Stick your antenna into the Internet**
 
-**v1.0.1 · 9 November build · by fxPPC**
+**v1.0.2 · 10 November build · by fxPPC**
 
 An IPTV-to-Plex tuner I'm building because apparently watching television needed another software project. Import account-list URLs (plain or Base64), choose your channels, and let it maintain a roster of checked feeds. Viewers share a primary stream and live backup; failed feeds get replaced automatically, mid-session, (hopefully) without interrupting playback. That's the idea. Still testing the awkward bits.
 
@@ -37,20 +37,21 @@ Open `http://YOUR_SERVER_LAN_IP:39192`. Fresh login: **admin / admin**; change i
 
 **Upgrading hardened containers:** if you previously used `--cap-drop ALL`, keep the old non-root mode with `--user 10001:10001`, or add `CHOWN`, `DAC_OVERRIDE`, `SETUID`, and `SETGID` for ownership setup. Existing channels and logins are preserved.
 
-Tags: `latest` or pinned `v1.0.1`. Historical beta tags remain available. Beta 2 remains available as `v1.0.0-beta.2` for older data upgrades. Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Debian package sources](https://sources.debian.org/).
+Tags: `latest` or pinned `v1.0.2`. Historical beta tags remain available. Beta 2 remains available as `v1.0.0-beta.2` for older data upgrades. Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Debian package sources](https://sources.debian.org/).
 
-**Existing installs:** v1/schema-8 data upgrades directly, preserving channels, accounts, settings, login, and tuner identity. Older early-preview/schema-1–7 directories must first run `antennarr/antennarr:v1.0.0-beta.2` to upgrade their data, then v1.0.1. Unsupported databases are refused without replacing their contents. Schema 8 is intended to remain stable through v1. Do not downgrade an upgraded directory. Backups are manual.
+**Existing installs:** v1/schema-8 data upgrades directly, preserving channels, accounts, settings, login, and tuner identity. Older early-preview/schema-1–7 directories must first run `antennarr/antennarr:v1.0.0-beta.2` to upgrade their data, then v1.0.2. Unsupported databases are refused without replacing their contents. Schema 8 is intended to remain stable through v1. Do not downgrade an upgraded directory. Backups are manual.
 
 Debug-level JSON logs go to Docker by default. Choose None, Normal (warnings/errors), or Debug under Admin. Saved settings take precedence over the bootstrap `ANTENNARR_LOG_LEVEL` environment variable. Enable Docker log rotation.
 
 GPL-3.0-or-later. The image includes buildable source at `/usr/share/doc/antennarr/source.tar.gz`; the source is also available on GitHub. Extract it with `docker cp antennarr:/usr/share/doc/antennarr/source.tar.gz .`.
 
-## New in v1.0.1
+## New in v1.0.2
 
-- Dashboard statistics refresh in the background, keeping live activity responsive. Loading counts are explicit, saved counts remain visible during failures, and read snapshots no longer reserve SQLite's writer lock.
-- Automatic discovery stops building extra reserves for full rosters; one matching candidate per queued account remains. Idle cleanup bounds saved alternatives to three roster targets (minimum 60 per channel and quality class), retaining provider diversity, current rosters, explicit assignments, and reserved sources. One matching candidate per queued account is retained for future recruitment.
-- Bulk reserve trimming produces one summary event instead of flooding removal history. SQLite temporary sorting uses RAM to avoid exhausting small container temporary filesystems. Database failure codes are logged without credential-bearing error text.
-- Full backups support up to 1 GiB compressed / 2 GiB expanded. Restore uploads stream to appdata staging instead of filling RAM-backed temporary storage. Backup failures are reported in Docker logs.
-- Update modernc.org/sqlite from 1.61.0 to 1.61.1.
+- Full accounts release their roster places and return to the random input queue without gaining or resetting strikes. Their accounts and catalogue remain available for later auditions. Antennarr's own live feeds are excluded from external occupancy. The old option to count full connections as failures has been removed, including when loading an older saved configuration.
+- Cached UHD rosters cannot restore streams evicted for account capacity. A new successful media audition is required.
+- New roster check passes prioritise the oldest verification, with random ties. Input accounts and retry queue positions remain random; checks still run in continuous passes and yield to playback.
+- Browser API requests have deadlines, allowing status refreshes to recover from a hanging request. Read requests time out after 15 seconds; mutations allow three minutes and are never retried automatically.
+- Docker logs identify unexpected pipeline termination and slow-viewer disconnections without revealing source credentials. Media probes distinguish early endings, process failures, invalid transport, missing timestamp progression, and stalled samples.
+- Backup creation releases the administration lock after capturing its input files, before ZIP compression. Snapshot failures and completed staging clean up temporary files. Backups remain manual.
 
-Schema 8 is retained. Existing accounts, channels, settings, and tuner identity are preserved. Excess unrostered automatic candidates may be removed during idle cleanup and rediscovered later; rostered/manual/reserved sources are protected. SQLite reuses freed pages, so an existing database file may remain large until separately compacted. Backups remain manual. Reverse proxies must allow the chosen restore upload size.
+Schema 8 is unchanged. Existing channels, accounts, login, and tuner identity are preserved. Full accounts already saved in rosters are evaluated on their next access check, not removed based solely on old metadata. Controlled tests cover recovery and sharing; they do not establish uninterrupted playback across every provider and Plex client.

@@ -38,15 +38,8 @@ export async function init() {
   r.replaceChildren();
   field(r, 'account_failures', 'Failed account checks before deletion', p.account_failures, 0, 100);
   field(r, 'stream_failures', 'Stream failures before deletion', p.stream_failures, 0, 100);
-  const fullLabel = el('label'), full = el('input');
-  Object.assign(full, {type: 'checkbox', name: 'count_full_connections_as_failures', checked: s.count_full_connections_as_failures === true});
-  fullLabel.append(full, document.createTextNode(' Count full connections as failures'));
-  help(fullLabel, 'When enabled, a valid account with all connection slots occupied counts towards the failed-account deletion threshold. This can cause working but temporarily full accounts to be dropped. Leave unchecked to return full accounts to the queue without adding a failure or discarding verified roster entries.', 'Count full connections as failures');
-  r.append(fullLabel);
-  autosave(r, async () => {
-    await api('/api/removal-policy', 'POST', numeric(r, ['account_failures', 'stream_failures']));
-    await patchSettings({count_full_connections_as_failures: full.checked});
-  });
+  r.append(el('p', 'Full accounts return to the input queue and release their roster places without gaining a failure.'));
+  autosave(r, () => api('/api/removal-policy', 'POST', numeric(r, ['account_failures', 'stream_failures'])));
   $('#import-form').onsubmit = async e => {
     e.preventDefault();
     const f = e.currentTarget,

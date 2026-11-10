@@ -2,6 +2,7 @@ package stream
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -387,5 +388,17 @@ func TestLineupOperationBlocksNewTunesAndReleasesGate(t *testing.T) {
 	defer release()
 	if err = m.WithIdle(func() error { t.Fatal("entered during playback"); return nil }); err != ErrBusy {
 		t.Fatal(err)
+	}
+}
+
+func TestPipelineReasonNeverIncludesArbitraryErrors(t *testing.T) {
+	if pipelineReason(errors.New("https://private.example/password")) != "pipeline_error" {
+		t.Fatal("unsafe error")
+	}
+	if pipelineReason(errors.New("output backpressure")) != "output_backpressure" {
+		t.Fatal("lost classification")
+	}
+	if pipelineReason(nil) != "unexpected_end" {
+		t.Fatal("unexpected EOF hidden")
 	}
 }
