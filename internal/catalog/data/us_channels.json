@@ -47,7 +47,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -100,7 +101,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -123,6 +125,11 @@
       "CNBC USA Eastern",
       "CNBC USA E",
       "East CNBC USA",
+      "NBC CNBC",
+      "NBC CNBC East",
+      "NBC CNBC Eastern",
+      "NBC CNBC E",
+      "East NBC CNBC",
       "-west",
       "-western",
       "-westcoast",
@@ -147,7 +154,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -212,7 +220,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -258,7 +267,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -306,7 +316,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -355,7 +366,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -413,7 +425,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -456,7 +469,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -484,6 +498,11 @@
       "MS NBC Eastern",
       "MS NBC E",
       "East MS NBC",
+      "NBC MSNBC",
+      "NBC MSNBC East",
+      "NBC MSNBC Eastern",
+      "NBC MSNBC E",
+      "East NBC MSNBC",
       "-west",
       "-western",
       "-westcoast",
@@ -504,7 +523,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -541,7 +561,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -585,7 +606,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -633,7 +655,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -684,7 +707,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -729,7 +753,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -775,7 +800,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -798,6 +824,11 @@
       "Bravo USA Eastern",
       "Bravo USA E",
       "East Bravo USA",
+      "NBC Bravo",
+      "NBC Bravo East",
+      "NBC Bravo Eastern",
+      "NBC Bravo E",
+      "East NBC Bravo",
       "-west",
       "-western",
       "-westcoast",
@@ -818,7 +849,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -862,7 +894,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -915,7 +948,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -957,7 +991,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1002,7 +1037,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1044,7 +1080,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1086,7 +1123,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1109,6 +1147,11 @@
       "Lifetime Television Eastern",
       "Lifetime Television E",
       "East Lifetime Television",
+      "Lifetime Network",
+      "Lifetime Network East",
+      "Lifetime Network Eastern",
+      "Lifetime Network E",
+      "East Lifetime Network",
       "-west",
       "-western",
       "-westcoast",
@@ -1130,7 +1173,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1171,7 +1215,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1237,7 +1282,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1281,7 +1327,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1314,6 +1361,11 @@
       "Spike TV Eastern",
       "Spike TV E",
       "East Spike TV",
+      "Paramount",
+      "Paramount East",
+      "Paramount Eastern",
+      "Paramount E",
+      "East Paramount",
       "-west",
       "-western",
       "-westcoast",
@@ -1335,7 +1387,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1393,7 +1446,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1416,6 +1470,11 @@
       "Sundance Channel Eastern",
       "Sundance Channel E",
       "East Sundance Channel",
+      "Sundance",
+      "Sundance East",
+      "Sundance Eastern",
+      "Sundance E",
+      "East Sundance",
       "-west",
       "-western",
       "-westcoast",
@@ -1434,7 +1493,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1467,6 +1527,11 @@
       "Syfy US Eastern",
       "Syfy US E",
       "East Syfy US",
+      "NBC Syfy",
+      "NBC Syfy East",
+      "NBC Syfy Eastern",
+      "NBC Syfy E",
+      "East NBC Syfy",
       "-west",
       "-western",
       "-westcoast",
@@ -1485,7 +1550,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1532,7 +1598,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1582,7 +1649,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1624,7 +1692,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1661,7 +1730,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1706,7 +1776,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1752,7 +1823,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1838,7 +1910,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1901,7 +1974,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1952,7 +2026,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -1980,6 +2055,11 @@
       "ID Investigation Discovery Eastern",
       "ID Investigation Discovery E",
       "East ID Investigation Discovery",
+      "Discovery Investigation",
+      "Discovery Investigation East",
+      "Discovery Investigation Eastern",
+      "Discovery Investigation E",
+      "East Discovery Investigation",
       "-west",
       "-western",
       "-westcoast",
@@ -2000,7 +2080,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2060,7 +2141,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2108,7 +2190,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2155,7 +2238,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2202,7 +2286,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2251,7 +2336,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2292,7 +2378,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2334,7 +2421,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2375,7 +2463,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2421,7 +2510,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2478,7 +2568,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2524,7 +2615,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2566,7 +2658,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2612,7 +2705,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2653,7 +2747,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2745,7 +2840,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2790,7 +2886,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2842,7 +2939,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2884,7 +2982,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2937,7 +3036,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -2990,7 +3090,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3032,7 +3133,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3079,7 +3181,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3102,6 +3205,11 @@
       "ACCNetwork Eastern",
       "ACCNetwork E",
       "East ACCNetwork",
+      "ESPN ACC Network",
+      "ESPN ACC Network East",
+      "ESPN ACC Network Eastern",
+      "ESPN ACC Network E",
+      "East ESPN ACC Network",
       "-west",
       "-western",
       "-westcoast",
@@ -3121,7 +3229,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3181,7 +3290,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3209,6 +3319,11 @@
       "CBSSportsNetwork Eastern",
       "CBSSportsNetwork E",
       "East CBSSportsNetwork",
+      "CBS Sports Network USA",
+      "CBS Sports Network USA East",
+      "CBS Sports Network USA Eastern",
+      "CBS Sports Network USA E",
+      "East CBS Sports Network USA",
       "-west",
       "-western",
       "-westcoast",
@@ -3228,7 +3343,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3251,6 +3367,13 @@
       "ESPN USA Eastern",
       "ESPN USA E",
       "East ESPN USA",
+      "ESPN UHD",
+      "ESPNUHD",
+      "ESPN 1",
+      "ESPN 1 East",
+      "ESPN 1 Eastern",
+      "ESPN 1 E",
+      "East ESPN 1",
       "-west",
       "-western",
       "-westcoast",
@@ -3280,8 +3403,7 @@
       "-catch up",
       "-replay",
       "-loop",
-      "ESPN UHD",
-      "ESPNUHD"
+      "-latin america"
     ]
   },
   {
@@ -3324,7 +3446,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3361,7 +3484,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3403,7 +3527,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3451,7 +3576,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3499,7 +3625,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3527,6 +3654,11 @@
       "GolfChannel Eastern",
       "GolfChannel E",
       "East GolfChannel",
+      "NBC Golf",
+      "NBC Golf East",
+      "NBC Golf Eastern",
+      "NBC Golf E",
+      "East NBC Golf",
       "-west",
       "-western",
       "-westcoast",
@@ -3546,7 +3678,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3574,6 +3707,11 @@
       "MLBN Eastern",
       "MLBN E",
       "East MLBN",
+      "The MLB Channel",
+      "The MLB Channel East",
+      "The MLB Channel Eastern",
+      "The MLB Channel E",
+      "East The MLB Channel",
       "-west",
       "-western",
       "-westcoast",
@@ -3595,7 +3733,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3637,7 +3776,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3686,7 +3826,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3709,6 +3850,11 @@
       "SECNetwork Eastern",
       "SECNetwork E",
       "East SECNetwork",
+      "ESPN SEC Network",
+      "ESPN SEC Network East",
+      "ESPN SEC Network Eastern",
+      "ESPN SEC Network E",
+      "East ESPN SEC Network",
       "-west",
       "-western",
       "-westcoast",
@@ -3731,7 +3877,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3782,7 +3929,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3828,7 +3976,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3873,7 +4022,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3933,7 +4083,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -3976,7 +4127,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4025,7 +4177,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4071,7 +4224,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4114,7 +4268,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4152,7 +4307,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4202,7 +4358,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4260,7 +4417,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4303,7 +4461,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4347,7 +4506,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4401,7 +4561,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4446,7 +4607,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4504,7 +4666,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4554,7 +4717,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4602,7 +4766,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4648,7 +4813,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4676,6 +4842,11 @@
       "Military Channel Eastern",
       "Military Channel E",
       "East Military Channel",
+      "American Heroes",
+      "American Heroes East",
+      "American Heroes Eastern",
+      "American Heroes E",
+      "East American Heroes",
       "-west",
       "-western",
       "-westcoast",
@@ -4695,7 +4866,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4728,6 +4900,11 @@
       "Crime Investigation Network Eastern",
       "Crime Investigation Network E",
       "East Crime Investigation Network",
+      "Crime and Investigation Network",
+      "Crime and Investigation Network East",
+      "Crime and Investigation Network Eastern",
+      "Crime and Investigation Network E",
+      "East Crime and Investigation Network",
       "-west",
       "-western",
       "-westcoast",
@@ -4746,7 +4923,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4789,7 +4967,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4834,7 +5013,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4883,7 +5063,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4927,7 +5108,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -4973,7 +5155,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5020,7 +5203,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5061,7 +5245,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5102,7 +5287,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5144,7 +5330,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5172,6 +5359,11 @@
       "GreatAmericanFamily Eastern",
       "GreatAmericanFamily E",
       "East GreatAmericanFamily",
+      "Great American Country",
+      "Great American Country East",
+      "Great American Country Eastern",
+      "Great American Country E",
+      "East Great American Country",
       "-west",
       "-western",
       "-westcoast",
@@ -5192,7 +5384,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5235,7 +5428,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5277,7 +5471,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5321,7 +5516,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5370,7 +5566,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5427,7 +5624,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5480,7 +5678,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5529,7 +5728,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5582,7 +5782,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5631,7 +5832,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5659,6 +5861,11 @@
       "CinemaxHits Eastern",
       "CinemaxHits E",
       "East CinemaxHits",
+      "Cinemax More MAX",
+      "Cinemax More MAX East",
+      "Cinemax More MAX Eastern",
+      "Cinemax More MAX E",
+      "East Cinemax More MAX",
       "-west",
       "-western",
       "-westcoast",
@@ -5682,7 +5889,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5710,6 +5918,11 @@
       "CinemaxAction Eastern",
       "CinemaxAction E",
       "East CinemaxAction",
+      "Cinemax Action MAX",
+      "Cinemax Action MAX East",
+      "Cinemax Action MAX Eastern",
+      "Cinemax Action MAX E",
+      "East Cinemax Action MAX",
       "-west",
       "-western",
       "-westcoast",
@@ -5733,7 +5946,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5789,7 +6003,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5822,6 +6037,11 @@
       "CinemaxClassics Eastern",
       "CinemaxClassics E",
       "East CinemaxClassics",
+      "Cinemax 5 StarMAX",
+      "Cinemax 5 StarMAX East",
+      "Cinemax 5 StarMAX Eastern",
+      "Cinemax 5 StarMAX E",
+      "East Cinemax 5 StarMAX",
       "-west",
       "-western",
       "-westcoast",
@@ -5845,7 +6065,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5896,7 +6117,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -5948,7 +6170,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6000,7 +6223,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6052,7 +6276,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6099,7 +6324,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6145,7 +6371,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6196,7 +6423,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6246,7 +6474,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6292,7 +6521,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6338,7 +6568,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6388,7 +6619,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6438,7 +6670,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6466,6 +6699,16 @@
       "STZENCL Eastern",
       "STZENCL E",
       "East STZENCL",
+      "STARZ ENCORE Classics",
+      "STARZ ENCORE Classics East",
+      "STARZ ENCORE Classics Eastern",
+      "STARZ ENCORE Classics E",
+      "East STARZ ENCORE Classics",
+      "Encore Classics",
+      "Encore Classics East",
+      "Encore Classics Eastern",
+      "Encore Classics E",
+      "East Encore Classics",
       "-west",
       "-western",
       "-westcoast",
@@ -6488,7 +6731,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6538,7 +6782,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6588,7 +6833,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6638,7 +6884,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6691,7 +6938,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6736,7 +6984,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6788,7 +7037,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6844,7 +7094,8 @@
       "-catchup",
       "-catch up",
       "-replay",
-      "-loop"
+      "-loop",
+      "-latin america"
     ]
   },
   {
@@ -6937,6 +7188,16 @@
       "CBS WCBS New York Eastern",
       "CBS WCBS New York E",
       "East CBS WCBS New York",
+      "CBS 2 New York NY WCBS",
+      "CBS 2 New York NY WCBS East",
+      "CBS 2 New York NY WCBS Eastern",
+      "CBS 2 New York NY WCBS E",
+      "East CBS 2 New York NY WCBS",
+      "CBS 2 New York WCBS",
+      "CBS 2 New York WCBS East",
+      "CBS 2 New York WCBS Eastern",
+      "CBS 2 New York WCBS E",
+      "East CBS 2 New York WCBS",
       "-west",
       "-western",
       "-westcoast",
@@ -6960,7 +7221,8 @@
       "-news",
       "-reality",
       "-justice",
-      "-drama"
+      "-drama",
+      "-latin america"
     ],
     "station": "WCBS"
   },
@@ -7059,6 +7321,16 @@
       "NBC WNBC New York Eastern",
       "NBC WNBC New York E",
       "East NBC WNBC New York",
+      "NBC 4 New York NY WNBC",
+      "NBC 4 New York NY WNBC East",
+      "NBC 4 New York NY WNBC Eastern",
+      "NBC 4 New York NY WNBC E",
+      "East NBC 4 New York NY WNBC",
+      "NBC 4 New York WNBC",
+      "NBC 4 New York WNBC East",
+      "NBC 4 New York WNBC Eastern",
+      "NBC 4 New York WNBC E",
+      "East NBC 4 New York WNBC",
       "-west",
       "-western",
       "-westcoast",
@@ -7081,7 +7353,8 @@
       "-sport",
       "-news",
       "-universo",
-      "-cozi"
+      "-cozi",
+      "-latin america"
     ],
     "station": "WNBC"
   },
@@ -7175,6 +7448,16 @@
       "FOX WNYW New York Eastern",
       "FOX WNYW New York E",
       "East FOX WNYW New York",
+      "FOX 5 New York NY WNYW",
+      "FOX 5 New York NY WNYW East",
+      "FOX 5 New York NY WNYW Eastern",
+      "FOX 5 New York NY WNYW E",
+      "East FOX 5 New York NY WNYW",
+      "FOX 5 New York WNYW",
+      "FOX 5 New York WNYW East",
+      "FOX 5 New York WNYW Eastern",
+      "FOX 5 New York WNYW E",
+      "East FOX 5 New York WNYW",
       "-west",
       "-western",
       "-westcoast",
@@ -7207,7 +7490,8 @@
       "-deportes",
       "-latino",
       "-international",
-      "-movies"
+      "-movies",
+      "-latin america"
     ],
     "station": "WNYW"
   },
@@ -7306,6 +7590,21 @@
       "ABC WABC New York Eastern",
       "ABC WABC New York E",
       "East ABC WABC New York",
+      "ABC 07 New York NY WABC",
+      "ABC 07 New York NY WABC East",
+      "ABC 07 New York NY WABC Eastern",
+      "ABC 07 New York NY WABC E",
+      "East ABC 07 New York NY WABC",
+      "ABC 7 New York NY WABC",
+      "ABC 7 New York NY WABC East",
+      "ABC 7 New York NY WABC Eastern",
+      "ABC 7 New York NY WABC E",
+      "East ABC 7 New York NY WABC",
+      "ABC 7 New York WABC",
+      "ABC 7 New York WABC East",
+      "ABC 7 New York WABC Eastern",
+      "ABC 7 New York WABC E",
+      "East ABC 7 New York WABC",
       "-west",
       "-western",
       "-westcoast",
@@ -7329,7 +7628,8 @@
       "-kids",
       "-comedy",
       "-localish",
-      "-australia"
+      "-australia",
+      "-latin america"
     ],
     "station": "WABC"
   },
@@ -7418,6 +7718,11 @@
       "MyNetworkTV WWOR Eastern",
       "MyNetworkTV WWOR E",
       "East MyNetworkTV WWOR",
+      "MyTV 9 New York WWOR",
+      "MyTV 9 New York WWOR East",
+      "MyTV 9 New York WWOR Eastern",
+      "MyTV 9 New York WWOR E",
+      "East MyTV 9 New York WWOR",
       "-west",
       "-western",
       "-westcoast",
@@ -7436,7 +7741,8 @@
       "-catch up",
       "-replay",
       "-loop",
-      "-buzzr"
+      "-buzzr",
+      "-latin america"
     ],
     "station": "WWOR"
   },
@@ -7570,7 +7876,8 @@
       "-loop",
       "-rewind",
       "-antenna",
-      "-news"
+      "-news",
+      "-latin america"
     ],
     "station": "WPIX"
   },
@@ -7692,7 +7999,8 @@
       "-world",
       "-wisconsin",
       "-masterpiece",
-      "-america"
+      "-america",
+      "-latin america"
     ],
     "station": "WNET"
   }

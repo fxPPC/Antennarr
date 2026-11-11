@@ -46,7 +46,7 @@ func loadCountryAliases() (map[string]string, int) {
 // explicit Country field. Full names and other codes are case-insensitive.
 func splitCountry(ts, original []string, explicit bool) ([]string, []string, string) {
 	// CW is also a network name; only [CW] or an explicit region means Curaçao.
-	ambiguous := " am as at be by cw do in is it me my no so to tv ms id fi geo btn "
+	ambiguous := " am as at be by cw do in is it me my no so to tv ms id fi geo btn and "
 	country := ""
 	for pass := 0; pass < 2; pass++ {
 		found := false

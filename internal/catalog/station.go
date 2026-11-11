@@ -97,7 +97,33 @@ func (m channelMatcher) stationMatches(label sourceLabel) bool {
 	if label.guide.key != "" && label.guide.country != "" && label.country != "" && label.guide.country != label.country {
 		return false
 	}
+	if m.conflictingStation(label.guide.key) {
+		return false
+	}
 	return m.stationEvidence(label.key) || (m.compatible(sourceLabel{channelLabel: label.guide}) && m.stationEvidence(label.guide.key))
+}
+
+var broadcastCallsign = regexp.MustCompile(`^[kw][a-z]{2,3}$`)
+
+// A correct callsign in the display name cannot excuse a different affiliate
+// in a recognisable guide ID. Restrict this check to callsign-shaped station
+// constraints and exact network/callsign combinations, not arbitrary IDs.
+func (m channelMatcher) conflictingStation(key string) bool {
+	if !broadcastCallsign.MatchString(m.stationKey) {
+		return false
+	}
+	id := strings.ReplaceAll(key, " ", "")
+	if broadcastCallsign.MatchString(id) {
+		return id != m.stationKey
+	}
+	for network := range m.guideKeys {
+		for _, call := range []string{strings.TrimPrefix(id, network), strings.TrimSuffix(id, network)} {
+			if call != id && broadcastCallsign.MatchString(call) && call != m.stationKey {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // Only exact normalised guide identities count. Numeric/opaque provider IDs
@@ -151,8 +177,24 @@ var referenceGuideMatchers = sync.OnceValue(func() []channelMatcher {
 	if err != nil {
 		panic("invalid bundled channel definitions: " + err.Error())
 	}
-	// A distinct service that providers sometimes incorrectly label simply NBC.
-	channels = append(channels, Channel{Name: "NBC News Now", Region: "US"})
+	// Reference-only identities veto contradictory metadata; they neither add
+	// output channels nor assign a feed by its guide ID alone. These services
+	// appeared under unrelated names in provider catalogues.
+	for _, c := range []Channel{
+		{Name: "NBC News Now", Region: "US"},
+		{Name: "360 North", Region: "US", Aliases: []string{"360 North Anchorage"}},
+		{Name: "A3 Cine", Region: "US"},
+		{Name: "And TV", Region: "US"},
+		{Name: "3ABN Latino Houston TX", Region: "US"},
+		{Name: "3ABN Proclaim Network", Region: "US"},
+		{Name: "CW Plus Mountain", Region: "US"},
+		{Name: "Military History Channel", Region: "US"},
+		{Name: "STARZ ENCORE Español", Region: "US", Aliases: []string{"STARZ ENCORE Espanol"}},
+		{Name: "Saigon Broadcasting Network", Region: "US"},
+		{Name: "Racer Network", Region: "US"},
+	} {
+		channels = append(channels, c)
+	}
 	out := make([]channelMatcher, 0, len(channels))
 	for _, c := range channels {
 		out = append(out, compileChannel(c))

@@ -1,3 +1,15 @@
+# v1.0.4
+
+- Review all 150 US channel definitions and expand provider aliases for 27 channels, including numbered New York affiliates, Investigation Discovery, ESPN, American Heroes, and legacy premium-network names. Keep existing guide numbers and station requirements.
+- Reject conflicting regional and service metadata more consistently: compact guide IDs now respect exclusions such as `-pacific` and `-latin america`, and dotted country suffixes distinguish feeds such as `.in` from `.us`. A conflicting affiliate ID cannot override the required station in the name.
+- Recognise additional unrelated guide services and reject catalogue section headings. Ambiguous feeds stay unassigned; missing sources are preferable to the wrong programme.
+- Handle provider `VIP` quality decoration and bracketed `[BK]` backup markers without relaxing complete-name matching or the UHD setting.
+- Allow more input probing time and bytes for valid MPEG-TS feeds whose AAC audio arrives late, fixing a startup failure seen with NBC. Video is still copied; startup deadlines remain bounded.
+
+Schema 8, account history, channel IDs, and tuner identity are retained. Saved streams are rematched once; contradictory memberships are removed without failure strikes. Existing channel definitions are not overwritten. The improved preset is used for fresh installs or an explicit reset. Backups remain manual. Metadata checks cannot prove programme content or uninterrupted playback across every provider and Plex client.
+
+---
+
 # v1.0.3
 
 - Build with Go 1.27.4, including the HTTP server security fix for GO-2026-6859.
