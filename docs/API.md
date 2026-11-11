@@ -31,7 +31,7 @@ An additional viewer beyond the configured limit receives 503; an unknown channe
 | GET `/api/input/accounts?q=...&offset=0` | Paginated, redacted accounts; search provider/status or account/stream IDs; `{items,total,offset,limit,has_next}` |
 | GET `/api/output/search?q=...` | Redacted stream metadata and matching channel IDs; at most 100 stream detail rows, with `truncated` when more match |
 | POST `/api/input/clear` | Confirmed removal of unassigned input accounts; active/rostered accounts protected |
-| GET, POST `/api/channels` | List/save channels, permanent IDs, numbers, names, region, enabled state, and aliases |
+| GET, POST `/api/channels` | List/save channels, permanent IDs, numbers, names, region, optional required station ID, enabled state, and aliases |
 | DELETE `/api/channels/{id}` | Remove a channel |
 | POST `/api/channels/bulk` | Confirmed clear-all or reset-to-US-preset operation |
 | GET `/api/channels/{id}/excluded` | Excluded stream mappings |
@@ -58,7 +58,7 @@ Send JSON with `Content-Type: application/json` and `X-Antennarr-Request: 1`, pl
 | POST `/api/reset` | `{"confirmed":true}` | Idle; restarts the application |
 | POST `/api/lineup` | `{"confirmed":true,"lineup":{"version":1,"channels":[...]}}` | Idle; replaces channels and rebuilds rosters |
 
-Lineup JSON is limited to 2 MiB and 1,000 channels. Export `GET /api/lineup` for the complete portable structure; each channel carries `id`, `number`, `name`, `region`, `enabled`, `aliases`, and `policy` (`target`, `preference`, `race`). IDs and numbers must be unique. Policy zero/empty values inherit output settings.
+Lineup JSON is limited to 2 MiB and 1,000 channels. Export `GET /api/lineup` for the complete portable structure; each channel carries `id`, `number`, `name`, `region`, optional `station`, `enabled`, `aliases`, and `policy` (`target`, `preference`, `race`). IDs and numbers must be unique. Policy zero/empty values inherit output settings. `station` is an optional case-insensitive station identifier (up to 32 letters, digits, dots, or hyphens); empty removes the station requirement. Channel edits retain the permanent ID and re-evaluate affected source assignments.
 
 POST `/api/restore` uses **multipart/form-data**, with the ZIP in a file field named `backup`; it is not JSON and needs no `confirmed` field. Keep the request header and Basic authentication. The ZIP limit is 1 GiB, with at most 2 GiB of expanded files. Playback must be idle. Success returns `restoring`, `restart_required`, and the saved `tuner_url`, then restarts the application.
 

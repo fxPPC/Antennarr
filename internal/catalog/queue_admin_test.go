@@ -114,7 +114,7 @@ func TestBulkResetAndClearPreserveSources(t *testing.T) {
 		t.Fatal(e)
 	}
 	chs, _ := s.Channels()
-	if len(chs) != 143 {
+	if len(chs) != 150 {
 		t.Fatal(len(chs))
 	}
 	for _, c := range chs {

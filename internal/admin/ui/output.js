@@ -31,6 +31,7 @@ export async function init() {
    if(!await confirmAction('Replace all channels? Rosters are not included and will rebuild. Accounts and settings are retained.'))return;
    button.disabled=true;$('#lineup-result').textContent='Replacing channels…';await api('/api/lineup','POST',{confirmed:true,lineup});await loadChannels();$('#lineup-result').textContent='Lineup replaced. Rosters are rebuilding.';
   }catch(e){$('#lineup-result').textContent=e.message}finally{button.disabled=false}};
+  help($('#channel-form').elements.station.parentElement, 'Optional exact station ID, such as WNBC. Both primary and backup sources must identify it in their name or guide ID. Generic network labels are insufficient; fewer feeds may qualify. Match the station to the guide selected in Plex.', 'Required station ID');
   const [s, links] = await Promise.all([api('/api/settings'), api('/api/connection')]);
   const root = $('#tuner-links');
   root.replaceChildren();
@@ -94,6 +95,7 @@ export async function init() {
         number: f.elements.number.value,
         name: f.elements.name.value,
         region: f.elements.region.value,
+        station: f.elements.station.value,
         aliases: f.elements.aliases.value.split('\n').map(s => s.trim()).filter(Boolean),
         enabled: f.elements.enabled.checked
       });
@@ -111,7 +113,7 @@ export async function init() {
   await loadChannels();
   for (const [id,defaults] of [['clear-all-channels',false],['reset-us-channels',true]]) {
     $('#'+id).onclick=async()=>{
-      if(!await confirmAction(defaults?'Replace all channels and rosters with the 143 default US channels? Custom channels and rules will be removed. Accounts and login are kept; no backup is created.':'Remove all channels and their roster assignments? Accounts and streams are kept. No backup is created.'))return;
+      if(!await confirmAction(defaults?'Replace all channels and rosters with the 150 default US channels? Custom channels and rules will be removed. Accounts and login are kept; no backup is created.':'Remove all channels and their roster assignments? Accounts and streams are kept. No backup is created.'))return;
       try {await api('/api/channels/bulk','POST',{confirmed:true,default_us:defaults});$('#bulk-result').textContent='Channel selection updated.';await loadChannels()}catch(e){$('#bulk-result').textContent=e.message}
     };
   }
@@ -134,7 +136,7 @@ async function loadChannels() {
     const controls = el('div', undefined, 'row');
     controls.append(button('Refresh sources', () => entries(ch, list)), button('Edit channel', () => {
       const f = $('#channel-form');
-      for (const k of ['id', 'number', 'name', 'region']) f.elements[k].value = ch[k] || '';
+      for (const k of ['id', 'number', 'name', 'region', 'station']) f.elements[k].value = ch[k] || '';
       f.elements.aliases.value = (ch.aliases || []).join('\n');
       f.elements.enabled.checked = ch.enabled;
       $('#edit-channel').open = true;

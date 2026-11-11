@@ -57,7 +57,7 @@ Those projects helped establish the territory. Antennarr's reason to exist is th
 
 Go, SQLite, and FFmpeg on Debian. One container, one persistent `/data` directory, and a built-in web interface. Antennarr presents an HDHomeRun-compatible tuner, supports simultaneous channels and configurable viewer limits, and provides manual full backup/restore, shareable channel lineups, and Docker logging.
 
-**No provider accounts, passwords, or playable streams are supplied.** Bring account lists you are authorised to use. Fresh installations include **143 editable US channels**; you can replace them with your own market's lineup. Supported page formats are handled automatically; locked, script-only, or unsupported pages may need another source URL.
+**No provider accounts, passwords, or playable streams are supplied.** Bring account lists you are authorised to use. Fresh installations include **150 editable US channels**; you can replace them with your own market's lineup. Supported page formats are handled automatically; locked, script-only, or unsupported pages may need another source URL.
 
 ## Install with Docker
 
@@ -90,7 +90,7 @@ Screenshots use disposable synthetic data, not real provider accounts.
 
 ## Upgrades and limitations
 
-Read the [v1.0.2 release notes](docs/RELEASE-NOTES.md). Existing **schema-8** data opens directly, retaining settings, channels, accounts, login, and tuner identity. Older schema-1–7 directories must first upgrade through `antennarr/antennarr:v1.0.0-beta.2`. Unsupported data is refused without replacing it. Do not downgrade an upgraded data directory. Backups are manual.
+Read the [v1.0.3 release notes](docs/RELEASE-NOTES.md). Existing **schema-8** data opens directly, retaining settings, channels, accounts, login, and tuner identity. Older schema-1–7 directories must first upgrade through `antennarr/antennarr:v1.0.0-beta.2`. Unsupported data is refused without replacing it. Do not downgrade an upgraded data directory. Backups are manual.
 
 Provider failure, codec changes, broadcast timing differences, and Plex client behaviour can still interrupt viewing. Controlled tests verify source switching and concurrent playback; they do not prove uninterrupted playback on every provider or client. Native unRAID playback testing remains pending. v1 exposes one tuner profile; multiple simultaneous market profiles are future work.
 
@@ -106,7 +106,7 @@ docker compose -f compose.portable.yaml up -d --build
 
 This source configuration binds to loopback by default: open `http://127.0.0.1:39192`. Copy `portable.env.example` to `.env` to configure LAN access. All persistent state is under `./data`.
 
-The Docker build uses Go 1.27.3; the module minimum is Go 1.26. For local development, install Go, Node.js 24 for UI tests, and FFmpeg/FFprobe. See [contributing](CONTRIBUTING.md), [tests](docs/TESTING.md), [module boundaries](docs/MODULES.md), [architecture](docs/ARCHITECTURE.md), and [API](docs/API.md). UI contributors can work on the embedded plain JavaScript, HTML, and CSS independently of streaming changes.
+The Docker build uses Go 1.27.4; the module minimum is Go 1.26. Use a supported Go release with its latest security patches for local builds, Node.js 24 for UI tests, and FFmpeg/FFprobe. See [contributing](CONTRIBUTING.md), [tests](docs/TESTING.md), [module boundaries](docs/MODULES.md), [architecture](docs/ARCHITECTURE.md), and [API](docs/API.md). UI contributors can work on the embedded plain JavaScript, HTML, and CSS independently of streaming changes.
 
 Use Discussions for questions and ideas, Issues for reproducible bugs, and [private reporting](https://github.com/fxPPC/Antennarr/security/advisories/new) for vulnerabilities. Never post credentials, account lists, backups, or unredacted logs.
 

@@ -42,6 +42,9 @@ func (s *Store) seedInitialChannels() error {
 		return err
 	}
 	for _, c := range channels {
+		if err = saveStation(tx, "us-default-"+c.Number, c.Station); err != nil {
+			return err
+		}
 		aliases, _ := json.Marshal(c.Aliases)
 		if _, err = tx.Exec("INSERT INTO channels(id,number,name,region,enabled,aliases) VALUES(?,?,?,'US',1,?)", "us-default-"+c.Number, c.Number, c.Name, string(aliases)); err != nil {
 			return err
@@ -120,6 +123,13 @@ func (s *Store) ApplyUSPreset() (PresetMerge, error) {
 	}
 	for _, c := range preset {
 		k, _ := channelKey(c.Name, c.Region)
+		stationID := "us-default-" + c.Number
+		if old, ok := existing[k]; ok {
+			stationID = old.ID
+		}
+		if err = saveStation(tx, stationID, c.Station); err != nil {
+			return PresetMerge{}, err
+		}
 		aliases, _ := json.Marshal(c.Aliases)
 		if old, ok := existing[k]; ok {
 			if used[numberKey(c.Number)] {

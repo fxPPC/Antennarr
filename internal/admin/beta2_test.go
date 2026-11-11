@@ -42,7 +42,7 @@ func TestBulkConfirmationIdleAndFactoryReset(t *testing.T) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	chs, _ := s.Channels()
-	if len(chs) != 143 {
+	if len(chs) != 150 {
 		t.Fatal(len(chs))
 	}
 	if w := call(`{"confirmed":true}`, true); w.Code != 200 || !restart || !a.maintenance.Load() {

@@ -16,7 +16,7 @@ func TestCurrentSchemaReopenPreservesCatalogue(t *testing.T) {
 		t.Fatal(e)
 	}
 	channels, e := s.Channels()
-	if e != nil || len(channels) != 143 {
+	if e != nil || len(channels) != 150 {
 		t.Fatal(len(channels), e)
 	}
 	s.Close()

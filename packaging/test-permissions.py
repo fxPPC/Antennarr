@@ -24,8 +24,8 @@ def identity(want):
  out=run('exec',name,'cat','/proc/1/status').stdout
  assert next(x for x in out.splitlines() if x.startswith('Uid:')).split()[1]==str(want),out
 try:
- start();ready();identity(10001);channels=json.loads(request('/api/channels').stdout);assert len(channels)==143
- accounts=json.loads(request('/api/input/accounts').stdout);assert accounts['items']==[] and accounts['total']==0;stop();print('PASS default IDs, 143 channels, zero accounts',flush=True)
+ start();ready();identity(10001);channels=json.loads(request('/api/channels').stdout);assert len(channels)==150
+ accounts=json.loads(request('/api/input/accounts').stdout);assert accounts['items']==[] and accounts['total']==0;stop();print('PASS default IDs, 150 channels, zero accounts',flush=True)
  start(puid=12345,pgid=12346);ready();identity(12345);assert json.loads(request('/api/channels').stdout)==channels;stop();print('PASS custom PUID/PGID adjusts existing ownership and preserves channels',flush=True)
  start(uid='12345:12346',extra=('--cap-drop','ALL','--read-only','--tmpfs','/tmp'));ready();identity(12345);stop();print('PASS explicit --user and no capabilities',flush=True)
  start(puid=12345,pgid=12346,extra=('--cap-drop','ALL','--cap-add','CHOWN','--cap-add','DAC_OVERRIDE','--cap-add','SETUID','--cap-add','SETGID','--read-only','--tmpfs','/tmp','--security-opt','no-new-privileges:true'));ready();identity(12345);stop();print('PASS hardened initialisation',flush=True)
