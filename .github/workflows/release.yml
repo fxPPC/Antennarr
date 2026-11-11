@@ -40,7 +40,7 @@ jobs:
           gh api --paginate --slurp "repos/$REPOSITORY/releases?per_page=100" > /tmp/releases.json
           args=()
           if [ "$PROMOTE_LATEST" = true ]; then args+=(--promote-latest); fi
-          python3 scripts/release-policy.py "$VERSION" "$REF" --releases /tmp/releases.json "${args[@]}" > /tmp/release-plan.json
+          python3 scripts/release-policy.py "$VERSION" "$REF" "${args[@]}" < /tmp/releases.json > /tmp/release-plan.json
           if gh api "repos/$REPOSITORY/git/ref/tags/$VERSION" >/dev/null 2>&1; then
             echo 'This version already exists; publish a new patch version.' >&2
             exit 1
@@ -147,7 +147,7 @@ jobs:
           gh api --paginate --slurp "repos/$REPOSITORY/releases?per_page=100" > /tmp/releases.json
           args=()
           if [ "$PROMOTE_LATEST" = true ]; then args+=(--promote-latest); fi
-          python3 scripts/release-policy.py "$VERSION" "$REF" --releases /tmp/releases.json "${args[@]}"
+          python3 scripts/release-policy.py "$VERSION" "$REF" "${args[@]}" < /tmp/releases.json
           # Recheck after approval to prevent accidental release replacement.
           if gh api "repos/$REPOSITORY/git/ref/tags/$VERSION" >/dev/null 2>&1; then exit 1; fi
           if docker buildx imagetools inspect "$IMAGE:$VERSION" >/dev/null 2>&1; then exit 1; fi
