@@ -51,3 +51,33 @@ func TestLineupHTTPGuardsAndRoundTrip(t *testing.T) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 }
+
+func TestChannelStationHTTPRoundTrip(t *testing.T) {
+	s, err := catalog.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	a := API{Store: s}
+	mux := http.NewServeMux()
+	a.Register(mux, func(h http.HandlerFunc) http.HandlerFunc { return h })
+	r := httptest.NewRequest("POST", "/api/channels", strings.NewReader(`{"id":"nbc","name":"NBC","number":"004","region":"US","station":" wnbc ","aliases":["WNBC"],"enabled":true}`))
+	r.Header.Set("X-Antennarr-Request", "1")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	if w.Code != 200 {
+		t.Fatal(w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest("GET", "/api/channels", nil))
+	var channels []catalog.Channel
+	if err = json.Unmarshal(w.Body.Bytes(), &channels); err != nil || len(channels) != 1 || channels[0].Station != "WNBC" {
+		t.Fatal("station not saved", channels, err)
+	}
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, httptest.NewRequest("GET", "/api/lineup", nil))
+	var lineup catalog.Lineup
+	if err = json.Unmarshal(w.Body.Bytes(), &lineup); err != nil || len(lineup.Channels) != 1 || lineup.Channels[0].Station != "WNBC" {
+		t.Fatal("station not exported", lineup, err)
+	}
+}

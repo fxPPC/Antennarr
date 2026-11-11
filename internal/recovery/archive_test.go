@@ -29,7 +29,7 @@ func TestFullBackupRestorePreservesTunerAndHistory(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	id, e := s.SaveChannel(catalog.Channel{Number: "102", Name: "MTV", Region: "US", Enabled: true})
+	id, e := s.SaveChannel(catalog.Channel{Number: "102", Name: "MTV", Region: "US", Enabled: true, Station: "MTV"})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -123,7 +123,7 @@ func TestFullBackupRestorePreservesTunerAndHistory(t *testing.T) {
 		}
 	}
 	chs, _ := restored.Channels()
-	if len(chs) != 1 || chs[0].ID != id {
+	if len(chs) != 1 || chs[0].ID != id || chs[0].Station != "MTV" {
 		t.Fatal(chs)
 	}
 	var accounts int

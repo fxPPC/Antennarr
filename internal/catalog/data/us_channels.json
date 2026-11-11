@@ -6961,7 +6961,8 @@
       "-reality",
       "-justice",
       "-drama"
-    ]
+    ],
+    "station": "WCBS"
   },
   {
     "name": "NBC",
@@ -7081,7 +7082,8 @@
       "-news",
       "-universo",
       "-cozi"
-    ]
+    ],
+    "station": "WNBC"
   },
   {
     "name": "FOX",
@@ -7206,7 +7208,8 @@
       "-latino",
       "-international",
       "-movies"
-    ]
+    ],
+    "station": "WNYW"
   },
   {
     "name": "ABC",
@@ -7327,7 +7330,8 @@
       "-comedy",
       "-localish",
       "-australia"
-    ]
+    ],
+    "station": "WABC"
   },
   {
     "name": "MyNetworkTV",
@@ -7433,7 +7437,8 @@
       "-replay",
       "-loop",
       "-buzzr"
-    ]
+    ],
+    "station": "WWOR"
   },
   {
     "name": "The CW",
@@ -7566,7 +7571,8 @@
       "-rewind",
       "-antenna",
       "-news"
-    ]
+    ],
+    "station": "WPIX"
   },
   {
     "name": "PBS",
@@ -7687,6 +7693,7 @@
       "-wisconsin",
       "-masterpiece",
       "-america"
-    ]
+    ],
+    "station": "WNET"
   }
 ]

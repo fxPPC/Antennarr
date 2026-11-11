@@ -29,7 +29,7 @@ func (s *Store) ReplaceChannels(defaultUS bool) error {
 	if e != nil {
 		return e
 	}
-	for _, q := range []string{"DELETE FROM channel_aliases", "DELETE FROM channels", "DELETE FROM settings WHERE name IN('roster_cache_uhd_true','roster_cache_uhd_false')"} {
+	for _, q := range []string{"DELETE FROM settings WHERE name GLOB 'channel_station:*'", "DELETE FROM channel_aliases", "DELETE FROM channels", "DELETE FROM settings WHERE name IN('roster_cache_uhd_true','roster_cache_uhd_false')"} {
 		if _, e = tx.Exec(q); e != nil {
 			return e
 		}
@@ -44,6 +44,9 @@ func (s *Store) ReplaceChannels(defaultUS bool) error {
 			id := old[key]
 			if id == "" {
 				id = "us-default-" + c.Number
+			}
+			if e = saveStation(tx, id, c.Station); e != nil {
+				return e
 			}
 			raw, _ := json.Marshal(c.Aliases)
 			if _, e = tx.Exec("INSERT INTO channels(id,number,name,region,enabled,aliases) VALUES(?,?,?,'US',1,?)", id, c.Number, c.Name, string(raw)); e != nil {

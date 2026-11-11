@@ -6,7 +6,7 @@ on:
       version:
         description: New stable version (vMAJOR.MINOR.PATCH); existing versions cannot be replaced
         required: true
-        default: v1.0.2
+        default: v1.0.3
 permissions:
   contents: read
 concurrency:

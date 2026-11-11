@@ -90,7 +90,7 @@ Screenshots use disposable synthetic data, not real provider accounts.
 
 ## Upgrades and limitations
 
-Read the [v1.0.2 release notes](docs/RELEASE-NOTES.md). Existing **schema-8** data opens directly, retaining settings, channels, accounts, login, and tuner identity. Older schema-1–7 directories must first upgrade through `antennarr/antennarr:v1.0.0-beta.2`. Unsupported data is refused without replacing it. Do not downgrade an upgraded data directory. Backups are manual.
+Read the [v1.0.3 release notes](docs/RELEASE-NOTES.md). Existing **schema-8** data opens directly, retaining settings, channels, accounts, login, and tuner identity. Older schema-1–7 directories must first upgrade through `antennarr/antennarr:v1.0.0-beta.2`. Unsupported data is refused without replacing it. Do not downgrade an upgraded data directory. Backups are manual.
 
 Provider failure, codec changes, broadcast timing differences, and Plex client behaviour can still interrupt viewing. Controlled tests verify source switching and concurrent playback; they do not prove uninterrupted playback on every provider or client. Native unRAID playback testing remains pending. v1 exposes one tuner profile; multiple simultaneous market profiles are future work.
 

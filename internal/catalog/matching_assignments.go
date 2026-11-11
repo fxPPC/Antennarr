@@ -2,13 +2,13 @@ package catalog
 
 import (
 	"database/sql"
-	"encoding/json"
 	"strings"
+	"time"
 )
 
 // Bump this marker whenever matching semantics change. Existing v1 catalogues
 // receive one full refresh; subsequent starts reuse committed assignments.
-const matchingRevision = "v1-incremental-2"
+const matchingRevision = "v1-incremental-3"
 
 func autoMap(tx *sql.Tx) error {
 	if e := autoMapStreams(tx, nil); e != nil {
@@ -47,31 +47,16 @@ func autoMapStreams(tx *sql.Tx, ids []int64) error {
 	if e != nil {
 		return e
 	}
-	rows, e := tx.Query("SELECT id,number,name,region,enabled,aliases FROM channels")
+	channels, e := readChannelMatchers(tx)
 	if e != nil {
 		return e
 	}
-	var channels []channelMatcher
 	byID := map[string]channelMatcher{}
-	for rows.Next() {
-		var c Channel
-		var raw string
-		if e = rows.Scan(&c.ID, &c.Number, &c.Name, &c.Region, &c.Enabled, &raw); e != nil {
-			rows.Close()
-			return e
-		}
-		json.Unmarshal([]byte(raw), &c.Aliases)
-		m := compileChannel(c)
-		channels = append(channels, m)
-		byID[c.ID] = m
-	}
-	e = rows.Err()
-	rows.Close()
-	if e != nil {
-		return e
+	for _, c := range channels {
+		byID[c.channel.ID] = c
 	}
 	existing := map[int64][]string{}
-	rows, e = tx.Query("SELECT m.stream_id,m.channel_id FROM mappings m JOIN rematch_scope x ON x.id=m.stream_id UNION SELECT r.stream_id,r.channel_id FROM roster r JOIN rematch_scope x ON x.id=r.stream_id")
+	rows, e := tx.Query("SELECT m.stream_id,m.channel_id FROM mappings m JOIN rematch_scope x ON x.id=m.stream_id UNION SELECT r.stream_id,r.channel_id FROM roster r JOIN rematch_scope x ON x.id=r.stream_id")
 	if e != nil {
 		return e
 	}
@@ -116,7 +101,7 @@ func autoMapStreams(tx *sql.Tx, ids []int64) error {
 			if !ok {
 				continue
 			}
-			if c.excludes(label) {
+			if c.excludes(label) || !c.stationMatches(label) || guideConflict(channels, c, label) {
 				exclude = append(exclude, pair{id, channel})
 			}
 		}
@@ -133,6 +118,9 @@ func autoMapStreams(tx *sql.Tx, ids []int64) error {
 	}
 	for _, m := range exclude {
 		if _, e = tx.Exec("DELETE FROM mappings WHERE channel_id=? AND stream_id=? AND enabled=1", m.channel, m.id); e != nil {
+			return e
+		}
+		if _, e = tx.Exec("INSERT INTO events(happened,kind,channel_id,source_id,reason) SELECT ?,'roster_removed',channel_id,stream_id,'Source no longer meets channel identity rules' FROM roster WHERE channel_id=? AND stream_id=?", time.Now().Unix(), m.channel, m.id); e != nil {
 			return e
 		}
 		if _, e = tx.Exec("DELETE FROM roster WHERE channel_id=? AND stream_id=?", m.channel, m.id); e != nil {

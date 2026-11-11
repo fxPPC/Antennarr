@@ -119,12 +119,16 @@ func channelKey(name, region string) (string, string) {
 // parsed once per entry, keeping bulk imports off the hot playback path.
 type channelLabel struct{ key, country string }
 type channelMatcher struct {
-	channel  Channel
-	positive []channelLabel
-	negative []string
+	channel    Channel
+	positive   []channelLabel
+	negative   []string
+	guideKeys  map[string]bool
+	stationKey string
+	networkKey string
 }
 type sourceLabel struct {
 	channelLabel
+	guide     channelLabel
 	words     string
 	ambiguous bool
 }
@@ -141,6 +145,8 @@ func parseSourceLabel(name, region string) sourceLabel {
 }
 func sourceLabelWithID(name, region, id string) sourceLabel {
 	label := parseSourceLabel(name, region)
+	k, country := channelKey(id, "")
+	label.guide = channelLabel{k, country}
 	// Separate fields with two spaces so a phrase cannot straddle name and ID.
 	if id != "" {
 		label.words += " " + strings.Join(exclusionWords(id), " ") + " "
@@ -148,7 +154,8 @@ func sourceLabelWithID(name, region, id string) sourceLabel {
 	return label
 }
 func compileChannel(c Channel) channelMatcher {
-	m := channelMatcher{channel: c}
+	network, _ := channelKey(c.Name, c.Region)
+	m := channelMatcher{channel: c, guideKeys: map[string]bool{}, stationKey: compactIdentity(c.Station), networkKey: compactIdentity(network)}
 	for _, alias := range append([]string{c.Name}, c.Aliases...) {
 		alias = strings.TrimSpace(alias)
 		if strings.HasPrefix(alias, "-") {
@@ -160,6 +167,9 @@ func compileChannel(c Channel) channelMatcher {
 		}
 		k, country := channelKey(alias, c.Region)
 		m.positive = append(m.positive, channelLabel{k, country})
+		if k != "" {
+			m.guideKeys[compactIdentity(k)] = true
+		}
 	}
 	return m
 }
@@ -186,6 +196,12 @@ func (m channelMatcher) compatible(label sourceLabel) bool {
 	return false
 }
 func (m channelMatcher) matches(label sourceLabel) bool {
+	return m.nameMatches(label) && m.stationMatches(label)
+}
+
+// Name identity is separate from station eligibility: a CBS label still means
+// CBS even when it lacks the local callsign required for that output roster.
+func (m channelMatcher) nameMatches(label sourceLabel) bool {
 	if m.excludes(label) || !m.compatible(label) {
 		return false
 	}
@@ -233,8 +249,11 @@ func resolveChannel(channels []channelMatcher, label sourceLabel, tvg string, kn
 	var selected *channelMatcher
 	for i := range channels {
 		c := &channels[i]
-		if !c.matches(label) && !(learned[c.channel.ID] && !c.excludes(label) && c.compatible(label)) {
+		if !c.matches(label) && !(learned[c.channel.ID] && !c.excludes(label) && c.compatible(label) && c.stationMatches(label)) {
 			continue
+		}
+		if guideConflict(channels, *c, label) {
+			return nil
 		}
 		if selected != nil {
 			return nil

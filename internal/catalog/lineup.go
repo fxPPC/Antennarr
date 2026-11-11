@@ -14,6 +14,7 @@ type Lineup struct {
 	Channels []LineupChannel `json:"channels"`
 }
 type LineupChannel struct {
+	Station string       `json:"station,omitempty"`
 	ID      string       `json:"id"`
 	Number  string       `json:"number"`
 	Name    string       `json:"name"`
@@ -27,7 +28,7 @@ func (s *Store) ExportLineup() (Lineup, error) {
 	out := Lineup{Version: 1, Channels: []LineupChannel{}}
 	// A single SELECT gives a coherent export during edits without fetching
 	// source counts or reading any account/stream credential records.
-	rows, err := s.DB.Query(`SELECT c.id,c.number,c.name,c.region,c.enabled,c.aliases,coalesce(p.target,0),coalesce(p.preference,''),coalesce(p.race,0) FROM channels c LEFT JOIN channel_policies p ON p.channel_id=c.id ORDER BY CAST(c.number AS REAL),c.id`)
+	rows, err := s.DB.Query(`SELECT c.id,c.number,c.name,c.region,c.enabled,c.aliases,coalesce(p.target,0),coalesce(p.preference,''),coalesce(p.race,0),coalesce((SELECT value FROM settings WHERE name='channel_station:'||c.id),'') FROM channels c LEFT JOIN channel_policies p ON p.channel_id=c.id ORDER BY CAST(c.number AS REAL),c.id`)
 	if err != nil {
 		return out, err
 	}
@@ -35,7 +36,7 @@ func (s *Store) ExportLineup() (Lineup, error) {
 	for rows.Next() {
 		var ch LineupChannel
 		var raw string
-		if err = rows.Scan(&ch.ID, &ch.Number, &ch.Name, &ch.Region, &ch.Enabled, &raw, &ch.Policy.Target, &ch.Policy.Preference, &ch.Policy.Race); err != nil {
+		if err = rows.Scan(&ch.ID, &ch.Number, &ch.Name, &ch.Region, &ch.Enabled, &raw, &ch.Policy.Target, &ch.Policy.Preference, &ch.Policy.Race, &ch.Station); err != nil {
 			return out, err
 		}
 		if err = json.Unmarshal([]byte(raw), &ch.Aliases); err != nil {
@@ -55,7 +56,7 @@ func (v Lineup) Validate() error {
 	ids := map[string]bool{}
 	numbers := map[string]bool{}
 	for _, ch := range v.Channels {
-		if strings.TrimSpace(ch.ID) == "" || len(ch.ID) > 100 || ids[ch.ID] || numbers[ch.Number] || strings.TrimSpace(ch.Name) == "" || len(ch.Name) > 100 || len(ch.Region) > 80 || len(ch.Aliases) > 200 || len(ch.Number) == 0 || len(ch.Number) > 10 || !ch.Policy.Valid(true) {
+		if !validStation(normaliseStation(ch.Station)) || strings.TrimSpace(ch.ID) == "" || len(ch.ID) > 100 || ids[ch.ID] || numbers[ch.Number] || strings.TrimSpace(ch.Name) == "" || len(ch.Name) > 100 || len(ch.Region) > 80 || len(ch.Aliases) > 200 || len(ch.Number) == 0 || len(ch.Number) > 10 || !ch.Policy.Valid(true) {
 			return errors.New("invalid or duplicate channel definition")
 		}
 		for _, r := range ch.Number {
@@ -85,7 +86,7 @@ func (s *Store) ImportLineup(v Lineup) error {
 		return err
 	}
 	defer tx.Rollback()
-	for _, q := range []string{"DELETE FROM channel_aliases", "DELETE FROM channels", "DELETE FROM roster_pass_work", "DELETE FROM roster_pass_accounts", "DELETE FROM roster_pass", "DELETE FROM settings WHERE name IN ('roster_cache_uhd_true','roster_cache_uhd_false')"} {
+	for _, q := range []string{"DELETE FROM settings WHERE name GLOB 'channel_station:*'", "DELETE FROM channel_aliases", "DELETE FROM channels", "DELETE FROM roster_pass_work", "DELETE FROM roster_pass_accounts", "DELETE FROM roster_pass", "DELETE FROM settings WHERE name IN ('roster_cache_uhd_true','roster_cache_uhd_false')"} {
 		if _, err = tx.Exec(q); err != nil {
 			return err
 		}
@@ -93,6 +94,9 @@ func (s *Store) ImportLineup(v Lineup) error {
 	for _, ch := range v.Channels {
 		aliases, _ := json.Marshal(ch.Aliases)
 		if _, err = tx.Exec("INSERT INTO channels(id,number,name,region,enabled,aliases) VALUES(?,?,?,?,?,?)", ch.ID, ch.Number, ch.Name, ch.Region, ch.Enabled, string(aliases)); err != nil {
+			return err
+		}
+		if err = saveStation(tx, ch.ID, ch.Station); err != nil {
 			return err
 		}
 		if _, err = tx.Exec("INSERT INTO channel_policies(channel_id,target,preference,race) VALUES(?,?,?,?)", ch.ID, ch.Policy.Target, ch.Policy.Preference, ch.Policy.Race); err != nil {

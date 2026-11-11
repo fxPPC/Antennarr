@@ -50,6 +50,7 @@ type Account struct {
 	SuccessfulChecks  int    `json:"successful_account_checks"`
 }
 type Channel struct {
+	Station string   `json:"station,omitempty"`
 	ID      string   `json:"id"`
 	Number  string   `json:"number"`
 	Name    string   `json:"name"`
@@ -269,7 +270,7 @@ func (s *Store) importBatch(entries []ingest.Entry, provenance string) (int, err
 }
 
 func (s *Store) Channels() ([]Channel, error) {
-	rows, e := s.DB.Query(`SELECT c.id,c.number,c.name,c.region,c.enabled,count(m.stream_id),c.aliases FROM channels c LEFT JOIN mappings m ON m.channel_id=c.id AND m.enabled=1 GROUP BY c.id ORDER BY CAST(c.number AS REAL)`)
+	rows, e := s.DB.Query(`SELECT c.id,c.number,c.name,c.region,c.enabled,count(m.stream_id),c.aliases,coalesce((SELECT value FROM settings WHERE name='channel_station:'||c.id),'') FROM channels c LEFT JOIN mappings m ON m.channel_id=c.id AND m.enabled=1 GROUP BY c.id ORDER BY CAST(c.number AS REAL)`)
 	if e != nil {
 		return nil, e
 	}
@@ -278,7 +279,7 @@ func (s *Store) Channels() ([]Channel, error) {
 	for rows.Next() {
 		var c Channel
 		var aliases string
-		if e = rows.Scan(&c.ID, &c.Number, &c.Name, &c.Region, &c.Enabled, &c.Sources, &aliases); e != nil {
+		if e = rows.Scan(&c.ID, &c.Number, &c.Name, &c.Region, &c.Enabled, &c.Sources, &aliases, &c.Station); e != nil {
 			return nil, e
 		}
 		json.Unmarshal([]byte(aliases), &c.Aliases)
@@ -291,6 +292,10 @@ func (s *Store) Channels() ([]Channel, error) {
 // changes. Matching and primary output assignments follow the committed edit;
 // callers must not replace identity merely to change its Plex presentation.
 func (s *Store) SaveChannel(c Channel) (string, error) {
+	c.Station = normaliseStation(c.Station)
+	if !validStation(c.Station) {
+		return "", errors.New("invalid station ID; use up to 32 letters, digits, dots, or hyphens")
+	}
 	c.Name = strings.TrimSpace(c.Name)
 	c.Region = strings.TrimSpace(c.Region)
 	if c.Name == "" || utf8.RuneCountInString(c.Name) > 100 || utf8.RuneCountInString(c.Region) > 80 {
@@ -330,15 +335,22 @@ func (s *Store) SaveChannel(c Channel) (string, error) {
 	if count >= MaxSelectedChannels && exists == 0 {
 		return "", fmt.Errorf("maximum %d selected channels", MaxSelectedChannels)
 	}
-	var previousName, previousRegion, previousAliases string
+	var previousName, previousRegion, previousAliases, previousStation string
+	previousStation, e = readStation(tx, c.ID)
+	if e != nil {
+		return "", e
+	}
 	_ = tx.QueryRow("SELECT name,region,aliases FROM channels WHERE id=?", c.ID).Scan(&previousName, &previousRegion, &previousAliases)
-	refresh := exists == 0 || previousName != c.Name || previousRegion != c.Region || previousAliases != string(aliases)
+	refresh := previousStation != c.Station || exists == 0 || previousName != c.Name || previousRegion != c.Region || previousAliases != string(aliases)
 	_, e = tx.Exec(`INSERT INTO channels(id,number,name,region,enabled,aliases) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET number=excluded.number,name=excluded.name,region=excluded.region,enabled=excluded.enabled,aliases=excluded.aliases`, c.ID, c.Number, c.Name, c.Region, c.Enabled, string(aliases))
 	if e != nil {
 		return "", errors.New("channel could not be saved; check number uniqueness")
 	}
+	if e = saveStation(tx, c.ID, c.Station); e != nil {
+		return "", e
+	}
 	if refresh {
-		previous := Channel{ID: c.ID, Name: previousName, Region: previousRegion}
+		previous := Channel{ID: c.ID, Name: previousName, Region: previousRegion, Station: previousStation}
 		json.Unmarshal([]byte(previousAliases), &previous.Aliases)
 		if e = autoMapChannel(tx, previous, c); e != nil {
 			return "", e
@@ -360,15 +372,26 @@ func (s *Store) Map(channel string, stream int64, enabled bool) error {
 	defer tx.Rollback()
 	if enabled {
 		var c Channel
-		var raw, name, tvgID string
+		var raw, name, tvgID, region string
+		c.ID = channel
+		c.Station, e = readStation(tx, channel)
+		if e != nil {
+			return e
+		}
 		if e := tx.QueryRow("SELECT name,region,aliases FROM channels WHERE id=?", channel).Scan(&c.Name, &c.Region, &raw); e != nil {
 			return errors.New("channel not found")
 		}
-		if e := tx.QueryRow("SELECT name,tvg_id FROM streams WHERE id=?", stream).Scan(&name, &tvgID); e != nil {
+		if e := tx.QueryRow("SELECT name,tvg_id,region FROM streams WHERE id=?", stream).Scan(&name, &tvgID, &region); e != nil {
 			return errors.New("stream not found")
 		}
 		json.Unmarshal([]byte(raw), &c.Aliases)
-		if compileChannel(c).excludes(sourceLabelWithID(name, "", tvgID)) {
+		label := sourceLabelWithID(name, region, tvgID)
+		m := compileChannel(c)
+		channels, err := readChannelMatchers(tx)
+		if err != nil {
+			return err
+		}
+		if m.excludes(label) || !m.stationMatches(label) || guideConflict(channels, m, label) {
 			return errors.New("stream excluded by channel rules; edit the channel rules first")
 		}
 	}
@@ -414,6 +437,10 @@ func (s *Store) DeleteChannel(id string) error {
 	var old Channel
 	var raw string
 	old.ID = id
+	old.Station, e = readStation(tx, id)
+	if e != nil {
+		return e
+	}
 	if e = tx.QueryRow("SELECT name,region,aliases FROM channels WHERE id=?", id).Scan(&old.Name, &old.Region, &raw); e != nil && e != sql.ErrNoRows {
 		return e
 	}
@@ -426,6 +453,9 @@ func (s *Store) DeleteChannel(id string) error {
 		return e
 	}
 	if _, e = tx.Exec("DELETE FROM channels WHERE id=?", id); e != nil {
+		return e
+	}
+	if e = saveStation(tx, id, ""); e != nil {
 		return e
 	}
 	if e = autoMapStreams(tx, affected); e != nil {

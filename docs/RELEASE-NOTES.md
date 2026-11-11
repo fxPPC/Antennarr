@@ -1,3 +1,14 @@
+# v1.0.3
+
+- Reject conflicting recognised stream names and guide IDs during import and rematching, even when the guide ID has never been learned. Ambiguous identities stay unassigned; manual assignments cannot bypass exclusions or station constraints.
+- Add an optional **Required station ID** to channel editing, lineup export/import, and manual backups. Primary and hot-backup feeds must identify that station. Changing the rule removes incompatible roster memberships without adding failure strikes.
+- Fresh installs include **150 editable US channels**, adding seven broadcast channels with New York station requirements. Existing channel definitions are preserved; missing channels can be added individually, or the US preset can be reset explicitly.
+- Correct country-tag parsing for `The CW`, `(The CW)`, and bracketed station labels. Discovery and saved assignments share the same ambiguity checks.
+
+Schema 8, existing channel IDs, accounts, and tuner identity are retained. Saved feed assignments are re-evaluated once under the corrected matching rules. Recognising station metadata cannot prove programme content or detect provider holding screens; check the picture and guide before scheduling recordings. Controlled tests do not establish uninterrupted playback across every provider and Plex client.
+
+---
+
 # v1.0.2
 
 - Full accounts release their roster places and return to the random input queue without gaining or resetting strikes. Their accounts and catalogue remain available for later auditions. Antennarr's own live feeds are excluded from external occupancy. The old option to count full connections as failures has been removed, including when loading an older saved configuration.

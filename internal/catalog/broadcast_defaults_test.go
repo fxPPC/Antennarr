@@ -36,7 +36,7 @@ func TestBroadcastPresetMatching(t *testing.T) {
 				continue
 			}
 			for _, decorated := range []string{strings.ToLower(alias), "US | " + alias + " HD", "[USA] " + alias + " FHD", alias + " | US", "001 | US | " + alias + " 1080p"} {
-				label := parseSourceLabel(decorated, "")
+				label := sourceLabelWithID(decorated, "", c.Station+".us")
 				for j, m := range matchers {
 					if got := m.matches(label); got != (i == j) {
 						t.Errorf("%s alias %q matched %s: %v", c.Name, decorated, m.channel.Name, got)
