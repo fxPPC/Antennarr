@@ -1,3 +1,12 @@
+# Unreleased
+
+- Allow up to 4 MiB / five seconds of source analysis before codec-copy remuxing. Some valid broadcasts announce audio before sending its format details; the previous small probe could reject them immediately with no usable audio sample rate.
+- Keep the existing source startup deadline, connection budgets, and no-video-transcoding policy. Add a synthetic delayed-audio regression test.
+
+Schema 8, channel definitions, accounts, rosters, and tuner identity are unchanged. This fixes source initialisation; it does not identify programme content or guarantee every provider stays available.
+
+---
+
 # v1.0.3
 
 - Build with Go 1.27.4, including the HTTP server security fix for GO-2026-6859.
