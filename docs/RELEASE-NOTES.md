@@ -1,3 +1,13 @@
+# v1.1.0-alpha.1 — unreleased development foundation
+
+- Start the v1.1 development line, with multiple independently configurable Plex tuners and same-minor stable-patch downgrades as the release goals.
+- Define the compatibility boundary: preserve `/data` on minor upgrades; restore a pre-upgrade backup to return from 1.1 to 1.0. The new downgrade guarantee starts at stable 1.1.0.
+- Add branch/version validation, opt-in prerelease publishing, stable minor Docker tags, and explicit latest promotion. Maintenance releases cannot replace a newer stable version as latest.
+
+Multi-tuner runtime support, the new database migration, and the stable-patch downgrade harness are not implemented in this foundation. No new schema is applied yet. Development/prerelease builds do not carry the stable downgrade guarantee. See [the implementation plan](V1.1-PLAN.md).
+
+---
+
 # v1.0.3
 
 - Build with Go 1.27.4, including the HTTP server security fix for GO-2026-6859.

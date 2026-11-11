@@ -37,4 +37,4 @@ Use `gofmt`, British English in UI/docs, and small changes with focused tests. I
 
 ## Submit a pull request
 
-Branch from `main`, explain the problem and resulting behaviour, and record what was actually tested. Update relevant documentation and include screenshots for visible changes. Discuss substantial architecture or data-format changes first. Maintainers squash merges; release publication is a separate, manually approved action.
+Branch from `main` for v1.1 work or `release/1.0` for compatible 1.0 fixes. Carry relevant maintenance fixes forward into `main`; keep new features out of the maintenance branch. Follow the [versioning contract](docs/VERSIONING.md) and [v1.1 implementation plan](docs/V1.1-PLAN.md). Explain the problem and resulting behaviour, and record what was actually tested. Update relevant documentation and include screenshots for visible changes. Discuss substantial architecture or data-format changes first. Maintainers squash merges; release publication is a separate, manually approved action.
