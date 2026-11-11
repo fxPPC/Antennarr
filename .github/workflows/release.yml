@@ -4,9 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: New stable version (vMAJOR.MINOR.PATCH); existing versions cannot be replaced
+        description: New version (vMAJOR.MINOR.PATCH, optionally -alpha.N, -beta.N, or -rc.N)
         required: true
-        default: v1.0.3
+        default: v1.1.0-alpha.1
+      promote_latest:
+        description: Make this stable release the recommended version (never for prereleases or older maintenance lines)
+        type: boolean
+        default: false
 permissions:
   contents: read
 concurrency:
@@ -17,22 +21,31 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.version.outputs.version }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+      minor_tag: ${{ steps.version.outputs.minor_tag }}
+      promote_latest: ${{ steps.version.outputs.promote_latest }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - id: version
         env:
           VERSION: ${{ inputs.version }}
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           REF: ${{ github.ref }}
+          PROMOTE_LATEST: ${{ inputs.promote_latest }}
         run: |
           set -euo pipefail
-          test "$REF" = refs/heads/main
-          [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          gh api --paginate --slurp "repos/$REPOSITORY/releases?per_page=100" > /tmp/releases.json
+          args=()
+          if [ "$PROMOTE_LATEST" = true ]; then args+=(--promote-latest); fi
+          python3 scripts/release-policy.py "$VERSION" "$REF" --releases /tmp/releases.json "${args[@]}" > /tmp/release-plan.json
           if gh api "repos/$REPOSITORY/git/ref/tags/$VERSION" >/dev/null 2>&1; then
             echo 'This version already exists; publish a new patch version.' >&2
             exit 1
           fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          jq -r 'to_entries[] | "\(.key)=\(.value)"' /tmp/release-plan.json >> "$GITHUB_OUTPUT"
   verify-source:
     needs: preflight
     uses: ./.github/workflows/source-checks.yml
@@ -105,6 +118,9 @@ jobs:
     env:
       VERSION: ${{ needs.preflight.outputs.version }}
       IMAGE: antennarr/antennarr
+      PRERELEASE: ${{ needs.preflight.outputs.prerelease }}
+      MINOR_TAG: ${{ needs.preflight.outputs.minor_tag }}
+      PROMOTE_LATEST: ${{ needs.preflight.outputs.promote_latest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -124,8 +140,14 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
+          REF: ${{ github.ref }}
         run: |
           set -euo pipefail
+          # Repeat policy checks after approval; a newer stable release may exist.
+          gh api --paginate --slurp "repos/$REPOSITORY/releases?per_page=100" > /tmp/releases.json
+          args=()
+          if [ "$PROMOTE_LATEST" = true ]; then args+=(--promote-latest); fi
+          python3 scripts/release-policy.py "$VERSION" "$REF" --releases /tmp/releases.json "${args[@]}"
           # Recheck after approval to prevent accidental release replacement.
           if gh api "repos/$REPOSITORY/git/ref/tags/$VERSION" >/dev/null 2>&1; then exit 1; fi
           if docker buildx imagetools inspect "$IMAGE:$VERSION" >/dev/null 2>&1; then exit 1; fi
@@ -148,8 +170,14 @@ jobs:
           # promoting latest, so registry delivery is also exercised.
           docker pull "$IMAGE@$digest"
           ANTENNARR_TEST_IMAGE="$IMAGE@$digest" python3 packaging/test-permissions.py
-          docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE@$digest"
-          test "$digest" = "$(docker buildx imagetools inspect "$IMAGE:latest" --format '{{json .Manifest}}' | jq -r .digest)"
+          if [ -n "$MINOR_TAG" ]; then
+            docker buildx imagetools create --tag "$IMAGE:$MINOR_TAG" "$IMAGE@$digest"
+            test "$digest" = "$(docker buildx imagetools inspect "$IMAGE:$MINOR_TAG" --format '{{json .Manifest}}' | jq -r .digest)"
+          fi
+          if [ "$PROMOTE_LATEST" = true ]; then
+            docker buildx imagetools create --tag "$IMAGE:latest" "$IMAGE@$digest"
+            test "$digest" = "$(docker buildx imagetools inspect "$IMAGE:latest" --format '{{json .Manifest}}' | jq -r .digest)"
+          fi
           printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
           git archive --format=tar.gz --prefix="antennarr-$VERSION/" HEAD > "release/antennarr-$VERSION-source.tar.gz"
           cd release
@@ -165,13 +193,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          flags=()
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
           gh release create "$VERSION" --target "$GITHUB_SHA" --draft --title "Antennarr $VERSION" \
+            "${flags[@]}" \
             --notes-file docs/RELEASE-NOTES.md \
             release/antennarr-*-source.tar.gz release/sbom-*.spdx.json release/SHA256SUMS release/IMAGE-DIGEST.txt
           # Attach every asset before publishing an immutable release.
-          gh release edit "$VERSION" --draft=false --latest
+          gh release edit "$VERSION" --draft=false --latest="$PROMOTE_LATEST"
           cat release/IMAGE-DIGEST.txt >> "$GITHUB_STEP_SUMMARY"
       - name: Update Docker Hub overview
+        if: needs.preflight.outputs.promote_latest == 'true'
         # Documentation failure must not invite republishing an immutable image.
         continue-on-error: true
         env:

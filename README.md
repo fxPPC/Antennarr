@@ -2,6 +2,8 @@
 
 # Antennarr
 
+This branch starts **v1.1 development**: multiple Plex tuners and downgrade compatibility between stable 1.1 patch releases. Both features are still pending; see the [implementation plan](docs/V1.1-PLAN.md) and [versioning policy](docs/VERSIONING.md). Stable 1.0 fixes continue on `release/1.0`. Use a separate copy of appdata for development builds.
+
 **Stick your antenna into the Internet.** · by **fxPPC**
 
 **XTREAM account-list URLs in. Stable television channels out.**
