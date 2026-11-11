@@ -14,7 +14,7 @@ EXPOSE 9192
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s CMD curl -fsS http://127.0.0.1:9192/healthz || exit 1
 ENTRYPOINT ["/usr/local/bin/antennarr-entrypoint"]
 
-FROM golang:1.27.3-trixie AS build
+FROM golang:1.27.4-trixie AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

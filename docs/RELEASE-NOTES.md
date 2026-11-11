@@ -1,5 +1,6 @@
 # v1.0.3
 
+- Build with Go 1.27.4, including the HTTP server security fix for GO-2026-6859.
 - Reject conflicting recognised stream names and guide IDs during import and rematching, even when the guide ID has never been learned. Ambiguous identities stay unassigned; manual assignments cannot bypass exclusions or station constraints.
 - Add an optional **Required station ID** to channel editing, lineup export/import, and manual backups. Primary and hot-backup feeds must identify that station. Changing the rule removes incompatible roster memberships without adding failure strikes.
 - Fresh installs include **150 editable US channels**, adding seven broadcast channels with New York station requirements. Existing channel definitions are preserved; missing channels can be added individually, or the US preset can be reset explicitly.

@@ -106,7 +106,7 @@ docker compose -f compose.portable.yaml up -d --build
 
 This source configuration binds to loopback by default: open `http://127.0.0.1:39192`. Copy `portable.env.example` to `.env` to configure LAN access. All persistent state is under `./data`.
 
-The Docker build uses Go 1.27.3; the module minimum is Go 1.26. For local development, install Go, Node.js 24 for UI tests, and FFmpeg/FFprobe. See [contributing](CONTRIBUTING.md), [tests](docs/TESTING.md), [module boundaries](docs/MODULES.md), [architecture](docs/ARCHITECTURE.md), and [API](docs/API.md). UI contributors can work on the embedded plain JavaScript, HTML, and CSS independently of streaming changes.
+The Docker build uses Go 1.27.4; the module minimum is Go 1.26. Use a supported Go release with its latest security patches for local builds, Node.js 24 for UI tests, and FFmpeg/FFprobe. See [contributing](CONTRIBUTING.md), [tests](docs/TESTING.md), [module boundaries](docs/MODULES.md), [architecture](docs/ARCHITECTURE.md), and [API](docs/API.md). UI contributors can work on the embedded plain JavaScript, HTML, and CSS independently of streaming changes.
 
 Use Discussions for questions and ideas, Issues for reproducible bugs, and [private reporting](https://github.com/fxPPC/Antennarr/security/advisories/new) for vulnerabilities. Never post credentials, account lists, backups, or unredacted logs.
 
