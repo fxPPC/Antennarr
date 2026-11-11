@@ -194,3 +194,51 @@ func TestStationGuideCombinesKnownNetworkAliases(t *testing.T) {
 		}
 	}
 }
+
+// An upgrade must repair already verified memberships, including explicit maps
+// created by an older build. Rejecting only new catalogue entries is insufficient.
+func TestMatchingUpgradeEvictsContradictoryGuideWithoutStrikes(t *testing.T) {
+	s, ch, feeds := rosterFixture(t, 2)
+	if err := s.EnableRosters(RosterPolicy{Target: 2, Race: 2, Preference: "stability"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, feed := range feeds {
+		if err := s.Record(feed.StreamID, Result{Success: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wrong := feeds[0].StreamID
+	// Simulate a pre-fix saved MTV feed advertising a different recognised service.
+	if _, err := s.DB.Exec("UPDATE streams SET tvg_id='cnbc.us' WHERE id=?", wrong); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.DB.Exec("UPDATE mappings SET origin='manual' WHERE stream_id=?", wrong); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.DB.Exec("INSERT INTO settings(name,value) VALUES('matching_revision','v1-incremental-1') ON CONFLICT(name) DO UPDATE SET value=excluded.value"); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.RefreshMatching(); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.RosterMembers(ch)
+	if err != nil || len(got) != 1 || got[0].StreamID != feeds[1].StreamID {
+		t.Fatalf("incorrect upgraded roster: %+v %v", got, err)
+	}
+	if err = s.Map(ch, wrong, true); err == nil {
+		t.Fatal("manual map bypassed conflicting guide identity")
+	}
+	var accounts, strikes, events int
+	if err = s.DB.QueryRow("SELECT count(*),sum(failures) FROM accounts").Scan(&accounts, &strikes); err != nil || accounts != 2 || strikes != 0 {
+		t.Fatal(accounts, strikes, err)
+	}
+	if err = s.DB.QueryRow("SELECT count(*) FROM events WHERE kind='roster_removed' AND source_id=?", wrong).Scan(&events); err != nil || events != 1 {
+		t.Fatal("missing or duplicate removal event", events, err)
+	}
+	if err = s.RefreshMatching(); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.DB.QueryRow("SELECT count(*) FROM events WHERE kind='roster_removed' AND source_id=?", wrong).Scan(&events); err != nil || events != 1 {
+		t.Fatal("upgrade refresh repeated", events, err)
+	}
+}
