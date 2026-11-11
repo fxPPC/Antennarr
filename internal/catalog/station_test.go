@@ -172,3 +172,25 @@ func TestFreshBroadcastStationDefaultsAndReset(t *testing.T) {
 		t.Fatal("bulk reset left station settings", n, err)
 	}
 }
+
+func TestStationGuideCombinesKnownNetworkAliases(t *testing.T) {
+	channels, err := DefaultUSChannels()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var matchers []channelMatcher
+	for _, c := range channels {
+		c.ID = c.Number
+		matchers = append(matchers, compileChannel(c))
+	}
+	for _, tc := range []struct{ name, guide, number string }{
+		{"US - MY 9 HD", "my9wwor.us", "009"},
+		{"US NBC HD", "nbcwnbc.us", "004"},
+		{"The CW HD", "cwwpix.us", "011"},
+	} {
+		got := resolveChannel(matchers, sourceLabelWithID(tc.name, "", tc.guide), tc.guide, nil)
+		if got == nil || got.channel.Number != tc.number {
+			t.Fatalf("%s / %s: wrong assignment %+v", tc.name, tc.guide, got)
+		}
+	}
+}

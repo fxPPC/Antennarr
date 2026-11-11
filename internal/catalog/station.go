@@ -79,8 +79,12 @@ func (m channelMatcher) stationEvidence(key string) bool {
 	if compact == station {
 		return true
 	}
-	network := m.networkKey
-	return compact == network+station || compact == station+network
+	// Providers may use an alias rather than the display name in combined IDs:
+	// my9wwor.us identifies WWOR, just as nbcwnbc.us identifies WNBC.
+	if strings.HasPrefix(compact, station) && m.guideKeys[strings.TrimPrefix(compact, station)] {
+		return true
+	}
+	return strings.HasSuffix(compact, station) && m.guideKeys[strings.TrimSuffix(compact, station)]
 }
 func (m channelMatcher) stationMatches(label sourceLabel) bool {
 	if m.channel.Station == "" {
