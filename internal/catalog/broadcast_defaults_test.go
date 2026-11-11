@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"antennarr/internal/ingest"
 	"reflect"
 	"strings"
 	"testing"
@@ -51,6 +52,69 @@ func TestBroadcastPresetMatching(t *testing.T) {
 	}
 	if len(want) != 0 {
 		t.Fatal("missing broadcast channels", want)
+	}
+}
+
+// An upgrade must revisit streams rejected by the old CW country parser while
+// retaining verified unrelated feeds and the user's explicit exclusions.
+func TestBroadcastMatchingUpgradeRefreshesSavedStreamsOnce(t *testing.T) {
+	s, mtv, feeds := rosterFixture(t, 1)
+	if err := s.EnableRosters(RosterPolicy{Target: 2, Preference: "stability", Race: 5}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Record(feeds[0].StreamID, Result{Success: true}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := s.RosterMembers(mtv)
+	if err != nil || len(before) != 1 {
+		t.Fatalf("fixture roster: %+v, %v", before, err)
+	}
+	cw, err := s.SaveChannel(Channel{Name: "The CW", Number: "011", Region: "US", Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, err := ingest.FromURL("https://fixture.example/cw.ts", "US | The CW HD", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Import([]ingest.Entry{entry}, "fixture"); err != nil {
+		t.Fatal(err)
+	}
+	var stream int64
+	if err = s.DB.QueryRow("SELECT id FROM streams WHERE name=?", entry.Name).Scan(&stream); err != nil {
+		t.Fatal(err)
+	}
+	// Reproduce a v1.0.2 catalogue: this stream was cached but never assigned.
+	if _, err = s.DB.Exec("DELETE FROM mappings WHERE channel_id=?", cw); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.DB.Exec("INSERT INTO settings(name,value) VALUES('matching_revision','v1-incremental-1') ON CONFLICT(name) DO UPDATE SET value=excluded.value"); err != nil {
+		t.Fatal(err)
+	}
+	for pass := 0; pass < 2; pass++ {
+		if err = s.RefreshMatching(); err != nil {
+			t.Fatal(err)
+		}
+		candidates, err := s.Candidates(cw, false)
+		want := 1 - pass // The second pass must preserve a manual exclusion.
+		if err != nil || len(candidates) != want {
+			t.Fatalf("pass %d: saved CW candidates=%d, want %d: %v", pass, len(candidates), want, err)
+		}
+		if err = s.ReconcileRosters(); err != nil {
+			t.Fatal(err)
+		}
+		after, err := s.RosterMembers(mtv)
+		if err != nil || !reflect.DeepEqual(before, after) {
+			t.Fatalf("unrelated verified roster changed: %+v, %v", after, err)
+		}
+		if pass == 0 {
+			if err = s.Map(cw, stream, false); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = s.DB.Exec("CREATE TRIGGER forbid_second_refresh BEFORE DELETE ON mappings BEGIN SELECT RAISE(ABORT,'unexpected repeat refresh');END"); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 }
 

@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"antennarr/internal/ingest"
+	"database/sql"
 	"html"
 	"regexp"
 	"strings"
@@ -38,11 +39,15 @@ func sourceWords(name string) []string {
 	out := make([]string, len(locs))
 	for i, l := range locs {
 		out[i] = name[l[0]:l[1]]
+		before := strings.TrimSpace(name[:l[0]])
 		after := strings.TrimSpace(name[l[1]:])
-		// A separator before a brand is not evidence that the brand is a country.
-		// For example, US | TV Land must not mark TV as Tuvalu.
-		if after != "" && strings.ContainsAny(after[:1], "])}") {
-			out[i] = "[" + out[i] + "]"
+		// Only a complete single-token tag marks an ambiguous country code.
+		// Closing punctuation in (The CW) or [WCBS TV] belongs to the whole
+		// brand, and must not turn CW into Curaçao or TV into Tuvalu.
+		if before != "" && after != "" {
+			if opening := strings.IndexByte("[({", before[len(before)-1]); opening >= 0 && after[0] == "])}"[opening] {
+				out[i] = "[" + out[i] + "]"
+			}
 		}
 	}
 	return out
@@ -192,6 +197,53 @@ func (m channelMatcher) matches(label sourceLabel) bool {
 	return false
 }
 
+type learnedChannelIDs map[string]map[string]bool
+
+func readLearnedChannelIDs(q interface {
+	Query(string, ...any) (*sql.Rows, error)
+}) (learnedChannelIDs, error) {
+	rows, err := q.Query("SELECT channel_id,alias FROM channel_aliases")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	known := learnedChannelIDs{}
+	for rows.Next() {
+		var channel, alias string
+		if err := rows.Scan(&channel, &alias); err != nil {
+			return nil, err
+		}
+		if known[alias] == nil {
+			known[alias] = map[string]bool{}
+		}
+		known[alias][channel] = true
+	}
+	return known, rows.Err()
+}
+
+// Discovery and saved assignments use one decision: a feed must identify exactly
+// one channel. Learned TVG IDs can fill in unfamiliar names, but cannot override
+// a contradictory recognised name, a country boundary, or an exclusion. An ID
+// manually associated with several channels is not safe to reuse automatically.
+func resolveChannel(channels []channelMatcher, label sourceLabel, tvg string, known learnedChannelIDs) *channelMatcher {
+	learned := known["tvg:"+strings.ToLower(tvg)]
+	if tvg == "" || len(learned) != 1 {
+		learned = nil
+	}
+	var selected *channelMatcher
+	for i := range channels {
+		c := &channels[i]
+		if !c.matches(label) && !(learned[c.channel.ID] && !c.excludes(label) && c.compatible(label)) {
+			continue
+		}
+		if selected != nil {
+			return nil
+		}
+		selected = c
+	}
+	return selected
+}
+
 // RelevantEntries limits automatic provider refreshes to selected channels.
 // Manual imports can still catalogue explicitly supplied playlists in full.
 func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) {
@@ -199,24 +251,7 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 	if e != nil {
 		return nil, e
 	}
-	rows, e := s.DB.Query("SELECT channel_id,alias FROM channel_aliases")
-	if e != nil {
-		return nil, e
-	}
-	known := map[string]map[string]bool{}
-	for rows.Next() {
-		var a, ch string
-		if e = rows.Scan(&ch, &a); e != nil {
-			rows.Close()
-			return nil, e
-		}
-		if known[a] == nil {
-			known[a] = map[string]bool{}
-		}
-		known[a][ch] = true
-	}
-	e = rows.Err()
-	rows.Close()
+	known, e := readLearnedChannelIDs(s.DB)
 	if e != nil {
 		return nil, e
 	}
@@ -248,27 +283,21 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		if !s.UHDAllowed() && IsUHD(entry.Name) {
 			continue
 		}
-		match := false
 		label := sourceLabelWithID(entry.Name, entry.Region, entry.TVGID)
 		candidateRoom := room
 		if IsUHD(entry.Name) {
 			candidateRoom = uhdRoom
 		}
-		for _, c := range matchers {
-			if c.channel.Enabled && !c.excludes(label) && (c.matches(label) || (entry.TVGID != "" && c.compatible(label) && known["tvg:"+strings.ToLower(entry.TVGID)][c.channel.ID])) {
-				if anchor == nil {
-					candidate := entry
-					anchor = &candidate
-				}
-				if candidateRoom[c.channel.ID] > 0 {
-					candidateRoom[c.channel.ID]--
-					match = true
-				}
-				break
-			}
+		c := resolveChannel(matchers, label, entry.TVGID, known)
+		if c == nil || !c.channel.Enabled {
+			continue
 		}
-
-		if match {
+		if anchor == nil {
+			candidate := entry
+			anchor = &candidate
+		}
+		if candidateRoom[c.channel.ID] > 0 {
+			candidateRoom[c.channel.ID]--
 			out = append(out, entry)
 		}
 	}

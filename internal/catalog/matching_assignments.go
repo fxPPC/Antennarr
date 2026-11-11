@@ -8,7 +8,7 @@ import (
 
 // Bump this marker whenever matching semantics change. Existing v1 catalogues
 // receive one full refresh; subsequent starts reuse committed assignments.
-const matchingRevision = "v1-incremental-1"
+const matchingRevision = "v1-incremental-2"
 
 func autoMap(tx *sql.Tx) error {
 	if e := autoMapStreams(tx, nil); e != nil {
@@ -43,7 +43,8 @@ func autoMapStreams(tx *sql.Tx, ids []int64) error {
 	if _, e := tx.Exec("DELETE FROM mappings WHERE origin='automatic' AND stream_id IN(SELECT id FROM rematch_scope)"); e != nil {
 		return e
 	}
-	if _, e := tx.Exec(strings.Replace(autoMappingSQL, "WHERE s.tvg_id!=''", "WHERE s.id IN(SELECT id FROM rematch_scope) AND s.tvg_id!=''", 1)); e != nil {
+	known, e := readLearnedChannelIDs(tx)
+	if e != nil {
 		return e
 	}
 	rows, e := tx.Query("SELECT id,number,name,region,enabled,aliases FROM channels")
@@ -69,22 +70,19 @@ func autoMapStreams(tx *sql.Tx, ids []int64) error {
 	if e != nil {
 		return e
 	}
-	type mapping struct {
-		channel, origin string
-	}
-	existing := map[int64][]mapping{}
-	rows, e = tx.Query("SELECT m.stream_id,m.channel_id,m.origin FROM mappings m JOIN rematch_scope x ON x.id=m.stream_id UNION ALL SELECT r.stream_id,r.channel_id,'roster' FROM roster r JOIN rematch_scope x ON x.id=r.stream_id")
+	existing := map[int64][]string{}
+	rows, e = tx.Query("SELECT m.stream_id,m.channel_id FROM mappings m JOIN rematch_scope x ON x.id=m.stream_id UNION SELECT r.stream_id,r.channel_id FROM roster r JOIN rematch_scope x ON x.id=r.stream_id")
 	if e != nil {
 		return e
 	}
 	for rows.Next() {
 		var id int64
-		var m mapping
-		if e = rows.Scan(&id, &m.channel, &m.origin); e != nil {
+		var channel string
+		if e = rows.Scan(&id, &channel); e != nil {
 			rows.Close()
 			return e
 		}
-		existing[id] = append(existing[id], m)
+		existing[id] = append(existing[id], channel)
 	}
 	e = rows.Err()
 	rows.Close()
@@ -95,7 +93,7 @@ func autoMapStreams(tx *sql.Tx, ids []int64) error {
 		id      int64
 		channel string
 	}
-	var add, remove, exclude []pair
+	var add, exclude []pair
 	rows, e = tx.Query("SELECT s.id,s.name,s.region,s.tvg_id FROM streams s JOIN rematch_scope x ON x.id=s.id")
 	if e != nil {
 		return e
@@ -108,30 +106,18 @@ func autoMapStreams(tx *sql.Tx, ids []int64) error {
 			return e
 		}
 		label := sourceLabelWithID(name, region, tvg)
-		selected := ""
-		ambiguous := false
-		for _, c := range channels {
-			if c.matches(label) {
-				if selected != "" {
-					ambiguous = true
-				}
-				selected = c.channel.ID
-			}
-		}
-		if selected != "" && !ambiguous {
-			add = append(add, pair{id, selected})
+		if c := resolveChannel(channels, label, tvg, known); c != nil {
+			add = append(add, pair{id, c.channel.ID})
 		}
 		// Only existing assignments need deletion, not every incompatible pair in
 		// the channels-by-streams cross product (millions of pointless SQL calls).
-		for _, m := range existing[id] {
-			c, ok := byID[m.channel]
+		for _, channel := range existing[id] {
+			c, ok := byID[channel]
 			if !ok {
 				continue
 			}
 			if c.excludes(label) {
-				exclude = append(exclude, pair{id, m.channel})
-			} else if m.origin == "automatic" && !c.compatible(label) {
-				remove = append(remove, pair{id, m.channel})
+				exclude = append(exclude, pair{id, channel})
 			}
 		}
 	}
@@ -142,11 +128,6 @@ func autoMapStreams(tx *sql.Tx, ids []int64) error {
 	}
 	for _, m := range add {
 		if _, e = tx.Exec("INSERT OR IGNORE INTO mappings(channel_id,stream_id,enabled,origin) VALUES(?,?,1,'automatic')", m.channel, m.id); e != nil {
-			return e
-		}
-	}
-	for _, m := range remove {
-		if _, e = tx.Exec("DELETE FROM mappings WHERE channel_id=? AND stream_id=? AND origin='automatic'", m.channel, m.id); e != nil {
 			return e
 		}
 	}

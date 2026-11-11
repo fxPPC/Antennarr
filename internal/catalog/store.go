@@ -352,8 +352,6 @@ func (s *Store) SaveChannel(c Channel) (string, error) {
 	return c.ID, tx.Commit()
 }
 
-const autoMappingSQL = `INSERT OR IGNORE INTO mappings(channel_id,stream_id,enabled,origin) SELECT ca.channel_id,s.id,1,'automatic' FROM channel_aliases ca JOIN streams s ON ca.alias='tvg:'||lower(s.tvg_id) WHERE s.tvg_id!='' AND (SELECT count(*) FROM channel_aliases other WHERE other.alias=ca.alias)=1`
-
 func (s *Store) Map(channel string, stream int64, enabled bool) error {
 	tx, e := s.DB.Begin()
 	if e != nil {
