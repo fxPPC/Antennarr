@@ -6,4 +6,8 @@ Other provider names are additional positive aliases. Prefix a word or phrase wi
 
 Ambiguous matches are left unassigned. Manual enabled/disabled assignments persist through rematching, except that negative rules can remove forbidden enabled assignments. New streams and changed metadata are rematched incrementally; edits to channel rules re-evaluate affected streams against all selected channels so ambiguities are handled consistently. Changing a channel number does not rematch feeds.
 
-Fresh installations include 143 editable US channels. Tests and preset fixtures live beside the catalogue code; the runtime preset is authoritative. Existing installations retain their own channels.
+Fresh installations include 150 editable US channels. Tests and preset fixtures live beside the catalogue code; the runtime preset is authoritative. Existing installations retain their own channels.
+
+The US preset includes CBS (002), NBC (004), FOX (005), ABC (007), MyNetworkTV (009), The CW (011), and PBS (013). Their aliases recognise generic network/East labels and New York station names (WCBS, WNBC, WNYW, WABC, WWOR, WPIX, and WNET). Related news, sports, children’s services, and explicitly labelled western feeds are excluded. A generic network label does not establish its local affiliate; check the picture and guide mapping when local programming matters.
+
+Updating Antennarr does not add these channels to a saved lineup. Add missing channels individually under Output, or deliberately use **Bulk operations → Reset to default US channels** to replace the entire lineup and rebuild its rosters. That reset removes custom channels and rules.

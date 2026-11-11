@@ -10,7 +10,7 @@ An IPTV-to-Plex tuner I'm building because apparently watching television needed
 
 Go, SQLite, and FFmpeg on Debian 13. ARM64 and amd64. Video is copied, audio normalised to AAC. One `/data` directory; manual backups.
 
-Fresh installs now include **143 editable US channels**. Bring your own authorised account lists: **no accounts, passwords, or stream URLs are included**. Existing installations keep their channel setup; this update does not automatically overwrite it. Channels become playable as working sources fill their rosters.
+Fresh installs now include **150 editable US channels**. Bring your own authorised account lists: **no accounts, passwords, or stream URLs are included**. Existing installations keep their channel setup; this update does not automatically overwrite it. Channels become playable as working sources fill their rosters.
 
 Controlled media tests run on native amd64 and ARM64. Broader testing with household Plex clients, non-US channels, and other Docker network setups is still needed.
 

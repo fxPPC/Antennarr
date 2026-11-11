@@ -12,7 +12,7 @@ func TestFreshUSDefaultsPreserveEdits(t *testing.T) {
 		t.Fatal(err)
 	}
 	ch, err := s.Channels()
-	if err != nil || len(ch) != 143 {
+	if err != nil || len(ch) != 150 {
 		t.Fatalf("channels=%d err=%v", len(ch), err)
 	}
 	var accounts int
@@ -64,11 +64,11 @@ func TestApplyUSPresetAlignsGuideAndPreservesIDs(t *testing.T) {
 		}
 	}
 	result, e := s.ApplyUSPreset()
-	if e != nil || result.Added != 141 || result.Updated != 2 {
+	if e != nil || result.Added != 147 || result.Updated != 3 {
 		t.Fatal(result, e)
 	}
 	channels, e := s.Channels()
-	if e != nil || len(channels) != 144 {
+	if e != nil || len(channels) != 150 {
 		t.Fatal(len(channels), e)
 	}
 	found := map[string]Channel{}
@@ -82,7 +82,7 @@ func TestApplyUSPresetAlignsGuideAndPreservesIDs(t *testing.T) {
 		t.Fatal("guide numbers not used")
 	}
 	result, e = s.ApplyUSPreset()
-	if e != nil || result.Added != 0 || result.Updated != 143 {
+	if e != nil || result.Added != 0 || result.Updated != 150 {
 		t.Fatal("preset not idempotent", result, e)
 	}
 }
@@ -121,7 +121,7 @@ func TestGuideNumberConflictRollsBackRenumbering(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer s.Close()
-	for _, c := range []Channel{{ID: "cnn", Name: "CNN", Number: "101", Region: "US", Enabled: true}, {ID: "fox", Name: "FOX", Number: "109", Region: "US", Enabled: true}} {
+	for _, c := range []Channel{{ID: "cnn", Name: "CNN", Number: "101", Region: "US", Enabled: true}, {ID: "custom", Name: "Custom Local", Number: "109", Region: "US", Enabled: true}} {
 		if _, e = s.SaveChannel(c); e != nil {
 			t.Fatal(e)
 		}

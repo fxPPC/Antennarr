@@ -111,7 +111,7 @@ export async function init() {
   await loadChannels();
   for (const [id,defaults] of [['clear-all-channels',false],['reset-us-channels',true]]) {
     $('#'+id).onclick=async()=>{
-      if(!await confirmAction(defaults?'Replace all channels and rosters with the 143 default US channels? Custom channels and rules will be removed. Accounts and login are kept; no backup is created.':'Remove all channels and their roster assignments? Accounts and streams are kept. No backup is created.'))return;
+      if(!await confirmAction(defaults?'Replace all channels and rosters with the 150 default US channels? Custom channels and rules will be removed. Accounts and login are kept; no backup is created.':'Remove all channels and their roster assignments? Accounts and streams are kept. No backup is created.'))return;
       try {await api('/api/channels/bulk','POST',{confirmed:true,default_us:defaults});$('#bulk-result').textContent='Channel selection updated.';await loadChannels()}catch(e){$('#bulk-result').textContent=e.message}
     };
   }
