@@ -1,6 +1,7 @@
 # v1.1.0-alpha.1 — unreleased development foundation
 
 - Include all v1.0.4 channel-matching, preset, and delayed-audio startup fixes. Preserve the v1.1.0-alpha.1 identity and release line.
+- Add a published-v1.0.4 upgrade and backup/restore regression check, including edited and disabled custom channels. Define **USA - New York City** as the only initial, optional tuner preset; additional locations follow later.
 - Start the v1.1 development line, with multiple independently configurable Plex tuners and same-minor stable-patch downgrades as the release goals.
 - Define the compatibility boundary: preserve `/data` on minor upgrades; restore a pre-upgrade backup to return from 1.1 to 1.0. The new downgrade guarantee starts at stable 1.1.0.
 - Add branch/version validation, opt-in prerelease publishing, stable minor Docker tags, and explicit latest promotion. Maintenance releases cannot replace a newer stable version as latest.
