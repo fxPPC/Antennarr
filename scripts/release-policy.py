@@ -4,6 +4,7 @@
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 
 
@@ -75,16 +76,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("version")
     parser.add_argument("ref")
-    parser.add_argument("--line-file", default="RELEASE_LINE")
-    parser.add_argument("--source-root", default=".")
-    parser.add_argument("--releases", required=True, help="GitHub releases, paginated with --slurp")
     parser.add_argument("--promote-latest", action="store_true")
     args = parser.parse_args()
-    pages = json.loads(Path(args.releases).read_text())
+    # The workflow supplies release metadata on stdin; paths always belong to
+    # this checkout rather than caller-selected files or directories.
+    root = Path(__file__).resolve().parent.parent
+    pages = json.load(sys.stdin)
     releases = [release for page in pages for release in page]
     try:
-        result = plan(args.version, args.ref, Path(args.line_file).read_text().strip(), releases, args.promote_latest)
-        verify_source(args.version, Path(args.source_root))
+        result = plan(args.version, args.ref, (root / "RELEASE_LINE").read_text().strip(), releases, args.promote_latest)
+        verify_source(args.version, root)
     except ValueError as error:
         parser.error(str(error))
     print(json.dumps(result))
