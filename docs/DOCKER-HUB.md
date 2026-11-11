@@ -12,7 +12,7 @@ Go, SQLite, and FFmpeg on Debian 13. ARM64 and amd64. Video is copied, audio nor
 
 Fresh installs now include **150 editable US channels**. Bring your own authorised account lists: **no accounts, passwords, or stream URLs are included**. Existing installations keep their channel setup; this update does not automatically overwrite it. Channels become playable as working sources fill their rosters.
 
-Controlled media tests run on native amd64 and ARM64. Broader testing with household Plex clients, non-US channels, and other Docker network setups is still needed.
+Images and container installation checks run on native amd64 and ARM64. Controlled media tests cover recovery and shared streams; broader testing with household Plex clients, non-US channels, and other Docker network setups is still needed.
 
 Open source at [fxPPC/Antennarr](https://github.com/fxPPC/Antennarr). Break it, report it, preferably in that order.
 
