@@ -1,9 +1,11 @@
 version: 2
+# Dependabot's native rebasing remains enabled. Checking each weekday also
+# refreshes stale PRs without unsupported commands from github-actions[bot].
 updates:
   - package-ecosystem: gomod
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
     groups:
       go-dependencies:
         patterns: ["*"]
@@ -11,7 +13,7 @@ updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
     groups:
       actions:
         patterns: ["*"]
@@ -19,7 +21,7 @@ updates:
   - package-ecosystem: docker
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
     groups:
       container:
         patterns: ["*"]
