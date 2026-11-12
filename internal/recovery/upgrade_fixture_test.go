@@ -4,6 +4,7 @@ import (
 	"antennarr/internal/catalog"
 	"antennarr/internal/config"
 	"antennarr/internal/recovery"
+	"antennarr/internal/stream"
 	"antennarr/internal/tuner"
 	"bytes"
 	"encoding/json"
@@ -136,7 +137,11 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 				t.Fatalf("saved channel definitions changed: %v", e)
 			}
 		}
-		server := tuner.Server{Config: c, BaseURL: expected["base"], ChannelList: func() []config.Channel {
+		// Production advertises the manager's configured viewer limit, which can
+		// differ from the legacy Config.Tuners field retained in old appdata.
+		manager := stream.New(c.Settings.MaxOutgoingStreams, time.Duration(c.GraceSeconds)*time.Second, nil)
+		defer manager.Close()
+		server := tuner.Server{Config: c, Streams: manager, BaseURL: expected["base"], ChannelList: func() []config.Channel {
 			chs, _ := s.Channels()
 			out := []config.Channel{}
 			for _, ch := range chs {
@@ -150,7 +155,7 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 			w := httptest.NewRecorder()
 			server.Handler().ServeHTTP(w, httptest.NewRequest("GET", path, nil))
 			if w.Code != 200 || w.Body.String() != expected[path] {
-				t.Fatalf("Plex identity/lineup changed: %s", path)
+				t.Fatalf("Plex identity/lineup changed: %s\nwant: %s\ngot: %s", path, expected[path], w.Body.String())
 			}
 		}
 	}
