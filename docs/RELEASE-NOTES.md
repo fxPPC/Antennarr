@@ -1,10 +1,24 @@
 # v1.1.0-alpha.1 — unreleased development foundation
 
+- Include all v1.0.4 channel-matching, preset, and delayed-audio startup fixes. Preserve the v1.1.0-alpha.1 identity and release line.
+- Add a published-v1.0.4 upgrade and backup/restore regression check, including edited and disabled custom channels. Define **USA - New York City** as the only initial, optional tuner preset; additional locations follow later.
 - Start the v1.1 development line, with multiple independently configurable Plex tuners and same-minor stable-patch downgrades as the release goals.
 - Define the compatibility boundary: preserve `/data` on minor upgrades; restore a pre-upgrade backup to return from 1.1 to 1.0. The new downgrade guarantee starts at stable 1.1.0.
 - Add branch/version validation, opt-in prerelease publishing, stable minor Docker tags, and explicit latest promotion. Maintenance releases cannot replace a newer stable version as latest.
 
 Multi-tuner runtime support, the new database migration, and the stable-patch downgrade harness are not implemented in this foundation. No new schema is applied yet. Development/prerelease builds do not carry the stable downgrade guarantee. See [the implementation plan](V1.1-PLAN.md).
+
+---
+
+# v1.0.4
+
+- Review all 150 US channel definitions and expand provider aliases for 27 channels, including numbered New York affiliates, Investigation Discovery, ESPN, American Heroes, and legacy premium-network names. Keep existing guide numbers and station requirements.
+- Reject conflicting regional and service metadata more consistently: compact guide IDs now respect exclusions such as `-pacific` and `-latin america`, and dotted country suffixes distinguish feeds such as `.in` from `.us`. A conflicting affiliate ID cannot override the required station in the name.
+- Recognise additional unrelated guide services and reject catalogue section headings. Ambiguous feeds stay unassigned; missing sources are preferable to the wrong programme.
+- Handle provider `VIP` quality decoration and bracketed `[BK]` backup markers without relaxing complete-name matching or the UHD setting.
+- Allow more input probing time and bytes for valid MPEG-TS feeds whose AAC audio arrives late, fixing a startup failure seen with NBC. Video is still copied; startup deadlines remain bounded.
+
+Schema 8, account history, channel IDs, and tuner identity are retained. Saved streams are rematched once; contradictory memberships are removed without failure strikes. Existing channel definitions are not overwritten. The improved preset is used for fresh installs or an explicit reset. Backups remain manual. Metadata checks cannot prove programme content or uninterrupted playback across every provider and Plex client.
 
 ---
 

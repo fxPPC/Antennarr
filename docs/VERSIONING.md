@@ -6,7 +6,9 @@ Antennarr uses [Semantic Versioning 2.0.0](https://semver.org/): compatible fixe
 
 The supported interface consists of the documented HTTP API, Plex tuner endpoints and device identities, deployment environment variables, persistent data locations, and portable lineup/backup formats. Additive fields must be tolerated where documented. Internal database tables are not an external API.
 
-Minor upgrades preserve supported existing configuration, accounts, channels, and tuner identities. They may migrate the internal database. A migration must validate its inputs, commit atomically where possible, and never replace an unreadable database with empty data. Keep the same `/data` directory.
+Minor upgrades preserve supported existing configuration, accounts, channels, and tuner identities. They may migrate the internal database. On startup, the new version must detect supported older data formats and automatically migrate them, without manual exports, edits, or installation of intermediate versions. A migration must validate its inputs, commit atomically where possible, and never replace an unreadable database with empty data. Keep the same `/data` directory.
+
+For 1.1, all published stable 1.0 data formats must have a tested automatic upgrade path. Run migration before serving requests or starting background writers. Persist its completion only after validation succeeds; interrupted upgrades must roll back or resume safely. Reject unknown/newer formats with a clear error rather than guessing or resetting data. Cross-file changes need a recoverable staged operation because a database transaction alone cannot protect configuration files.
 
 ## Patch downgrades, starting with stable 1.1.0
 

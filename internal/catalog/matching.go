@@ -65,12 +65,19 @@ func compactQualityToken(t string) string {
 	return compactQuality.ReplaceAllString(t, "$1")
 }
 
-var quality = regexp.MustCompile(`^(?:sd|hd|fhd|uhd|4k|8k|hevc|h264|h265|raw|backup|1080[pi]?|720p?|480p?|2160p?|[0-9]+fps|(?:1080|720|2160)[pi][0-9]+(?:fps)?|hdr|hfr|avc|hvec|50hz|60hz)$`)
+var quality = regexp.MustCompile(`^(?:sd|hd|fhd|uhd|4k|8k|hevc|h264|h265|raw|backup|vip|1080[pi]?|720p?|480p?|2160p?|[0-9]+fps|(?:1080|720|2160)[pi][0-9]+(?:fps)?|hdr|hfr|avc|hvec|50hz|60hz)$`)
+
+// Repeated separators usually mark catalogue sections, not playable feeds.
+var catalogueHeading = regexp.MustCompile(`^\s*[#=*]{3,}.*[#=*]{3,}\s*$`)
+
+// [BK] is a provider's backup marker. Keep unbracketed BK literal: it can be
+// part of a service identifier, rather than transport decoration.
+var backupMarker = regexp.MustCompile(`(?i)\[\s*bk\s*\]`)
 
 // Match names as token sequences, not substrings: MTV 2 and CNN International
 // must not match MTV and CNN. Regional words stay in the name; aliases and exclusions decide matches.
 func channelKey(name, region string) (string, string) {
-	name = listingNumber.ReplaceAllString(normaliseName(name), "")
+	name = listingNumber.ReplaceAllString(backupMarker.ReplaceAllString(normaliseName(name), ""), "")
 	// Track bracketed country tags without turning ordinary brand words into tags.
 	name = strings.NewReplacer("h.264", "h264", "H.264", "h264").Replace(name)
 	name = strings.NewReplacer("h.265", "h265", "H.265", "h265").Replace(name)
@@ -119,12 +126,13 @@ func channelKey(name, region string) (string, string) {
 // parsed once per entry, keeping bulk imports off the hot playback path.
 type channelLabel struct{ key, country string }
 type channelMatcher struct {
-	channel    Channel
-	positive   []channelLabel
-	negative   []string
-	guideKeys  map[string]bool
-	stationKey string
-	networkKey string
+	channel     Channel
+	positive    []channelLabel
+	negative    []string
+	negativeIDs []string
+	guideKeys   map[string]bool
+	stationKey  string
+	networkKey  string
 }
 type sourceLabel struct {
 	channelLabel
@@ -135,7 +143,7 @@ type sourceLabel struct {
 
 func parseSourceLabel(name, region string) sourceLabel {
 	k, c := channelKey(name, region)
-	label := sourceLabel{channelLabel: channelLabel{k, c}, words: " " + strings.Join(exclusionWords(name), " ") + " "}
+	label := sourceLabel{channelLabel: channelLabel{k, c}, ambiguous: catalogueHeading.MatchString(name), words: " " + strings.Join(exclusionWords(name), " ") + " "}
 	for _, token := range strings.Fields(k) {
 		if token == "hbofhd" {
 			label.ambiguous = true
@@ -145,7 +153,7 @@ func parseSourceLabel(name, region string) sourceLabel {
 }
 func sourceLabelWithID(name, region, id string) sourceLabel {
 	label := parseSourceLabel(name, region)
-	k, country := channelKey(id, "")
+	k, country := guideKey(id)
 	label.guide = channelLabel{k, country}
 	// Separate fields with two spaces so a phrase cannot straddle name and ID.
 	if id != "" {
@@ -162,6 +170,7 @@ func compileChannel(c Channel) channelMatcher {
 			phrase := strings.Join(exclusionWords(strings.TrimSpace(strings.TrimPrefix(alias, "-"))), " ")
 			if phrase != "" {
 				m.negative = append(m.negative, " "+phrase+" ")
+				m.negativeIDs = append(m.negativeIDs, strings.ReplaceAll(phrase, " ", ""))
 			}
 			continue
 		}
@@ -169,13 +178,30 @@ func compileChannel(c Channel) channelMatcher {
 		m.positive = append(m.positive, channelLabel{k, country})
 		if k != "" {
 			m.guideKeys[compactIdentity(k)] = true
+			// Retain the literal brand as well as its canonical spelling:
+			// DiscoveryChannelPacific must split at DiscoveryChannel, even
+			// though the display-name normaliser shortens it to Discovery.
+			m.guideKeys[compactIdentity(alias)] = true
 		}
 	}
 	return m
 }
 func (m channelMatcher) excludes(label sourceLabel) bool {
+	if label.ambiguous {
+		return true
+	}
 	for _, phrase := range m.negative {
 		if strings.Contains(label.words, phrase) {
+			return true
+		}
+	}
+	// Guide IDs often join words (CinemaxPacific.us). Only split at a known
+	// complete channel identity; substring matching would confuse West with
+	// Westerns, or CNN with CNN International. A one-letter prefix is not a
+	// boundary: WNBC is a station, not W + NBC. Opaque IDs remain untouched.
+	id := strings.ReplaceAll(label.guide.key, " ", "")
+	for _, phrase := range m.negativeIDs {
+		if id == phrase || (strings.HasSuffix(id, phrase) && m.guideKeys[strings.TrimSuffix(id, phrase)]) || (len(phrase) > 1 && strings.HasPrefix(id, phrase) && m.guideKeys[strings.TrimPrefix(id, phrase)]) {
 			return true
 		}
 	}

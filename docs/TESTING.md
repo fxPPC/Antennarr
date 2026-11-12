@@ -13,6 +13,15 @@ ANTENNARR_UPGRADE_FIXTURE=/tmp/antennarr-upgrade-fixture go test ./internal/reco
 
 The generator refuses an existing output directory, runs with networking disabled, and seeds only reserved `.invalid` provider addresses. The test copies the synthetic data, opens it with current code, verifies default settings and additive schema-8 metadata, lowers the roster threshold without dropping entries, and performs a manual backup/restore. It compares the exact HDHomeRun discovery, lineup, and device XML with the published version, along with accounts, rosters, login, random queue positions, and saved check-pass state.
 
+The v1.1 development line also checks upgrades from the published v1.0.4 image, pinned by digest:
+
+```sh
+python3 scripts/make-upgrade-fixture.py --baseline v1.0.4 /tmp/antennarr-v104-upgrade-fixture
+ANTENNARR_V104_UPGRADE_FIXTURE=/tmp/antennarr-v104-upgrade-fixture go test ./internal/recovery -run TestPublishedV104UpgradeAndManualRestore -count=1 -v
+```
+
+This fixture edits an existing channel and adds a disabled custom channel through the old version's API. The test additionally compares the complete portable channel definitions, including permanent IDs, numbers, station constraints, aliases, policies, and enabled states, after upgrade and backup/restore. Both published-version checks run in CI. They establish an upgrade baseline for the multi-tuner work; they do not establish multi-tuner Plex behaviour or stable 1.1 patch downgrade compatibility.
+
 ## Matching regression and performance
 
 Catalogue tests cover scoped imports, unchanged starts, channel-rule edits, ambiguity resolution, manual assignments, exclusions, learned TVG identities, and current preset labels. `go test ./internal/catalog -run '^$' -bench BenchmarkIncrementalImport -benchtime=1x` measures a one-stream import after seeding 10,000 streams and 143 selected channels. Setup is excluded from the timed result.
