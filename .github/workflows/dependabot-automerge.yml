@@ -1,15 +1,18 @@
 name: Dependabot auto-merge
 on:
+  push:
+    branches: [main]
   pull_request_target:
     branches: [main]
     types: [opened, reopened, synchronize, ready_for_review]
 permissions: {}
 concurrency:
-  group: dependabot-automerge-${{ github.event.pull_request.number }}
+  group: dependabot-automerge-${{ github.event.pull_request.number || 'main' }}
   cancel-in-progress: false
 jobs:
   enable:
     if: >-
+      github.event_name == 'pull_request_target' &&
       github.repository == 'fxPPC/Antennarr' &&
       github.event.pull_request.user.login == 'dependabot[bot]' &&
       github.event.pull_request.user.type == 'Bot' &&
@@ -29,4 +32,39 @@ jobs:
           GH_REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_HEAD: ${{ github.event.pull_request.head.sha }}
-        run: gh pr merge "$PR_NUMBER" --auto --squash --match-head-commit "$PR_HEAD"
+        run: |
+          gh pr merge "$PR_NUMBER" --auto --squash --match-head-commit "$PR_HEAD"
+          base=$(gh api "repos/$GH_REPO/git/ref/heads/main" --jq '.object.sha')
+          behind=$(gh api "repos/$GH_REPO/compare/$base...$PR_HEAD" --jq '.behind_by')
+          if (( behind > 0 )); then
+            gh pr comment "$PR_NUMBER" --body '@dependabot rebase'
+          fi
+  refresh:
+    if: github.event_name == 'push' && github.repository == 'fxPPC/Antennarr'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # Dependabot performs the rebase so its push triggers fresh PR checks.
+      # Updating branches with GITHUB_TOKEN itself would suppress those events.
+      - name: Refresh queued Dependabot PRs after main changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BASE_SHA: ${{ github.sha }}
+        run: |
+          prs=$(gh api --paginate "repos/$GH_REPO/pulls?state=open&base=main&per_page=100" --jq '
+            .[] | select(.user.login == "dependabot[bot]" and .user.type == "Bot"
+              and .head.repo.full_name == .base.repo.full_name and .draft == false
+              and .auto_merge != null) | [.number, .head.sha] | @tsv')
+          if [[ -z "$prs" ]]; then
+            exit 0
+          fi
+          while IFS=$'\t' read -r pr head; do
+            behind=$(gh api "repos/$GH_REPO/compare/$BASE_SHA...$head" --jq '.behind_by')
+            if (( behind > 0 )); then
+              gh pr comment "$pr" --body '@dependabot rebase'
+            fi
+          done <<< "$prs"
