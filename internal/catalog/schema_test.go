@@ -11,7 +11,7 @@ import (
 
 func TestCurrentSchemaReopenPreservesCatalogue(t *testing.T) {
 	root := t.TempDir()
-	s, e := OpenWithUSDefaults(root)
+	s, e := OpenWithDefaults(root)
 	if e != nil {
 		t.Fatal(e)
 	}

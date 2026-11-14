@@ -136,7 +136,7 @@ func TestStationEditRemovesWrongRosterWithoutStrikes(t *testing.T) {
 }
 
 func TestFreshBroadcastStationDefaultsAndReset(t *testing.T) {
-	s, err := OpenWithUSDefaults(t.TempDir())
+	s, err := OpenWithDefaults(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}

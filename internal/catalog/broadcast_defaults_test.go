@@ -153,7 +153,7 @@ func TestExistingBroadcastLineupPreservedOnStartup(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Close()
-	s, err = OpenWithUSDefaults(root)
+	s, err = OpenWithDefaults(root)
 	if err != nil {
 		t.Fatal(err)
 	}
