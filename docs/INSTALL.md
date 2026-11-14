@@ -1,5 +1,7 @@
 # Installation, upgrades, and manual recovery
 
+**This branch is v1.1.0-alpha.2.** The published-image instructions below install stable 1.0.4. To test the source preview with two tuners, use [multi-tuner setup](MULTI-TUNER.md) and separate disposable appdata. No alpha image has been published to Docker Hub.
+
 Use Linux Docker on ARM64 or amd64, with local writable appdata. Debian, FFmpeg, and FFprobe are included in the image. Docker source builds also include the Go toolchain in their build stage; Go is needed on your host only for local development outside Docker. Store SQLite appdata locally, not on SMB/NFS.
 
 ## Install the published image
@@ -84,7 +86,7 @@ Replace that example with your actual proxy address. Multiple IPs/CIDRs are comm
 
 ## Upgrade
 
-Keep the same `/data` bind mount, tuner URL, and Plex server. Current v1/schema-8 data opens directly, preserving identities and configuration. Old schema-1–7 data must first run `antennarr/antennarr:v1.0.0-beta.2`, then the current version. Unsupported/unversioned populated databases are refused rather than replaced. Do not downgrade an upgraded data directory. Diagnostic columns/settings can be additive within schema 8.
+Keep the same `/data` bind mount, tuner URL, and Plex server. Stable 1.0 uses schema 8. This 1.1 alpha converts schema 8 to schema 9 before starting workers, preserving existing identities and configuration and adding London disabled. Returning to 1.0 requires the complete manual pre-upgrade backup. Old schema-1–7 data must first run `antennarr/antennarr:v1.0.0-beta.2`, then the current version. Unsupported/unversioned populated databases are refused rather than replaced. Do not downgrade an upgraded data directory. Same-minor stable patch downgrade support is a v1.1 release requirement; alpha builds do not yet carry that guarantee.
 
 For a published-image Compose installation, change `ANTENNARR_IMAGE` in `.env` to the desired release, stop playback, then run:
 
@@ -97,11 +99,11 @@ Include the network overlay in both commands if you use it. A `docker run` insta
 
 ## Manual backup, restore, and channel files
 
-**Admin → Backup & restore** downloads an archive containing accounts and credentials, queue, rosters, check progress, configuration, channel/output assignments, login, and tuner identity. It does not include older backup archives or Plex's database. Keep it private. No backup is made automatically. Backup creation captures a consistent SQLite snapshot and copies configuration before releasing the administration lock; ZIP compression then permits status reads and new tunes. Temporary staging needs additional free space on `/data` (up to 2 GiB, plus the database snapshot and archive). Successful manual archives remain in `/data/backups` until you remove them.
+**Admin → Backup & restore** downloads an archive containing accounts and credentials, queue, rosters, check progress, configuration, channels and tuner assignments, login, and all tuner identities. It does not include older backup archives or Plex's database. Keep it private. No backup is made automatically. Backup creation captures a consistent SQLite snapshot and copies configuration before releasing the administration lock; ZIP compression then permits status reads and new tunes. Temporary staging needs additional free space on `/data` (up to 2 GiB, plus the database snapshot and archive). Successful manual archives remain in `/data/backups` until you remove them.
 
 Stop viewing before uploading a backup. Restore accepts a ZIP up to **1 GiB**, with at most **2 GiB** of expanded files. It replaces application state and restarts the service. Keep the original tuner URL and Plex server to retain Plex's own Live TV setup. The application backup does not recreate Docker mounts, networking, environment variables, or the reverse proxy; keep your deployment configuration separately.
 
-**Output → Channel lineup export & import** shares definitions without accounts, passwords, source streams, or rosters. Imports replace all channels and rebuild rosters. Use a full manual backup when source state must also be retained.
+**Output → Channel lineup export & import** shares definitions without accounts, passwords, source streams, or rosters. In 1.1, imports replace only the selected tuner’s channels and rebuild its rosters; other tuners are retained. Use a full manual backup when source state must also be retained.
 
 ## Troubleshooting and logs
 

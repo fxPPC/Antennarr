@@ -11,7 +11,7 @@ func TestFreshUSDefaultsPreserveEdits(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ch, err := s.Channels()
+	ch, err := s.ChannelsForProfile("primary")
 	if err != nil || len(ch) != 150 {
 		t.Fatalf("channels=%d err=%v", len(ch), err)
 	}

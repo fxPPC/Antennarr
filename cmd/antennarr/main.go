@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 )
@@ -56,6 +57,14 @@ func main() {
 		os.Exit(1)
 	}
 	level.Set(c.Settings.LogLevel())
+	ports, err := config.ParseTunerPorts(os.Getenv("ANTENNARR_TUNER_PORTS"))
+	if err == nil {
+		err = ports.ValidateListeners(env("ANTENNARR_LISTEN", ":9192"), os.Getenv("ANTENNARR_ADMIN_LISTEN"), os.Getenv("ANTENNARR_COMPAT_LISTEN"))
+	}
+	if err != nil {
+		slog.Error("invalid tuner listener configuration", "error", err)
+		os.Exit(1)
+	}
 	login, err := config.OpenAdminLogin(root)
 	if err != nil {
 		startupError("admin credential unavailable", root, err)
@@ -161,7 +170,7 @@ func main() {
 	}
 
 	channelList := func() []config.Channel {
-		selected, e := store.Channels()
+		selected, e := store.ChannelsForProfile("primary")
 		if e != nil {
 			return nil
 		}
@@ -184,7 +193,7 @@ func main() {
 		return m.Status().Viewers > 0, state == "checking" || state == "discovering"
 	})
 	statusCollector := &monitor.Collector{Store: store, Playback: m.Status, Live: eng.Status, Work: work.Snapshot, Checker: checks.CheckerState}
-	s := tuner.Server{Guard: guard, ChannelList: channelList, BeforeTune: checks.Preempt, Admin: &admin.API{WithIdle: m.WithIdle, SystemInfo: system.Snapshot, Monitor: statusCollector.Snapshot, StopStream: m.Stop, WithChecksPaused: checks.WithPaused, WithProtectedAccounts: limits.WithProtectedAccounts, ReadLogin: login.Current, ChangeLogin: login.Change, DataRoot: root, BaseURL: base, Idle: func() bool { return m.Status().Viewers == 0 }, Restart: func() {
+	s := tuner.Server{Guard: guard, ChannelList: channelList, BeforeTune: checks.Preempt, Admin: &admin.API{TunerPorts: ports, PrimaryListen: env("ANTENNARR_LISTEN", ":9192"), WithIdle: m.WithIdle, SystemInfo: system.Snapshot, Monitor: statusCollector.Snapshot, StopStream: m.Stop, WithChecksPaused: checks.WithPaused, WithProtectedAccounts: limits.WithProtectedAccounts, ReadLogin: login.Current, ChangeLogin: login.Change, DataRoot: root, BaseURL: base, Idle: func() bool { return m.Status().Viewers == 0 }, Restart: func() {
 		select {
 		case restart <- struct{}{}:
 		default:
@@ -209,7 +218,37 @@ func main() {
 		}
 		return e
 	}, Store: store, Client: client}, Config: c, Streams: m, BaseURL: base, ReadLogin: login.Current}
-	srv := http.Server{Addr: env("ANTENNARR_LISTEN", ":9192"), Handler: s.Handler(), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
+	fleet := tuner.Fleet{Store: store, Template: &s, Ports: ports}
+	profiles, err := store.Profiles()
+	if err != nil {
+		slog.Error("tuner profiles unavailable")
+		os.Exit(1)
+	}
+	for _, profile := range profiles {
+		if profile.Enabled {
+			if _, err = ports.URL(base, profile.PortOffset); err != nil {
+				slog.Error("enabled tuner has no configured address", "profile_id", profile.ID, "error", err)
+				os.Exit(1)
+			}
+		}
+	}
+	srv := http.Server{Addr: env("ANTENNARR_LISTEN", ":9192"), Handler: fleet.PrimaryHandler(), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
+	// Bind the bounded private range once. Adding/enabling a profile then needs
+	// no restart, and an unassigned port returns 404 rather than another tuner.
+	bindHost, _, _ := net.SplitHostPort(srv.Addr)
+	type deviceListener struct {
+		server   *http.Server
+		listener net.Listener
+	}
+	var extra []deviceListener
+	for port := ports.First; port <= ports.Last; port++ {
+		listener, e := net.Listen("tcp", net.JoinHostPort(bindHost, strconv.Itoa(port)))
+		if e != nil {
+			slog.Error("additional tuner listener unavailable", "port", port)
+			os.Exit(1)
+		}
+		extra = append(extra, deviceListener{&http.Server{Handler: fleet.Handler(port - ports.First + 1), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}, listener})
+	}
 	var adminServer *http.Server
 	var adminListener net.Listener
 	if addr := os.Getenv("ANTENNARR_ADMIN_LISTEN"); addr != "" {
@@ -228,11 +267,19 @@ func main() {
 			slog.Error("compatibility listener unavailable")
 			os.Exit(1)
 		}
-		compat = &http.Server{Handler: s.StreamHandler(), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
+		compat = &http.Server{Handler: fleet.FallbackHandler(), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	go system.Run(ctx)
 	defer stop()
+	for _, device := range extra {
+		go func() {
+			if e := device.server.Serve(device.listener); e != nil && e != http.ErrServerClosed {
+				slog.Error("additional tuner listener stopped")
+				stop()
+			}
+		}()
+	}
 	if adminServer != nil {
 		go func() {
 			if err := adminServer.Serve(adminListener); err != nil && err != http.ErrServerClosed {
@@ -276,9 +323,12 @@ func main() {
 		if compat != nil {
 			_ = compat.Shutdown(shutdown)
 		}
+		for _, device := range extra {
+			_ = device.server.Shutdown(shutdown)
+		}
 		_ = srv.Shutdown(shutdown)
 	}()
-	slog.Info("tuner starting", "version", "v1.1.0-alpha.1", "schema", 8, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "tuners", c.Settings.MaxOutgoingStreams)
+	slog.Info("tuner starting", "version", "v1.1.0-alpha.2", "schema", 9, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
 	if err = srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("HTTP server failed")
 		os.Exit(1)

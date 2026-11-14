@@ -15,6 +15,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,6 +41,8 @@ var logoHash = fmt.Sprintf("\"%x\"", sha256.Sum256(logo))
 var page []byte
 
 type API struct {
+	TunerPorts            config.TunerPorts
+	PrimaryListen         string
 	SystemInfo            func() systeminfo.Snapshot
 	Monitor               func(context.Context) (monitor.Snapshot, error)
 	WithIdle              func(func() error) error
@@ -124,6 +127,7 @@ func (a *API) Register(mux *http.ServeMux, auth func(http.HandlerFunc) http.Hand
 		pattern string
 		fn      http.HandlerFunc
 	}{
+		{"GET /api/profiles", a.profiles}, {"POST /api/profiles", a.addProfile}, {"POST /api/profiles/{id}", a.saveProfile}, {"DELETE /api/profiles/{id}", a.deleteProfile}, {"GET /api/presets", a.presets},
 		{"GET /api/lineup", a.exportLineup}, {"POST /api/lineup", a.importLineup}, {"GET /api/output/search", a.outputSearch}, {"GET /api/system", a.systemStatus}, {"POST /api/channels/bulk", a.bulkChannels}, {"POST /api/reset", a.resetApplication}, {"GET /api/monitor", a.monitorStatus}, {"POST /api/outgoing/{id}/stop", a.stopOutgoing}, {"POST /api/input/clear", a.clearQueue}, {"GET /api/roster", a.rosterSummary}, {"GET /api/roster/{id}", a.rosterEntries}, {"GET /api/channels/{id}/excluded", a.excludedStreams}, {"POST /api/roster/{id}/policy", a.rosterPolicy}, {"GET /api/input/accounts", a.inputAccounts}, {"GET /api/input/import", a.importStatus}, {"GET /api/events", a.events}, {"GET /api/login", a.login}, {"POST /api/login", a.saveLogin}, {"GET /api/settings", a.settings}, {"POST /api/settings", a.saveSettings}, {"GET /api/removal-policy", a.removalPolicy}, {"POST /api/removal-policy", a.saveRemovalPolicy}, {"POST /api/import", a.importSources}, {"GET /api/channels", a.channels}, {"POST /api/channels", a.saveChannel}, {"DELETE /api/channels/{id}", a.deleteChannel}, {"POST /api/mappings", a.mapping}, {"POST /api/backup", a.fullBackup}, {"GET /api/backups/{name}", a.downloadBackup}, {"POST /api/restore", a.restoreBackup},
 	} {
 		fn := route.fn
@@ -138,7 +142,7 @@ func (a *API) Register(mux *http.ServeMux, auth func(http.HandlerFunc) http.Hand
 				fn(w, r)
 				return
 			}
-			exclusive := (r.URL.Path == "/api/lineup" && r.Method == "POST") || r.URL.Path == "/api/reset" || r.URL.Path == "/api/channels/bulk" || r.URL.Path == "/api/restore" || r.URL.Path == "/api/input/clear"
+			exclusive := (r.URL.Path == "/api/lineup" && r.Method == "POST") || (strings.HasPrefix(r.URL.Path, "/api/profiles") && r.Method != "GET") || r.URL.Path == "/api/reset" || r.URL.Path == "/api/channels/bulk" || r.URL.Path == "/api/restore" || r.URL.Path == "/api/input/clear"
 			if exclusive {
 				if a.backingUp.Load() {
 					failure(w, 409, "Backup is being packaged; try again shortly")
@@ -187,7 +191,13 @@ func decode(w http.ResponseWriter, r *http.Request, v any) bool {
 }
 
 func (a *API) channels(w http.ResponseWriter, r *http.Request) {
-	v, e := a.Store.Channels()
+	var v []catalog.Channel
+	var e error
+	if id := r.URL.Query().Get("profile_id"); id != "" {
+		v, e = a.Store.ChannelsForProfile(id)
+	} else {
+		v, e = a.Store.Channels()
+	}
 	if e != nil {
 		failure(w, 500, "Channels unavailable")
 		return

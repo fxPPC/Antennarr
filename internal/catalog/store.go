@@ -50,19 +50,21 @@ type Account struct {
 	SuccessfulChecks  int    `json:"successful_account_checks"`
 }
 type Channel struct {
-	Station string   `json:"station,omitempty"`
-	ID      string   `json:"id"`
-	Number  string   `json:"number"`
-	Name    string   `json:"name"`
-	Region  string   `json:"region"`
-	Enabled bool     `json:"enabled"`
-	Sources int      `json:"sources"`
-	Aliases []string `json:"aliases"`
+	ProfileID string   `json:"profile_id"`
+	Station   string   `json:"station,omitempty"`
+	ID        string   `json:"id"`
+	Number    string   `json:"number"`
+	Name      string   `json:"name"`
+	Region    string   `json:"region"`
+	Enabled   bool     `json:"enabled"`
+	Sources   int      `json:"sources"`
+	Aliases   []string `json:"aliases"`
 }
 
 func Open(root string) (*Store, error) { return open(root, false) }
 
-// OpenWithUSDefaults seeds public channel and removal defaults only for a new catalogue.
+// OpenWithUSDefaults seeds disabled US and London tuners and removal defaults
+// only for a new catalogue. Existing lineups retain their saved state.
 func OpenWithUSDefaults(root string) (*Store, error) { return open(root, true) }
 
 func open(root string, defaults bool) (*Store, error) {
@@ -92,7 +94,7 @@ func open(root string, defaults bool) (*Store, error) {
 	if e = db.QueryRow("PRAGMA user_version").Scan(&version); e != nil {
 		return fail(e)
 	}
-	if version > 8 {
+	if version > 9 {
 		return fail(errors.New("database requires a newer application"))
 	}
 	if version > 0 && version < 8 {
@@ -118,8 +120,14 @@ func open(root string, defaults bool) (*Store, error) {
 			// deliberately disabled removal, must never change on an image update.
 			_, err = tx.Exec(`INSERT INTO settings(name,value) VALUES('removal_policy','{"account_failures":2,"stream_failures":3}')`)
 		}
+		if err == nil && defaults {
+			_, err = tx.Exec("UPDATE output_profiles SET enabled=0")
+		}
+		if err == nil && !defaults {
+			_, err = tx.Exec("INSERT INTO settings(name,value) VALUES('multi_tuner_presets_seeded','1'); UPDATE output_profiles SET name='Existing tuner',preset_id='',market='',country='',timezone='',guide_location=''")
+		}
 		if err == nil {
-			_, err = tx.Exec("PRAGMA user_version=8")
+			_, err = tx.Exec("PRAGMA user_version=9")
 		}
 		if err != nil {
 			tx.Rollback()
@@ -130,6 +138,11 @@ func open(root string, defaults bool) (*Store, error) {
 		}
 	}
 
+	if version == 8 {
+		if e = migrateProfiles(db); e != nil {
+			return fail(e)
+		}
+	}
 	// Reverse mapping lookups drive stream scheduling. Without this index the
 	// correlated schedule queries scan the entire catalogue for every stream.
 	if _, e = db.Exec("CREATE INDEX IF NOT EXISTS mappings_stream ON mappings(stream_id,enabled,channel_id)"); e != nil {
@@ -154,6 +167,9 @@ func open(root string, defaults bool) (*Store, error) {
 		return fail(e)
 	}
 	if e = store.seedInitialChannels(); e != nil {
+		return fail(e)
+	}
+	if e = store.seedLondonProfile(); e != nil {
 		return fail(e)
 	}
 	if e = store.ensureCheckPass(); e != nil {
@@ -269,8 +285,17 @@ func (s *Store) importBatch(entries []ingest.Entry, provenance string) (int, err
 	return count, tx.Commit()
 }
 
-func (s *Store) Channels() ([]Channel, error) {
-	rows, e := s.DB.Query(`SELECT c.id,c.number,c.name,c.region,c.enabled,count(m.stream_id),c.aliases,coalesce((SELECT value FROM settings WHERE name='channel_station:'||c.id),'') FROM channels c LEFT JOIN mappings m ON m.channel_id=c.id AND m.enabled=1 GROUP BY c.id ORDER BY CAST(c.number AS REAL)`)
+func (s *Store) Channels() ([]Channel, error) { return s.channels("", false) }
+
+func (s *Store) ChannelsForProfile(profile string) ([]Channel, error) {
+	return s.channels(profile, false)
+}
+
+func (s *Store) ActiveChannels() ([]Channel, error) { return s.channels("", true) }
+
+func (s *Store) channels(profile string, active bool) ([]Channel, error) {
+	query := `SELECT c.profile_id,c.id,c.number,c.name,c.region,c.enabled,count(m.stream_id),c.aliases,coalesce((SELECT value FROM settings WHERE name='channel_station:'||c.id),'') FROM channels c LEFT JOIN mappings m ON m.channel_id=c.id AND m.enabled=1 WHERE (?='' OR c.profile_id=?) AND (?=0 OR EXISTS(SELECT 1 FROM output_profiles p WHERE p.id=c.profile_id AND p.enabled=1)) GROUP BY c.id ORDER BY c.profile_id,CAST(c.number AS REAL)`
+	rows, e := s.DB.Query(query, profile, profile, active)
 	if e != nil {
 		return nil, e
 	}
@@ -279,7 +304,7 @@ func (s *Store) Channels() ([]Channel, error) {
 	for rows.Next() {
 		var c Channel
 		var aliases string
-		if e = rows.Scan(&c.ID, &c.Number, &c.Name, &c.Region, &c.Enabled, &c.Sources, &aliases, &c.Station); e != nil {
+		if e = rows.Scan(&c.ProfileID, &c.ID, &c.Number, &c.Name, &c.Region, &c.Enabled, &c.Sources, &aliases, &c.Station); e != nil {
 			return nil, e
 		}
 		json.Unmarshal([]byte(aliases), &c.Aliases)
@@ -289,9 +314,12 @@ func (s *Store) Channels() ([]Channel, error) {
 }
 
 // SaveChannel retains an existing permanent ID when its display name or number
-// changes. Matching and primary output assignments follow the committed edit;
+// changes. Matching and profile membership follow the committed edit;
 // callers must not replace identity merely to change its Plex presentation.
 func (s *Store) SaveChannel(c Channel) (string, error) {
+	if c.ProfileID == "" {
+		c.ProfileID = "primary"
+	}
 	c.Station = normaliseStation(c.Station)
 	if !validStation(c.Station) {
 		return "", errors.New("invalid station ID; use up to 32 letters, digits, dots, or hyphens")
@@ -326,11 +354,20 @@ func (s *Store) SaveChannel(c Channel) (string, error) {
 	}
 	defer tx.Rollback()
 	var count, exists int
-	if e = tx.QueryRow("SELECT count(*) FROM channels").Scan(&count); e != nil {
+	if e = tx.QueryRow("SELECT count(*) FROM channels WHERE profile_id=?", c.ProfileID).Scan(&count); e != nil {
 		return "", e
 	}
 	if e = tx.QueryRow("SELECT count(*) FROM channels WHERE id=?", c.ID).Scan(&exists); e != nil {
 		return "", e
+	}
+	var storedProfile string
+	if exists > 0 {
+		if e = tx.QueryRow("SELECT profile_id FROM channels WHERE id=?", c.ID).Scan(&storedProfile); e != nil {
+			return "", e
+		}
+		if storedProfile != c.ProfileID {
+			return "", errors.New("channel belongs to another tuner")
+		}
 	}
 	if count >= MaxSelectedChannels && exists == 0 {
 		return "", fmt.Errorf("maximum %d selected channels", MaxSelectedChannels)
@@ -342,7 +379,7 @@ func (s *Store) SaveChannel(c Channel) (string, error) {
 	}
 	_ = tx.QueryRow("SELECT name,region,aliases FROM channels WHERE id=?", c.ID).Scan(&previousName, &previousRegion, &previousAliases)
 	refresh := previousStation != c.Station || exists == 0 || previousName != c.Name || previousRegion != c.Region || previousAliases != string(aliases)
-	_, e = tx.Exec(`INSERT INTO channels(id,number,name,region,enabled,aliases) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET number=excluded.number,name=excluded.name,region=excluded.region,enabled=excluded.enabled,aliases=excluded.aliases`, c.ID, c.Number, c.Name, c.Region, c.Enabled, string(aliases))
+	_, e = tx.Exec(`INSERT INTO channels(id,number,name,region,enabled,aliases,profile_id) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET number=excluded.number,name=excluded.name,region=excluded.region,enabled=excluded.enabled,aliases=excluded.aliases`, c.ID, c.Number, c.Name, c.Region, c.Enabled, string(aliases), c.ProfileID)
 	if e != nil {
 		return "", errors.New("channel could not be saved; check number uniqueness")
 	}
@@ -350,7 +387,7 @@ func (s *Store) SaveChannel(c Channel) (string, error) {
 		return "", e
 	}
 	if refresh {
-		previous := Channel{ID: c.ID, Name: previousName, Region: previousRegion, Station: previousStation}
+		previous := Channel{ID: c.ID, ProfileID: c.ProfileID, Name: previousName, Region: previousRegion, Station: previousStation}
 		json.Unmarshal([]byte(previousAliases), &previous.Aliases)
 		if e = autoMapChannel(tx, previous, c); e != nil {
 			return "", e
@@ -378,7 +415,7 @@ func (s *Store) Map(channel string, stream int64, enabled bool) error {
 		if e != nil {
 			return e
 		}
-		if e := tx.QueryRow("SELECT name,region,aliases FROM channels WHERE id=?", channel).Scan(&c.Name, &c.Region, &raw); e != nil {
+		if e := tx.QueryRow("SELECT profile_id,name,region,aliases FROM channels WHERE id=?", channel).Scan(&c.ProfileID, &c.Name, &c.Region, &raw); e != nil {
 			return errors.New("channel not found")
 		}
 		if e := tx.QueryRow("SELECT name,tvg_id,region FROM streams WHERE id=?", stream).Scan(&name, &tvgID, &region); e != nil {
@@ -391,7 +428,7 @@ func (s *Store) Map(channel string, stream int64, enabled bool) error {
 		if err != nil {
 			return err
 		}
-		if m.excludes(label) || !m.stationMatches(label) || guideConflict(channels, m, label) {
+		if m.excludes(label) || !m.compatible(label) || !m.stationMatches(label) || guideConflict(profileMatchers(channels, c.ProfileID), m, label) {
 			return errors.New("stream excluded by channel rules; edit the channel rules first")
 		}
 	}

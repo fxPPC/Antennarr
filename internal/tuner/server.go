@@ -16,6 +16,7 @@ import (
 )
 
 type Server struct {
+	FriendlyName      string
 	Guard             *access.Guard
 	ChannelList       func() []config.Channel
 	BeforeTune        func()
@@ -24,6 +25,28 @@ type Server struct {
 	Streams           *stream.Manager
 	BaseURL, Password string
 	ReadLogin         func() config.AdminCredentials
+}
+
+// TunerHandler deliberately exposes no administration routes. Additional
+// devices may share an engine and credentials without sharing a public UI.
+func (s *Server) TunerHandler() http.Handler {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /discover.json", s.discover)
+	mux.HandleFunc("GET /lineup.json", s.lineup)
+	mux.HandleFunc("GET /lineup_status.json", func(w http.ResponseWriter, r *http.Request) {
+		reply(w, map[string]any{"ScanInProgress": 0, "ScanPossible": 0, "Source": "Cable", "SourceList": []string{"Cable"}})
+	})
+	mux.HandleFunc("POST /lineup.post", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	mux.HandleFunc("GET /device.xml", s.device)
+	mux.HandleFunc("GET /auto/{channel}", s.watch)
+	return mux
+}
+
+func (s *Server) name() string {
+	if s.FriendlyName != "" {
+		return s.FriendlyName
+	}
+	return "Antennarr"
 }
 
 // StreamHandler supplies the HDHomeRun default-port fallback without adding
@@ -116,7 +139,7 @@ func (s *Server) tunerCount() int {
 }
 func (s *Server) discover(w http.ResponseWriter, r *http.Request) {
 	reply(w, map[string]any{
-		"FriendlyName": "Antennarr", "Manufacturer": "Antennarr", "ModelNumber": "HDHR3-US", "FirmwareName": "hdhomerun3_atsc", "FirmwareVersion": "20261026", "DeviceID": strings.ToUpper(s.Config.DeviceID), "DeviceAuth": "antennarr", "TunerCount": s.tunerCount(), "BaseURL": s.BaseURL, "LineupURL": s.BaseURL + "/lineup.json",
+		"FriendlyName": s.name(), "Manufacturer": "Antennarr", "ModelNumber": "HDHR3-US", "FirmwareName": "hdhomerun3_atsc", "FirmwareVersion": "20261026", "DeviceID": strings.ToUpper(s.Config.DeviceID), "DeviceAuth": "antennarr", "TunerCount": s.tunerCount(), "BaseURL": s.BaseURL, "LineupURL": s.BaseURL + "/lineup.json",
 	})
 }
 func (s *Server) lineup(w http.ResponseWriter, r *http.Request) {
@@ -210,10 +233,10 @@ func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
 }
 func (s *Server) device(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/xml")
-	_ = deviceTemplate.Execute(w, s)
+	_ = deviceTemplate.Execute(w, struct{ BaseURL, DeviceID, Name string }{s.BaseURL, s.Config.DeviceID, s.name()})
 }
 
-var deviceTemplate = template.Must(template.New("device").Parse(`<?xml version="1.0"?><root xmlns="urn:schemas-upnp-org:device-1-0"><specVersion><major>1</major><minor>0</minor></specVersion><URLBase>{{.BaseURL}}/</URLBase><device><deviceType>urn:schemas-upnp-org:device:MediaServer:1</deviceType><friendlyName>Antennarr</friendlyName><manufacturer>Antennarr</manufacturer><modelName>HDHomeRun</modelName><modelNumber>HDHR3-US</modelNumber><serialNumber>{{.Config.DeviceID}}</serialNumber><UDN>uuid:{{.Config.DeviceID}}</UDN></device></root>`))
+var deviceTemplate = template.Must(template.New("device").Parse(`<?xml version="1.0"?><root xmlns="urn:schemas-upnp-org:device-1-0"><specVersion><major>1</major><minor>0</minor></specVersion><URLBase>{{.BaseURL}}/</URLBase><device><deviceType>urn:schemas-upnp-org:device:MediaServer:1</deviceType><friendlyName>{{.Name}}</friendlyName><manufacturer>Antennarr</manufacturer><modelName>HDHomeRun</modelName><modelNumber>HDHR3-US</modelNumber><serialNumber>{{.DeviceID}}</serialNumber><UDN>uuid:{{.DeviceID}}</UDN></device></root>`))
 
 func (s *Server) page(w http.ResponseWriter, r *http.Request) {
 	if s.Admin != nil {

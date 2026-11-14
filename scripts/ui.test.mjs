@@ -15,3 +15,25 @@ test('hung requests time out and release the refresh loop',async()=>{
  assert.equal(await withDeadline(async()=>42,10),42);
  await assert.rejects(withDeadline(async()=>{throw new Error('original')},10),/original/);
 });
+
+import {profilePath, profileChannels, profileLabel} from '../internal/admin/ui/profiles.js';
+test('lineup operations always name their tuner, including reserved characters', () => {
+ assert.equal(profilePath('/api/lineup', 'uk-london'), '/api/lineup?profile_id=uk-london');
+ assert.equal(profilePath('/api/channels?enabled=1', 'uk & london'), '/api/channels?enabled=1&profile_id=uk+%26+london');
+ assert.equal(profilePath('/api/lineup?profile_id=primary', 'london'), '/api/lineup?profile_id=london');
+ assert.throws(() => profilePath('/api/channels/bulk', ''), /Choose a tuner/);
+ assert.throws(() => profilePath('/api/lineup', undefined), /Choose a tuner/);
+});
+test('overlapping channel numbers stay in their own market', () => {
+ const channels = [
+  {id:'ny-cbs', profile_id:'primary', number:'101'},
+  {id:'london-bbc', profile_id:'london', number:'101'},
+  {id:'orphan', number:'101'}
+ ];
+ assert.deepEqual(profileChannels(channels, 'primary').map(c=>c.id), ['ny-cbs']);
+ assert.deepEqual(profileChannels(channels, 'london').map(c=>c.id), ['london-bbc']);
+ assert.deepEqual(profileChannels(channels, 'missing'), []);
+ const profiles=[{id:'primary',name:'USA - New York City'},{id:'london',name:'UK - London'}];
+ assert.equal(profileLabel(profiles,'london'),'UK - London');
+ assert.equal(profileLabel(profiles,'missing'),'Unavailable tuner');
+});

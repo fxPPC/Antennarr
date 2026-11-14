@@ -8,7 +8,7 @@ import (
 
 // Bump this marker whenever matching semantics change. Existing v1 catalogues
 // receive one full refresh; subsequent starts reuse committed assignments.
-const matchingRevision = "v1-incremental-4"
+const matchingRevision = "v1.1-profiles-2"
 
 func autoMap(tx *sql.Tx) error {
 	if e := autoMapStreams(tx, nil); e != nil {
@@ -51,6 +51,7 @@ func autoMapStreams(tx *sql.Tx, ids []int64) error {
 	if e != nil {
 		return e
 	}
+	groups := groupMatchers(channels)
 	byID := map[string]channelMatcher{}
 	for _, c := range channels {
 		byID[c.channel.ID] = c
@@ -91,7 +92,7 @@ func autoMapStreams(tx *sql.Tx, ids []int64) error {
 			return e
 		}
 		label := sourceLabelWithID(name, region, tvg)
-		if c := resolveChannel(channels, label, tvg, known); c != nil {
+		for _, c := range resolveProfileGroups(groups, label, tvg, known) {
 			add = append(add, pair{id, c.channel.ID})
 		}
 		// Only existing assignments need deletion, not every incompatible pair in
@@ -101,7 +102,7 @@ func autoMapStreams(tx *sql.Tx, ids []int64) error {
 			if !ok {
 				continue
 			}
-			if c.excludes(label) || !c.stationMatches(label) || guideConflict(channels, c, label) {
+			if c.excludes(label) || !c.compatible(label) || !c.stationMatches(label) || guideConflict(profileMatchers(channels, c.channel.ProfileID), c, label) {
 				exclude = append(exclude, pair{id, channel})
 			}
 		}

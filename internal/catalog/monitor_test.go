@@ -54,7 +54,7 @@ func TestMonitorStagesCoverageAndPersistence(t *testing.T) {
 		t.Fatal("status blocked behind writer", e)
 	}
 }
-func TestPrimaryAssignmentsFollowExistingChannelEdits(t *testing.T) {
+func TestProfileMembershipFollowsExistingChannelEdits(t *testing.T) {
 	s, e := Open(t.TempDir())
 	if e != nil {
 		t.Fatal(e)
@@ -69,7 +69,7 @@ func TestPrimaryAssignmentsFollowExistingChannelEdits(t *testing.T) {
 		t.Fatal(e)
 	}
 	var n, name string
-	if e = s.DB.QueryRow("SELECT number,display_name FROM output_assignments WHERE profile_id='primary' AND channel_id=?", id).Scan(&n, &name); e != nil || n != "078" || name != "CNN US" {
+	if e = s.DB.QueryRow("SELECT number,name FROM channels WHERE profile_id='primary' AND id=?", id).Scan(&n, &name); e != nil || n != "078" || name != "CNN US" {
 		t.Fatal(n, name, e)
 	}
 	var fk int

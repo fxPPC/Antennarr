@@ -12,13 +12,13 @@ import * as output from './ui/output.js';
 import * as status from './ui/status.js';
 const staticHelp = [
   ['#import-form textarea', 'Enter list-page URLs, or Base64-encoded URLs, one per line. Antennarr reads them only when you import; it does not scan them automatically. Keep the full #key on encrypted paste links.', 'List URLs'],
-  ['#channel-form [name=number]', 'The channel number advertised to Plex. Keep it stable to avoid disturbing existing guide mappings.', 'Channel number'],
+  ['#channel-form [name=number]', 'The channel number within this tuner. Different tuners may use the same number. Keep it stable to avoid disturbing existing Plex guide mappings.', 'Channel number'],
   ['#channel-form [name=name]', 'The consistent channel name shown to Plex, regardless of which provider supplies it.', 'Plex name'],
   ['#channel-form [name=region]', 'Country code or English name, for example US, NZ, GBR, or Brazil. This separates country versions; aliases and negative keywords select regional feeds.', 'Country'],
   ['#channel-form [name=aliases]', 'Add alternative provider names, one per line. Names are case-insensitive and tolerate country and quality tags. Include accepted regional names as aliases, such as CNN East. Exclude unwanted feeds with -west, -pacific, or other keywords. Similar spelling alone is not enough. Prefix a whole word or consecutive phrase with - to exclude it, for example -international. Exclusions check both provider names and channel IDs, and override aliases and learned mappings.', 'Other provider names'],
-  ['#channel-form [name=enabled]', 'Enable to offer this channel to Plex. Disable to hide it and stop its background media checks without deleting the channel configuration.', 'Offered to Plex'],
+  ['#channel-form [name=enabled]', 'Enable to offer this channel when its tuner is enabled. Disable to hide it and stop its background media checks without deleting the channel configuration.', 'Offered to Plex'],
   ['#clear-import-queue', 'Removes unassigned queued streams and orphan accounts after confirmation. Current rosters and in-use accounts are protected; inactive saved UHD rosters are not. No backup is created automatically.', 'Clear import queue'],
-  ['#backup', 'Creates and downloads a manual backup of settings, accounts, queue, rosters, history, and tuner identity. Includes passwords: store it privately. Plex’s own database and guide data are not included.', 'Full backup'],
+  ['#backup', 'Creates and downloads a manual backup of settings, accounts, queue, rosters, history, and all tuner identities. Includes passwords: store it privately. Plex’s own database and guide data are not included.', 'Full backup'],
   ['#restore-form input', 'Choose an Antennarr ZIP backup. Restore replaces saved application state and restarts Antennarr, so stop viewing first. No backup is made automatically. Keep the same tuner URL and Plex server to retain the existing Live TV setup.', 'Restore backup']
 ];
 for (const [selector, text, name] of staticHelp) {

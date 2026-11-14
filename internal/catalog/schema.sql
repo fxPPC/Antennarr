@@ -1,4 +1,4 @@
--- Current v1 catalogue schema (user_version 8).
+-- Current v1.1 catalogue schema (user_version 9).
 -- Existing v1 databases retain their data; older installs upgrade via Beta 2.
 CREATE TABLE accounts (
  id INTEGER PRIMARY KEY, identity TEXT NOT NULL UNIQUE, provider TEXT NOT NULL,
@@ -15,9 +15,9 @@ CREATE TABLE channel_policies (
  preference TEXT NOT NULL DEFAULT '', race INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE channels (
- id TEXT PRIMARY KEY, number TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+ id TEXT PRIMARY KEY, number TEXT NOT NULL, name TEXT NOT NULL,
  region TEXT NOT NULL DEFAULT '', enabled INTEGER NOT NULL DEFAULT 1
-, aliases TEXT NOT NULL DEFAULT '[]');
+, aliases TEXT NOT NULL DEFAULT '[]', profile_id TEXT NOT NULL DEFAULT 'primary' REFERENCES output_profiles(id) ON DELETE CASCADE, UNIQUE(profile_id,number));
 CREATE TABLE events (id INTEGER PRIMARY KEY, happened INTEGER NOT NULL, kind TEXT NOT NULL, channel_id TEXT NOT NULL DEFAULT '', source_id INTEGER NOT NULL DEFAULT 0, reason TEXT NOT NULL DEFAULT '');
 CREATE TABLE import_jobs(id INTEGER PRIMARY KEY,started INTEGER NOT NULL,finished INTEGER NOT NULL DEFAULT 0,state TEXT NOT NULL,processed INTEGER NOT NULL DEFAULT 0,summary TEXT NOT NULL DEFAULT '');
 CREATE TABLE mappings (
@@ -25,17 +25,11 @@ CREATE TABLE mappings (
  stream_id INTEGER NOT NULL REFERENCES streams(id), enabled INTEGER NOT NULL DEFAULT 1, origin TEXT NOT NULL DEFAULT 'manual',
  PRIMARY KEY(channel_id,stream_id)
 );
-CREATE TABLE output_assignments (
- profile_id TEXT NOT NULL REFERENCES output_profiles(id) ON DELETE CASCADE,
- channel_id TEXT NOT NULL REFERENCES channels(id) ON DELETE CASCADE,
- number TEXT NOT NULL, display_name TEXT NOT NULL, enabled INTEGER NOT NULL,
- PRIMARY KEY(profile_id,channel_id), UNIQUE(profile_id,number)
-);
 CREATE TABLE output_profiles (
  id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT NOT NULL,
  market TEXT NOT NULL DEFAULT '', country TEXT NOT NULL DEFAULT '',
  timezone TEXT NOT NULL DEFAULT '', guide_location TEXT NOT NULL DEFAULT '',
- extensions TEXT NOT NULL DEFAULT '{}'
+ extensions TEXT NOT NULL DEFAULT '{}', enabled INTEGER NOT NULL DEFAULT 1, preset_id TEXT NOT NULL DEFAULT '', device_id TEXT NOT NULL DEFAULT '', port_offset INTEGER NOT NULL DEFAULT 0 UNIQUE
 );
 CREATE TABLE provenance (
  account_id INTEGER NOT NULL REFERENCES accounts(id), fingerprint TEXT NOT NULL,
@@ -77,12 +71,5 @@ CREATE INDEX roster_stream ON roster(stream_id);
 CREATE INDEX streams_account ON streams(account_id);
 CREATE INDEX streams_due ON streams(next_check);
 CREATE INDEX validations_checked ON validations(checked,success);
-CREATE TRIGGER primary_channel_insert AFTER INSERT ON channels BEGIN
- INSERT INTO output_assignments VALUES('primary',new.id,new.number,new.name,new.enabled);
-END;
-CREATE TRIGGER primary_channel_update AFTER UPDATE OF number,name,enabled ON channels BEGIN
- UPDATE output_assignments SET number=new.number,display_name=new.name,enabled=new.enabled
- WHERE profile_id='primary' AND channel_id=new.id;
-END;
-
-INSERT INTO output_profiles(id,kind,name) VALUES('primary','hdhomerun','Antennarr');
+INSERT INTO output_profiles(id,kind,name,preset_id,market,country,timezone,guide_location) VALUES('primary','hdhomerun','USA - New York City','us-nyc','New York City','US','America/New_York','10001');
+CREATE VIEW active_channels AS SELECT c.* FROM channels c JOIN output_profiles p ON p.id=c.profile_id WHERE p.enabled=1;

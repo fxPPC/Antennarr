@@ -79,7 +79,7 @@ func (s *Store) EnableRosters(p RosterPolicy) error {
 		return e
 	}
 	// Seeding uses existing real-media successes, never account logins alone.
-	channels, e := s.Channels()
+	channels, e := s.ActiveChannels()
 	if e != nil {
 		return e
 	}
@@ -111,10 +111,10 @@ func (s *Store) admit(channel string, id, verified int64) error {
 		return e
 	}
 	defer tx.Rollback()
-	// The schema-8 due value mirrors verification time; pass work owns scheduling.
+	// Due mirrors verification time; pass work owns scheduling.
 	due := verified
 	res, e := tx.Exec(`INSERT OR IGNORE INTO roster(channel_id,stream_id,account_id,admitted,verified,due)
- SELECT ?,s.id,s.account_id,?,?,? FROM streams s JOIN accounts a ON a.id=s.account_id JOIN mappings m ON m.stream_id=s.id JOIN channels ch ON ch.id=m.channel_id
+ SELECT ?,s.id,s.account_id,?,?,? FROM streams s JOIN accounts a ON a.id=s.account_id JOIN mappings m ON m.stream_id=s.id JOIN active_channels ch ON ch.id=m.channel_id
  WHERE s.id=? AND m.channel_id=? AND m.enabled=1 AND ch.enabled=1 AND s.enabled=1 AND s.state='healthy' AND (? OR instr(upper(s.name),'UHD')=0) AND a.state NOT IN ('inactive','retired','manually_blocked') AND (SELECT count(*) FROM roster WHERE channel_id=?)<?`, channel, time.Now().Unix(), verified, due, id, channel, s.UHDAllowed(), channel, p.Target)
 	if e != nil {
 		return e
@@ -188,7 +188,7 @@ func (s *Store) QueueAccountCandidates(channel string, account int64) ([]Candida
 }
 
 func (s *Store) queueCandidates(channel string, limit int, account int64) ([]Candidate, error) {
-	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,s.last_success,instr(upper(s.name),'UHD')>0 FROM mappings m JOIN streams s ON s.id=m.stream_id JOIN accounts a ON a.id=s.account_id WHERE m.channel_id=? AND m.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked') AND a.connection_limit>a.external_connections AND NOT EXISTS(SELECT 1 FROM provider_rates p WHERE p.provider=a.rate_key AND max(p.next_probe,p.blocked_until)>?) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.account_id=a.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM work_leases l WHERE l.kind IN ('stream','deferred') AND l.resource=s.id AND l.until>?)`
+	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,s.last_success,instr(upper(s.name),'UHD')>0 FROM mappings m JOIN streams s ON s.id=m.stream_id JOIN accounts a ON a.id=s.account_id WHERE m.channel_id=? AND EXISTS(SELECT 1 FROM active_channels c WHERE c.id=m.channel_id AND c.enabled=1) AND m.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked') AND a.connection_limit>a.external_connections AND NOT EXISTS(SELECT 1 FROM provider_rates p WHERE p.provider=a.rate_key AND max(p.next_probe,p.blocked_until)>?) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.account_id=a.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM work_leases l WHERE l.kind IN ('stream','deferred') AND l.resource=s.id AND l.until>?)`
 	now := time.Now().Unix()
 	args := []any{channel, now * 1000, now}
 	if account > 0 {

@@ -69,7 +69,7 @@ func (s *Store) MonitorSummary(ctx context.Context, now int64) (MonitorSummary, 
 	if p := s.rosterPolicy.Load(); p != nil {
 		target = p.Target
 	}
-	rows, e := tx.QueryContext(ctx, `SELECT c.id,c.name,coalesce(nullif(p.target,0),?),count(r.stream_id),0 FROM channels c LEFT JOIN channel_policies p ON p.channel_id=c.id LEFT JOIN roster r ON r.channel_id=c.id WHERE c.enabled=1 GROUP BY c.id`, target)
+	rows, e := tx.QueryContext(ctx, `SELECT c.id,c.name,coalesce(nullif(p.target,0),?),count(r.stream_id),0 FROM active_channels c LEFT JOIN channel_policies p ON p.channel_id=c.id LEFT JOIN roster r ON r.channel_id=c.id WHERE c.enabled=1 GROUP BY c.id`, target)
 	if e != nil {
 		return out, e
 	}
@@ -138,7 +138,7 @@ func (s *Store) MonitorSummary(ctx context.Context, now int64) (MonitorSummary, 
 		args []any
 		dest []any
 	}{
-		{`SELECT count(*) FROM streams s JOIN accounts a ON a.id=s.account_id WHERE s.enabled=1 AND s.state NOT IN ('retired','manually_blocked') AND a.state NOT IN ('inactive','retired','manually_blocked') AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id) AND EXISTS(SELECT 1 FROM mappings m JOIN channels c ON c.id=m.channel_id WHERE m.stream_id=s.id AND m.enabled=1 AND c.enabled=1)`, nil, []any{&out.Queue.Streams}},
+		{`SELECT count(*) FROM streams s JOIN accounts a ON a.id=s.account_id WHERE s.enabled=1 AND s.state NOT IN ('retired','manually_blocked') AND a.state NOT IN ('inactive','retired','manually_blocked') AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id) AND EXISTS(SELECT 1 FROM mappings m JOIN active_channels c ON c.id=m.channel_id WHERE m.stream_id=s.id AND m.enabled=1 AND c.enabled=1)`, nil, []any{&out.Queue.Streams}},
 		{`SELECT coalesce(sum(success=1),0),coalesce(sum(success=0),0) FROM validations WHERE checked>?`, []any{now - 3600}, []any{&out.Progress.Successful, &out.Progress.Failed}},
 		{`SELECT coalesce(max(checked),0),coalesce(max(CASE WHEN success=1 THEN checked END),0) FROM validations`, nil, []any{&out.Progress.LastCheck, &out.Progress.LastSuccess}},
 		{`SELECT coalesce(max(catalogue_checked),0),coalesce(max(last_check),0) FROM accounts`, nil, []any{&out.Progress.LastDiscovery, &out.Progress.LastAccess}},
@@ -164,10 +164,10 @@ func (s *Store) MonitorSummary(ctx context.Context, now int64) (MonitorSummary, 
 	// Start with vacancies/pending roster work, rather than scanning every
 	// catalogue stream and recomputing channel counts for each candidate.
 	e = tx.QueryRowContext(ctx, `WITH vacancies AS MATERIALIZED (
- SELECT c.id FROM channels c LEFT JOIN channel_policies cp ON cp.channel_id=c.id
+ SELECT c.id FROM active_channels c LEFT JOIN channel_policies cp ON cp.channel_id=c.id
  LEFT JOIN roster r ON r.channel_id=c.id WHERE c.enabled=1 GROUP BY c.id
  HAVING count(r.stream_id)<coalesce(nullif(cp.target,0),?)),
- candidates AS (SELECT r.stream_id FROM roster r JOIN roster_pass_work pw ON pw.stream_id=r.stream_id WHERE pw.status=0
+ candidates AS (SELECT r.stream_id FROM roster r JOIN active_channels ac ON ac.id=r.channel_id AND ac.enabled=1 JOIN roster_pass_work pw ON pw.stream_id=r.stream_id WHERE pw.status=0
  UNION SELECT m.stream_id FROM vacancies v JOIN mappings m ON m.channel_id=v.id WHERE m.enabled=1)
  SELECT EXISTS(SELECT 1 FROM candidates x JOIN streams s ON s.id=x.stream_id JOIN accounts a ON a.id=s.account_id
  WHERE s.enabled=1 AND s.state NOT IN ('retired','manually_blocked') AND a.state NOT IN ('inactive','retired','manually_blocked')

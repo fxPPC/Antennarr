@@ -8,7 +8,11 @@ import (
 )
 
 func (a *API) exportLineup(w http.ResponseWriter, r *http.Request) {
-	v, err := a.Store.ExportLineup()
+	if _, err := a.Store.Profile(requestProfile(r)); err != nil {
+		failure(w, 404, "Tuner not found")
+		return
+	}
+	v, err := a.Store.ExportLineupForProfile(requestProfile(r))
 	if err != nil {
 		failure(w, 500, "Could not read channel lineup")
 		return
@@ -35,7 +39,7 @@ func (a *API) importLineup(w http.ResponseWriter, r *http.Request) {
 		failure(w, 409, "Stop playback before replacing the lineup")
 		return
 	}
-	apply := func() error { return a.Store.ImportLineup(v.Lineup) }
+	apply := func() error { return a.Store.ImportLineupForProfile(requestProfile(r), v.Lineup) }
 	if a.WithIdle != nil {
 		original := apply
 		apply = func() error { return a.WithIdle(original) }

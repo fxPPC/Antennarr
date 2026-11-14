@@ -1,3 +1,18 @@
+# v1.1.0-alpha.2 — GitHub source preview
+
+- Add independently enabled **USA - New York City** and **UK - London** tuners. London has 110 editable channels, informed by 22 provider catalogues and current broadcaster listings, with conservative region, service, timeshift, and sister-channel exclusions.
+- Give each tuner a stable identity and private listening port. The existing primary address stays unchanged; additional devices use a configurable `9200–9207` range. Channel numbers may overlap between tuners.
+- Add tuner cards, enable checkboxes, scoped editing, roster counts, lineup import/export, reset, removal, and preset addition under Output. Mobile layouts and cross-tuner search are supported.
+- Share account budgets, provider pacing, and the global outgoing-stream limit. Viewers of the same channel share upstream work; different market channels remain separate.
+- Upgrade schema 8 transactionally to schema 9, preserving primary channel IDs, edits, mappings, rosters, and device identity. Add London disabled once; fresh installations start both tuners disabled. Removing a tuner does not make it reappear on restart.
+- Tighten country parsing around channel brands such as 5USA and Al Jazeera. Reject uncertain cross-market matches and contradictory regional identifiers.
+
+**Distribution:** GitHub only. Docker Hub and existing 1.0 installations are unchanged. Build this source against separate disposable appdata. Returning from schema 9 to 1.0 requires a manual pre-upgrade backup. No backup is created automatically.
+
+**Still to verify:** actual Plex registration with independent US/UK guides, overlapping-number recordings, and long-duration multi-market client playback. Controlled routing, sharing, migration, and media tests do not establish those behaviours. See [London metadata review](UK-LONDON.md), [port setup](MULTI-TUNER.md), and [remaining release gates](V1.1-PLAN.md).
+
+---
+
 # v1.1.0-alpha.1 — unreleased development foundation
 
 - Include all v1.0.4 channel-matching, preset, and delayed-audio startup fixes. Preserve the v1.1.0-alpha.1 identity and release line.

@@ -105,8 +105,8 @@ func TestFullBackupRestorePreservesTunerAndHistory(t *testing.T) {
 	}
 	defer restored.Close()
 	var assignments int
-	if e = restored.DB.QueryRow("SELECT count(*) FROM output_assignments WHERE profile_id='primary'").Scan(&assignments); e != nil || assignments != 1 {
-		t.Fatal("output assignments lost", assignments, e)
+	if e = restored.DB.QueryRow("SELECT count(*) FROM channels WHERE profile_id='primary'").Scan(&assignments); e != nil || assignments != 1 {
+		t.Fatal("channel tuner assignment lost", assignments, e)
 	}
 	afterC, e := config.Load(target)
 	if e != nil {

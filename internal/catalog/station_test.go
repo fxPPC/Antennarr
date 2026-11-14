@@ -142,7 +142,7 @@ func TestFreshBroadcastStationDefaultsAndReset(t *testing.T) {
 	}
 	defer s.Close()
 	for pass := 0; pass < 3; pass++ {
-		channels, err := s.Channels()
+		channels, err := s.ChannelsForProfile("primary")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -168,8 +168,8 @@ func TestFreshBroadcastStationDefaultsAndReset(t *testing.T) {
 		t.Fatal(err)
 	}
 	var n int
-	if err = s.DB.QueryRow("SELECT count(*) FROM settings WHERE name GLOB 'channel_station:*'").Scan(&n); err != nil || n != 0 {
-		t.Fatal("bulk reset left station settings", n, err)
+	if err = s.DB.QueryRow("SELECT count(*) FROM settings WHERE name GLOB 'channel_station:*'").Scan(&n); err != nil || n != 2 {
+		t.Fatal("bulk reset must preserve London station settings", n, err)
 	}
 }
 

@@ -16,7 +16,7 @@ func TestCurrentSchemaReopenPreservesCatalogue(t *testing.T) {
 		t.Fatal(e)
 	}
 	channels, e := s.Channels()
-	if e != nil || len(channels) != 150 {
+	if e != nil || len(channels) != 260 {
 		t.Fatal(len(channels), e)
 	}
 	s.Close()
@@ -31,12 +31,12 @@ func TestCurrentSchemaReopenPreservesCatalogue(t *testing.T) {
 	}
 	var version int
 	s.DB.QueryRow("PRAGMA user_version").Scan(&version)
-	if version != 8 {
+	if version != 9 {
 		t.Fatal(version)
 	}
 }
 func TestOlderAndUnversionedDatabasesArePreserved(t *testing.T) {
-	for _, v := range []int{0, 1, 7, 9} {
+	for _, v := range []int{0, 1, 7, 10} {
 		t.Run(fmt.Sprint(v), func(t *testing.T) {
 			root := t.TempDir()
 			os.MkdirAll(filepath.Join(root, "database"), 0700)

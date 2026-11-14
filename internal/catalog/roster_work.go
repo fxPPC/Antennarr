@@ -24,14 +24,29 @@ type RosterSummary struct {
 	Deficit           int             `json:"deficit"`
 }
 
+// RosterState reports only work that enabled outputs can perform.
 func (s *Store) RosterState() (RosterSummary, error) {
-	out := RosterSummary{Channels: []ChannelRoster{}}
-	chs, e := s.Channels()
+	chs, e := s.ActiveChannels()
 	if e != nil {
-		return out, e
+		return RosterSummary{}, e
 	}
+	return s.rosterState(chs, true)
+}
+
+// RosterStateForProfile is an administrative saved-data view. Disabled tuners
+// and channels retain their counts and overrides without creating checker work.
+func (s *Store) RosterStateForProfile(profile string) (RosterSummary, error) {
+	chs, e := s.ChannelsForProfile(profile)
+	if e != nil {
+		return RosterSummary{}, e
+	}
+	return s.rosterState(chs, false)
+}
+func (s *Store) rosterState(chs []Channel, activeOnly bool) (RosterSummary, error) {
+	out := RosterSummary{Channels: []ChannelRoster{}}
+
 	for _, ch := range chs {
-		if !ch.Enabled {
+		if activeOnly && !ch.Enabled {
 			continue
 		}
 		p, e := s.EffectivePolicy(ch.ID)
@@ -64,7 +79,7 @@ func (s *Store) RosterSummary() (RosterSummary, error) {
 	if e != nil {
 		return out, e
 	}
-	e = s.DB.QueryRow(`SELECT count(*) FROM streams s JOIN accounts a ON a.id=s.account_id WHERE a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked') AND s.enabled=1 AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id) AND EXISTS(SELECT 1 FROM mappings m JOIN channels ch ON ch.id=m.channel_id WHERE m.stream_id=s.id AND m.enabled=1 AND ch.enabled=1)`).Scan(&out.QueuedStreams)
+	e = s.DB.QueryRow(`SELECT count(*) FROM streams s JOIN accounts a ON a.id=s.account_id WHERE a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked') AND s.enabled=1 AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id) AND EXISTS(SELECT 1 FROM mappings m JOIN active_channels ch ON ch.id=m.channel_id WHERE m.stream_id=s.id AND m.enabled=1 AND ch.enabled=1)`).Scan(&out.QueuedStreams)
 	if e != nil {
 		return out, e
 	}
@@ -112,7 +127,7 @@ func (s *Store) rosterObserved(id int64, success bool, allowed map[string]bool) 
 		return tx.Commit()
 	}
 	now := time.Now().Unix()
-	rows, e := s.DB.Query(`SELECT m.channel_id FROM mappings m JOIN channels c ON c.id=m.channel_id WHERE m.stream_id=? AND m.enabled=1 AND c.enabled=1`, id)
+	rows, e := s.DB.Query(`SELECT m.channel_id FROM mappings m JOIN active_channels c ON c.id=m.channel_id WHERE m.stream_id=? AND m.enabled=1 AND c.enabled=1`, id)
 	if e != nil {
 		return e
 	}

@@ -13,6 +13,14 @@ import (
 var words = regexp.MustCompile(`[\p{L}\p{M}\p{N}]+`)
 var originalWords = words
 
+// 5USA is a UK service name, including its spaced Five USA variant. Preserve
+// that identity before interpreting USA as a provider country tag.
+var fiveUSABrand = regexp.MustCompile(`(?i)\b(?:5|five)\s+usa\b`)
+
+// Providers commonly repeat Investigation Discovery's acronym in parentheses.
+// It is part of the brand here, not a separate Indonesian country marker.
+var discoveryAcronym = regexp.MustCompile(`(?i)\b(investigation\s+discovery|discovery)\s*\(\s*id\s*\)`)
+
 var qualityPlus = regexp.MustCompile(`(?i)\b(fhd|uhd|hd|sd)\+($|\s)`)
 
 func normaliseName(s string) string {
@@ -54,6 +62,28 @@ func sourceWords(name string) []string {
 }
 
 var listingNumber = regexp.MustCompile(`^\s*[0-9]{1,5}\s*[:.|-]\s*`)
+
+// A leading number is decoration only when an actual service name follows it.
+// "5 | UK" is the British channel 5, not listing number 5 and an empty name.
+func stripListingNumber(name string) string {
+	loc := listingNumber.FindStringIndex(name)
+	if loc == nil {
+		return name
+	}
+	tail := name[loc[1]:]
+	tokens := nameWords(tail)
+	filtered := make([]string, 0, len(tokens))
+	for _, token := range tokens {
+		if !quality.MatchString(token) {
+			filtered = append(filtered, token)
+		}
+	}
+	if countryAliases[strings.Join(filtered, " ")] != "" {
+		return name
+	}
+	return tail
+}
+
 var compactQuality = regexp.MustCompile(`(?i)([\p{L}\p{N}][\p{L}\p{M}\p{N}]*?)(fhd|uhd|hd|sd|1080p|720p|2160p)$`)
 
 // UHD wins over an attached HD suffix: ESPNUHD means ESPN UHD.
@@ -77,7 +107,10 @@ var backupMarker = regexp.MustCompile(`(?i)\[\s*bk\s*\]`)
 // Match names as token sequences, not substrings: MTV 2 and CNN International
 // must not match MTV and CNN. Regional words stay in the name; aliases and exclusions decide matches.
 func channelKey(name, region string) (string, string) {
-	name = listingNumber.ReplaceAllString(backupMarker.ReplaceAllString(normaliseName(name), ""), "")
+	name = normaliseName(name)
+	name = fiveUSABrand.ReplaceAllString(name, "5USA")
+	name = discoveryAcronym.ReplaceAllString(name, "$1 ID")
+	name = stripListingNumber(backupMarker.ReplaceAllString(name, ""))
 	// Track bracketed country tags without turning ordinary brand words into tags.
 	name = strings.NewReplacer("h.264", "h264", "H.264", "h264").Replace(name)
 	name = strings.NewReplacer("h.265", "h265", "H.265", "h265").Replace(name)
@@ -268,7 +301,12 @@ func readLearnedChannelIDs(q interface {
 // a contradictory recognised name, a country boundary, or an exclusion. An ID
 // manually associated with several channels is not safe to reuse automatically.
 func resolveChannel(channels []channelMatcher, label sourceLabel, tvg string, known learnedChannelIDs) *channelMatcher {
-	learned := known["tvg:"+strings.ToLower(tvg)]
+	learned := map[string]bool{}
+	for _, c := range channels {
+		if known["tvg:"+strings.ToLower(tvg)][c.channel.ID] {
+			learned[c.channel.ID] = true
+		}
+	}
 	if tvg == "" || len(learned) != 1 {
 		learned = nil
 	}
@@ -305,9 +343,11 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 	if e != nil {
 		return nil, e
 	}
+	active := map[string]bool{}
 	room := map[string]int{}
 	uhdRoom := map[string]int{}
 	for _, ch := range state.Channels {
+		active[ch.ChannelID] = true
 		if ch.Count >= ch.Policy.Target {
 			continue
 		}
@@ -322,6 +362,7 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 	for _, c := range channels {
 		matchers = append(matchers, compileChannel(c))
 	}
+	groups := groupMatchers(matchers)
 	out := []ingest.Entry{}
 	var anchor *ingest.Entry
 	for _, entry := range entries {
@@ -333,16 +374,21 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		if IsUHD(entry.Name) {
 			candidateRoom = uhdRoom
 		}
-		c := resolveChannel(matchers, label, entry.TVGID, known)
-		if c == nil || !c.channel.Enabled {
-			continue
+		accepted := false
+		for _, c := range resolveProfileGroups(groups, label, entry.TVGID, known) {
+			if !active[c.channel.ID] {
+				continue
+			}
+			if anchor == nil {
+				candidate := entry
+				anchor = &candidate
+			}
+			if candidateRoom[c.channel.ID] > 0 {
+				candidateRoom[c.channel.ID]--
+				accepted = true
+			}
 		}
-		if anchor == nil {
-			candidate := entry
-			anchor = &candidate
-		}
-		if candidateRoom[c.channel.ID] > 0 {
-			candidateRoom[c.channel.ID]--
+		if accepted {
 			out = append(out, entry)
 		}
 	}
@@ -350,4 +396,49 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		out = append(out, *anchor)
 	}
 	return out, nil
+}
+
+// Each tuner resolves its own channels. A generic service that could belong to
+// different countries needs explicit country evidence before either gets it.
+func profileMatchers(channels []channelMatcher, profile string) []channelMatcher {
+	out := []channelMatcher{}
+	for _, c := range channels {
+		if c.channel.ProfileID == profile {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// Build the profile slices once per catalogue pass, rather than copying every
+// matcher for each of a provider's thousands of stream labels.
+func groupMatchers(channels []channelMatcher) [][]channelMatcher {
+	groups := [][]channelMatcher{}
+	indexes := map[string]int{}
+	for _, c := range channels {
+		index, ok := indexes[c.channel.ProfileID]
+		if !ok {
+			index = len(groups)
+			indexes[c.channel.ProfileID] = index
+			groups = append(groups, nil)
+		}
+		groups[index] = append(groups[index], c)
+	}
+	return groups
+}
+func resolveProfileGroups(groups [][]channelMatcher, label sourceLabel, tvg string, known learnedChannelIDs) []*channelMatcher {
+	out := []*channelMatcher{}
+	countries := map[string]bool{}
+	for _, g := range groups {
+		if c := resolveChannel(g, label, tvg, known); c != nil {
+			out = append(out, c)
+			if country := regionCountry(c.channel.Region); country != "" {
+				countries[country] = true
+			}
+		}
+	}
+	if label.country == "" && label.guide.country == "" && len(countries) > 1 {
+		return nil
+	}
+	return out
 }

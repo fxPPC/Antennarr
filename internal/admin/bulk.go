@@ -7,8 +7,9 @@ import (
 
 func (a *API) bulkChannels(w http.ResponseWriter, r *http.Request) {
 	var v struct {
-		Confirmed bool `json:"confirmed"`
-		DefaultUS bool `json:"default_us"`
+		Confirmed   bool `json:"confirmed"`
+		DefaultUS   bool `json:"default_us"`
+		ResetPreset bool `json:"reset_preset"`
 	}
 	if !decode(w, r, &v) {
 		return
@@ -21,7 +22,27 @@ func (a *API) bulkChannels(w http.ResponseWriter, r *http.Request) {
 		failure(w, 409, "Stop viewing before changing all channels")
 		return
 	}
-	apply := func() error { return a.Store.ReplaceChannels(v.DefaultUS) }
+	profile, err := a.Store.Profile(requestProfile(r))
+	if err != nil {
+		failure(w, 404, "Tuner not found")
+		return
+	}
+	preset := ""
+	if v.ResetPreset {
+		preset = profile.Preset
+	}
+	if v.DefaultUS {
+		if profile.ID != "primary" {
+			failure(w, 400, "Use this tuner’s own preset")
+			return
+		}
+		preset = "us-nyc"
+	}
+	if v.ResetPreset && preset == "" {
+		failure(w, 400, "This tuner has no preset")
+		return
+	}
+	apply := func() error { return a.Store.ReplaceProfileChannels(profile.ID, preset) }
 	if a.WithIdle != nil {
 		original := apply
 		apply = func() error { return a.WithIdle(original) }
