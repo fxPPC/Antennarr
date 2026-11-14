@@ -1,0 +1,297 @@
+[
+  {
+    "name": "BBC One North West",
+    "region": "GB",
+    "aliases": [
+      "BBC North West"
+    ]
+  },
+  {
+    "name": "BBC One North East and Cumbria",
+    "region": "GB",
+    "aliases": [
+      "BBC One North East & Cumbria",
+      "BBC North East and Cumbria"
+    ]
+  },
+  {
+    "name": "BBC One East Midlands",
+    "region": "GB",
+    "aliases": [
+      "BBC East Midlands"
+    ]
+  },
+  {
+    "name": "BBC One West Midlands",
+    "region": "GB",
+    "aliases": [
+      "BBC West Midlands"
+    ]
+  },
+  {
+    "name": "BBC One East",
+    "region": "GB",
+    "aliases": [
+      "BBC One East W",
+      "BBC One East E"
+    ]
+  },
+  {
+    "name": "BBC One South",
+    "region": "GB",
+    "aliases": [
+      "BBC South"
+    ]
+  },
+  {
+    "name": "BBC One South East",
+    "region": "GB",
+    "aliases": [
+      "BBC South East"
+    ]
+  },
+  {
+    "name": "BBC One South West",
+    "region": "GB",
+    "aliases": [
+      "BBC South West"
+    ]
+  },
+  {
+    "name": "BBC One West",
+    "region": "GB",
+    "aliases": [
+      "BBC West"
+    ]
+  },
+  {
+    "name": "BBC One Yorkshire",
+    "region": "GB",
+    "aliases": [
+      "BBC Yorkshire",
+      "BBC One York"
+    ]
+  },
+  {
+    "name": "BBC One Yorkshire and Lincolnshire",
+    "region": "GB",
+    "aliases": [
+      "BBC Yorkshire and Lincolnshire",
+      "BBC Yorkshire Lincolnshire",
+      "BBC Yourkshire Lincolnshire"
+    ]
+  },
+  {
+    "name": "BBC One Cambridge",
+    "region": "GB",
+    "aliases": [
+      "BBC One Cambridgeshire"
+    ]
+  },
+  {
+    "name": "BBC One Channel Islands",
+    "region": "GB",
+    "aliases": []
+  },
+  {
+    "name": "BBC One Scotland",
+    "region": "GB",
+    "aliases": [
+      "BBC 1 Scotland",
+      "BBC One Scottland"
+    ]
+  },
+  {
+    "name": "BBC One Wales",
+    "region": "GB",
+    "aliases": [
+      "BBC 1 Wales"
+    ]
+  },
+  {
+    "name": "BBC One Northern Ireland",
+    "region": "GB",
+    "aliases": [
+      "BBC 1 Northern Ireland"
+    ]
+  },
+  {
+    "name": "BBC Two Wales",
+    "region": "GB",
+    "aliases": [
+      "BBC 2 Wales"
+    ]
+  },
+  {
+    "name": "BBC Two Northern Ireland",
+    "region": "GB",
+    "aliases": [
+      "BBC 2 Northern Ireland"
+    ]
+  },
+  {
+    "name": "ITV1 Anglia",
+    "region": "GB",
+    "aliases": [
+      "ITV Anglia"
+    ]
+  },
+  {
+    "name": "ITV1 Central",
+    "region": "GB",
+    "aliases": [
+      "ITV Central"
+    ]
+  },
+  {
+    "name": "ITV1 Granada",
+    "region": "GB",
+    "aliases": [
+      "ITV Granada"
+    ]
+  },
+  {
+    "name": "ITV1 Meridian",
+    "region": "GB",
+    "aliases": [
+      "ITV Meridian"
+    ]
+  },
+  {
+    "name": "ITV1 Tyne Tees",
+    "region": "GB",
+    "aliases": [
+      "ITV Tyne Tees"
+    ]
+  },
+  {
+    "name": "ITV1 Wales",
+    "region": "GB",
+    "aliases": [
+      "ITV Wales"
+    ]
+  },
+  {
+    "name": "ITV1 Westcountry",
+    "region": "GB",
+    "aliases": [
+      "ITV Westcountry",
+      "ITV West Country"
+    ]
+  },
+  {
+    "name": "ITV1 Yorkshire",
+    "region": "GB",
+    "aliases": [
+      "ITV Yorkshire"
+    ]
+  },
+  {
+    "name": "ITV1 Border",
+    "region": "GB",
+    "aliases": [
+      "ITV Border"
+    ]
+  },
+  {
+    "name": "ITV1 Channel Islands",
+    "region": "GB",
+    "aliases": [
+      "ITV Channel Islands",
+      "ITV Channel"
+    ]
+  },
+  {
+    "name": "STV",
+    "region": "GB",
+    "aliases": []
+  },
+  {
+    "name": "UTV",
+    "region": "GB",
+    "aliases": []
+  },
+  {
+    "name": "GREAT! Movies",
+    "region": "GB",
+    "aliases": [
+      "Great Movies"
+    ]
+  },
+  {
+    "name": "GREAT! Mystery",
+    "region": "GB",
+    "aliases": [
+      "Great Mystery"
+    ]
+  },
+  {
+    "name": "U&DaveJaVu",
+    "region": "GB",
+    "aliases": [
+      "DaveJaVu",
+      "U and DaveJaVu"
+    ]
+  },
+  {
+    "name": "Sky Max",
+    "region": "GB",
+    "aliases": []
+  },
+  {
+    "name": "Sky Showcase",
+    "region": "GB",
+    "aliases": []
+  },
+  {
+    "name": "ITVBe",
+    "region": "GB",
+    "aliases": []
+  },
+  {
+    "name": "5SELECT",
+    "region": "GB",
+    "aliases": [
+      "Five Select"
+    ]
+  },
+  {
+    "name": "BBC World News",
+    "region": "GB",
+    "aliases": [
+      "BBC News International"
+    ]
+  },
+  {
+    "name": "MTV Music",
+    "region": "GB",
+    "aliases": []
+  },
+  {
+    "name": "Nick Jr. Peppa",
+    "region": "GB",
+    "aliases": [
+      "Nick Jr Peppa",
+      "Nick Junior Peppa"
+    ]
+  },
+  {
+    "name": "Sky Cinema Select",
+    "region": "GB",
+    "aliases": [
+      "Sky Select"
+    ]
+  },
+  {
+    "name": "Sky Cinema Hits",
+    "region": "GB",
+    "aliases": [
+      "Sky Hits"
+    ]
+  },
+  {
+    "name": "Sky Sports Arena",
+    "region": "GB",
+    "aliases": []
+  }
+]

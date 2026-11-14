@@ -8,27 +8,34 @@ For Plex, select the UK and a London postcode such as **SW1A 1AA**, then choose 
 
 ## Matching decisions
 
-- BBC One and ITV1 require explicit London evidence in the name or guide identifier. A generic `BBC1` or `ITV1` alone is not enough. Conflicting regional names or identifiers are rejected.
+- BBC One and ITV1 require explicit London evidence in the name or guide identifier. A generic `BBC1` or `ITV1` alone is not enough, nor is a guide identifier containing only `London`. Dotted and compact network-plus-London identifiers work. Conflicting regional names or identifiers are rejected, including a recognised network followed by an unknown regional suffix.
 - BBC Two accepts the England/national service and rejects Wales and Northern Ireland variants. Other channels retain their UK identity; Irish and international variants are not silently substituted.
 - Names, punctuation, common abbreviations, quality markers, and case can vary. Programme identities cannot: Discovery is separate from Discovery History, Sky Comedy from Sky Cinema Comedy, and Sky Sci-Fi from Sky Cinema Sci-Fi & Horror.
-- Timeshifts, catch-up, loops, event placeholders, and contradictory recognised guide identifiers are excluded. A missing roster is preferable to recording the wrong programme.
+- Timeshifts, catch-up, loops, event placeholders, and contradictory recognised guide identifiers are excluded. Compact delayed-service IDs such as `legendxtraplus1.uk` also veto a misleading name, even when that sister channel is not selected. A missing roster is preferable to recording the wrong programme.
 - Current U& brands accept their established Dave, Drama, Eden, W, Yesterday, Alibi, and Gold names. These are channel renames, not loose keyword matches. [UKTV's channel rebrand](https://corporate.uktv.co.uk/newsroom/uktv-completes-the-rollout-of-new-u-masterbrand-with-pay-channels-uandgold-and-uandalibi).
 - Sky One, ITV Quiz, and 5DRAMA use their current identities. Sky Max, Sky Showcase, ITVBe, and 5SELECT are not assumed to carry the replacement service. Seasonal movie pop-ups and individual Sky Sports+ event feeds are omitted. [Sky One announcement](https://skygroup.sky/en-gb/article/iconic-tv-channel-sky-one-is-coming-back1), [ITV Quiz announcement](https://www.itv.com/presscentre/presscentre/media-releases/itv-launches-brand-new-channel-itv-quiz), [Freeview's current channel list](https://www.freeview.co.uk/corporate/platform-management/channel-listings-industry-professionals).
 
-Every entry's editable aliases and exclusions are in [`uk_london_channels.json`](../internal/catalog/data/uk_london_channels.json). Region requirements supplement the negative keywords; they do not rely on an exhaustive list of every wrong local edition.
+UK `Syfy` and `Racing UK` are accepted as exact older names for Sky Sci-Fi and Racing TV. Their renames are confirmed by [Sky](https://www.skygroup.sky/article/syfy-channel-re-brands-to-sky-sci-fi-offering-new-shows-and-fan-favourites) and [Racecourse Media Group](https://racecoursemediagroup.com/news/racinguk_to_become_racingtv/). Bare `Racing`, Racing TV Extra, and foreign Syfy services remain separate.
+
+Every entry's editable aliases and exclusions are in [`uk_london_channels.json`](../internal/catalog/data/uk_london_channels.json). Region requirements supplement the negative keywords; they do not rely on an exhaustive list of every wrong local edition. Additional regional, sister-channel, and former service identifiers in [`uk_reference_channels.json`](../internal/catalog/data/uk_reference_channels.json) supply conflict vetoes only; they never create channels or assign feeds.
+
+Updated preset aliases apply when adding or resetting a preset. Existing edited lineups are preserved. The matching revision refresh rechecks saved assignments once: conflicting roster places are removed with an event, without adding account failures, while valid roster places remain. A manually configured delayed channel such as `Legend Xtra +1` can still be matched to its own guide identifier.
 
 ## Provider metadata audit
 
 The preset was checked against **22 distinct provider catalogues**, captured on 11 November 2026: **258,303 labels and guide identifiers** in total. All 22 lists were reviewed, including lists with little UK coverage and contradictory country metadata. This is not a claim that all 22 offer complete, independent UK lineups; several share the same naming patterns.
 
-With the final matcher, 13,220 entries had UK name or guide evidence. Of those, 3,036 were unambiguous matches to this preset, covering **103 of 110 channels across 17 catalogues**. These figures describe saved metadata, not tested media connections, source rights, or current availability. No provider endpoints, account details, or private catalogue files are included here.
+The follow-up matching review after alpha.2 still finds 13,220 entries with UK name or guide evidence. Of those, 3,101 are unambiguous matches to this preset, covering **103 of 110 channels across 17 catalogues**. These figures describe saved metadata, not tested media connections, source rights, or current availability. No provider endpoints, account details, or private catalogue files are included here.
 
-The seven channels without an accepted match in that snapshot remain useful editable definitions: 5DRAMA, 5STAR, GREAT! TV, Legend, Racing TV, CNN International, and Nick Jr. Too. They are allowed to have empty rosters. For example:
+The seven channels without an accepted match in that snapshot remain useful editable definitions: 5DRAMA, 5STAR, GREAT! TV, Legend, GREAT! Action, CNN International, and Nick Jr. Too. They are allowed to have empty rosters. For example:
 
 | Observed metadata | Decision |
 | --- | --- |
 | BBC One London with a Scotland guide ID | Reject the conflicting region. |
 | Generic ITV1 with an Anglia guide ID | Do not use for London. |
+| BBC One London with a compact `bbcnorthwest` guide ID | Reject the conflicting region. |
+| BBC One with only `london.uk` as its guide ID | Insufficient network identity. |
+| GREAT! Movies Action with a `greatmovies` guide ID | Reject the sister-channel conflict. |
 | Quest Red with a `questredplus1` identifier | Reject the delayed feed. |
 | 5 DRAMA with a `5star` identifier | Reject the sister-channel conflict. |
 | Generic CNN with no explicit international identity | Do not assume CNN International. |
@@ -57,10 +64,10 @@ The seven channels without an accepted match in that snapshot remain useful edit
 | 14 | 7,431 | 101 |
 | 15 | 28,627 | 101 |
 | 16 | 8,211 | 0 |
-| 17 | 7,336 | 23 |
+| 17 | 7,336 | 22 |
 | 18 | 24,480 | 101 |
 | 19 | 6,903 | 0 |
-| 20 | 8,828 | 17 |
+| 20 | 8,828 | 18 |
 | 21 | 12,796 | 101 |
 | 22 | 28,779 | 101 |
 
@@ -136,7 +143,7 @@ The final column is the number of the 22 saved catalogues with at least one acce
 | 161 | Legend Xtra | 13 |
 | 301 | Film4 | 13 |
 | 302 | Talking Pictures TV | 13 |
-| 303 | GREAT! Action | 13 |
+| 303 | GREAT! Action | 0 |
 | 304 | Sky Cinema Premiere | 13 |
 | 305 | Sky Cinema Action | 13 |
 | 306 | Sky Cinema Comedy | 13 |
@@ -164,7 +171,7 @@ The final column is the number of the 22 saved catalogues with at least one acce
 | 416 | TNT Sports 4 | 13 |
 | 417 | Premier Sports 1 | 13 |
 | 418 | Premier Sports 2 | 13 |
-| 419 | Racing TV | 0 |
+| 419 | Racing TV | 13 |
 | 501 | BBC News | 13 |
 | 502 | Sky News | 12 |
 | 503 | GB News | 12 |
@@ -188,7 +195,7 @@ The final column is the number of the 22 saved catalogues with at least one acce
 
 ## Verification and maintenance
 
-The synthetic suite checks all positive aliases with case, quality, and country decoration, all negative phrases, foreign-country rejection, unique channel numbers, and 68 provider-shaped regression cases. It includes misleading IDs and BBC/children's shared-feed labels. Tests use only names and synthetic metadata; they do not contact IPTV providers.
+The synthetic suite checks all positive aliases with case, quality, and country decoration, all negative phrases, foreign-country rejection, unique channel numbers, and provider-shaped regression cases. It also runs 23,980 cross-service guide-conflict checks, tests delayed-service identifiers, and verifies that a matching refresh removes unsafe saved roster places without strikes or changes to the US roster. Misleading IDs and BBC/children's shared-feed labels are covered. Tests use only names and synthetic metadata; they do not contact IPTV providers.
 
 Run the focused tests with:
 

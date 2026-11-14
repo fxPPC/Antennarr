@@ -17,6 +17,10 @@ var originalWords = words
 // that identity before interpreting USA as a provider country tag.
 var fiveUSABrand = regexp.MustCompile(`(?i)\b(?:5|five)\s+usa\b`)
 
+// Racing UK is Racing TV's former brand, not an unspecified channel called
+// Racing with a trailing country tag. Keep it distinct from bare "Racing".
+var racingUKBrand = regexp.MustCompile(`(?i)\bracing\s+uk\b`)
+
 // Providers commonly repeat Investigation Discovery's acronym in parentheses.
 // It is part of the brand here, not a separate Indonesian country marker.
 var discoveryAcronym = regexp.MustCompile(`(?i)\b(investigation\s+discovery|discovery)\s*\(\s*id\s*\)`)
@@ -109,6 +113,7 @@ var backupMarker = regexp.MustCompile(`(?i)\[\s*bk\s*\]`)
 func channelKey(name, region string) (string, string) {
 	name = normaliseName(name)
 	name = fiveUSABrand.ReplaceAllString(name, "5USA")
+	name = racingUKBrand.ReplaceAllString(name, "RacingUK")
 	name = discoveryAcronym.ReplaceAllString(name, "$1 ID")
 	name = stripListingNumber(backupMarker.ReplaceAllString(name, ""))
 	// Track bracketed country tags without turning ordinary brand words into tags.
