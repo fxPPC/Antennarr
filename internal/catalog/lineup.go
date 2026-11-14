@@ -24,11 +24,13 @@ type LineupChannel struct {
 	Policy  RosterPolicy `json:"policy"`
 }
 
-func (s *Store) ExportLineup() (Lineup, error) {
+func (s *Store) ExportLineup() (Lineup, error) { return s.ExportLineupForProfile("primary") }
+
+func (s *Store) ExportLineupForProfile(profile string) (Lineup, error) {
 	out := Lineup{Version: 1, Channels: []LineupChannel{}}
 	// A single SELECT gives a coherent export during edits without fetching
 	// source counts or reading any account/stream credential records.
-	rows, err := s.DB.Query(`SELECT c.id,c.number,c.name,c.region,c.enabled,c.aliases,coalesce(p.target,0),coalesce(p.preference,''),coalesce(p.race,0),coalesce((SELECT value FROM settings WHERE name='channel_station:'||c.id),'') FROM channels c LEFT JOIN channel_policies p ON p.channel_id=c.id ORDER BY CAST(c.number AS REAL),c.id`)
+	rows, err := s.DB.Query(`SELECT c.id,c.number,c.name,c.region,c.enabled,c.aliases,coalesce(p.target,0),coalesce(p.preference,''),coalesce(p.race,0),coalesce((SELECT value FROM settings WHERE name='channel_station:'||c.id),'') FROM channels c LEFT JOIN channel_policies p ON p.channel_id=c.id WHERE c.profile_id=? ORDER BY CAST(c.number AS REAL),c.id`, profile)
 	if err != nil {
 		return out, err
 	}
@@ -77,7 +79,9 @@ func (v Lineup) Validate() error {
 
 // Validate the whole file before the atomic replacement. A failed rematch rolls
 // back everything. Accounts, settings, and tuner identity are never replaced.
-func (s *Store) ImportLineup(v Lineup) error {
+func (s *Store) ImportLineup(v Lineup) error { return s.ImportLineupForProfile("primary", v) }
+
+func (s *Store) ImportLineupForProfile(profile string, v Lineup) error {
 	if err := v.Validate(); err != nil {
 		return err
 	}
@@ -86,14 +90,26 @@ func (s *Store) ImportLineup(v Lineup) error {
 		return err
 	}
 	defer tx.Rollback()
-	for _, q := range []string{"DELETE FROM settings WHERE name GLOB 'channel_station:*'", "DELETE FROM channel_aliases", "DELETE FROM channels", "DELETE FROM roster_pass_work", "DELETE FROM roster_pass_accounts", "DELETE FROM roster_pass", "DELETE FROM settings WHERE name IN ('roster_cache_uhd_true','roster_cache_uhd_false')"} {
-		if _, err = tx.Exec(q); err != nil {
-			return err
-		}
+	var present int
+	if err = tx.QueryRow("SELECT count(*) FROM output_profiles WHERE id=?", profile).Scan(&present); err != nil {
+		return err
+	}
+	if present != 1 {
+		return errors.New("tuner not found")
+	}
+	if err = clearProfileChannels(tx, profile); err != nil {
+		return err
 	}
 	for _, ch := range v.Channels {
+		var conflict int
+		if err = tx.QueryRow("SELECT count(*) FROM channels WHERE id=?", ch.ID).Scan(&conflict); err != nil {
+			return err
+		}
+		if conflict > 0 {
+			ch.ID = profile + "-import-" + ch.Number
+		}
 		aliases, _ := json.Marshal(ch.Aliases)
-		if _, err = tx.Exec("INSERT INTO channels(id,number,name,region,enabled,aliases) VALUES(?,?,?,?,?,?)", ch.ID, ch.Number, ch.Name, ch.Region, ch.Enabled, string(aliases)); err != nil {
+		if _, err = tx.Exec("INSERT INTO channels(id,number,name,region,enabled,aliases,profile_id) VALUES(?,?,?,?,?,?,?)", ch.ID, ch.Number, ch.Name, ch.Region, ch.Enabled, string(aliases), profile); err != nil {
 			return err
 		}
 		if err = saveStation(tx, ch.ID, ch.Station); err != nil {

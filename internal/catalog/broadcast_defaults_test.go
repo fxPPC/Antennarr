@@ -147,13 +147,13 @@ func TestExistingBroadcastLineupPreservedOnStartup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := Channel{ID: "custom-nbc", Number: "404", Name: "NBC", Region: "US", Enabled: false, Aliases: []string{"WNBC", "-west", "-news"}}
+	c := Channel{ProfileID: "primary", ID: "custom-nbc", Number: "404", Name: "NBC", Region: "US", Enabled: false, Aliases: []string{"WNBC", "-west", "-news"}}
 	if _, err = s.SaveChannel(c); err != nil {
 		s.Close()
 		t.Fatal(err)
 	}
 	s.Close()
-	s, err = OpenWithUSDefaults(root)
+	s, err = OpenWithDefaults(root)
 	if err != nil {
 		t.Fatal(err)
 	}

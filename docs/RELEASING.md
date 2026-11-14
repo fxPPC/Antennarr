@@ -2,6 +2,10 @@
 
 Releases follow [the versioning and compatibility policy](VERSIONING.md). Stable releases use `vMAJOR.MINOR.PATCH`; opt-in test releases append `-alpha.N`, `-beta.N`, or `-rc.N`. Exact Git and Docker tags are immutable. Stable releases advance their minor Docker tag (`1.0`, `1.1`, etc.); only explicit promotion advances `latest` and GitHub's recommended release. Historical beta tags remain available.
 
+## GitHub-only source previews
+
+For an explicitly requested source-only alpha such as `v1.1.0-alpha.2`, merge the reviewed PR after Source checks pass, then create a GitHub prerelease against that exact commit. Attach the clean source archive and its SHA-256 checksum while the release is still a draft. Mark it as a prerelease and not latest. Do **not** run Approved release: that workflow publishes Docker images. Source previews do not change Docker Hub tags, its overview, or running installations. State the tests completed and the remaining real-Plex gates in the notes.
+
 ## Checks and candidates
 
 Before starting a new version, update the startup version in `cmd/antennarr/main.go`, the UI footer in `internal/admin/index.html`, Dockerfile version defaults, and release notes together. Set `RELEASE_LINE` to the intended major/minor line. Preflight rejects a version that disagrees with the source, line, branch, or published history; it does not rewrite application source or UI branding.

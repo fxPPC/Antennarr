@@ -96,7 +96,7 @@ func TestBrowserFixture(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		s, e = catalog.OpenWithUSDefaults(root)
+		s, e = catalog.OpenWithDefaults(root)
 		if e != nil {
 			t.Fatal(e)
 		}

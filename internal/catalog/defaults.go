@@ -74,7 +74,7 @@ func (s *Store) ApplyUSPreset() (PresetMerge, error) {
 		return result, err
 	}
 	defer tx.Rollback()
-	rows, err := tx.Query("SELECT id,number,name,region FROM channels")
+	rows, err := tx.Query("SELECT id,number,name,region FROM channels WHERE profile_id='primary'")
 	if err != nil {
 		return result, err
 	}

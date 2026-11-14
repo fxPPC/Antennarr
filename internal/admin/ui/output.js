@@ -1,5 +1,6 @@
-import { routeParams, pageURL, idLink, linkedText } from './navigation.js';
+import { routeParams, pageURL, linkedText } from './navigation.js';
 import { confirmAction } from './core.js';
+import { profilePath, profileChannels, profileLabel } from './profiles.js';
 import {
   $,
   el,
@@ -14,9 +15,13 @@ import {
   numeric,
   date,
 } from './core.js';
-let ready = false,
-  channels = [];
-const channelCards = new Map();
+let ready = false, profiles = [], presets = [], channels = [], selectedProfile = '';
+const channelCards = new Map(), profileCards = new Map();
+let loadingProfiles;
+const operationProfile = () => {
+  if (!profiles.some(profile => profile.id === selectedProfile)) throw new Error('Choose a tuner first.');
+  return selectedProfile;
+};
 let searchGeneration=0, searchMatches=new Set(), searchSignature=null, searchQuery=null;
 const preference = [
   ['stability', 'Prefer stream stability'],
@@ -24,32 +29,43 @@ const preference = [
 ];
 export async function init() {
   if (ready) return;
-  $('#export-lineup').onclick=async()=>{try{const v=await api('/api/lineup');const u=URL.createObjectURL(new Blob([JSON.stringify(v,null,2)],{type:'application/json'}));const a=el('a');a.href=u;a.download='antennarr-channels.json';a.click();setTimeout(()=>URL.revokeObjectURL(u),1000)}catch(e){notice(e.message)}};
-  $('#lineup-import').onsubmit=async e=>{e.preventDefault();const f=e.currentTarget,button=f.querySelector('button');try{
-   const file=f.elements.lineup.files[0];if(!file || file.size>2*1024*1024)throw new Error('Choose a channel JSON file up to 2 MiB.');
-   let lineup;try{lineup=JSON.parse(await file.text())}catch{throw new Error('This is not a valid channel lineup JSON file.')}
-   if(!await confirmAction('Replace all channels? Rosters are not included and will rebuild. Accounts and settings are retained.'))return;
-   button.disabled=true;$('#lineup-result').textContent='Replacing channels…';await api('/api/lineup','POST',{confirmed:true,lineup});await loadChannels();$('#lineup-result').textContent='Lineup replaced. Rosters are rebuilding.';
-  }catch(e){$('#lineup-result').textContent=e.message}finally{button.disabled=false}};
+  $('#export-lineup').onclick = async () => {
+    const trigger = $('#export-lineup');
+    trigger.disabled = true;
+    try {
+      const profileID = operationProfile();
+      const lineup = await api(profilePath('/api/lineup', profileID));
+      const url = URL.createObjectURL(new Blob([JSON.stringify(lineup, null, 2)], {type: 'application/json'}));
+      const link = el('a');
+      link.href = url;
+      link.download = 'antennarr-' + profileID + '-channels.json';
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) { notice(error.message); }
+    finally { trigger.disabled = false; }
+  };
+  $('#lineup-import').onsubmit = async event => {
+    event.preventDefault();
+    const form = event.currentTarget, submit = form.querySelector('button');
+    try {
+      const profileID = operationProfile(), name = profileLabel(profiles, profileID);
+      const file = form.elements.lineup.files[0];
+      if (!file || file.size > 2 * 1024 * 1024) throw new Error('Choose a channel JSON file up to 2 MiB.');
+      let lineup;
+      try { lineup = JSON.parse(await file.text()); } catch { throw new Error('This is not a valid channel lineup JSON file.'); }
+      if (!await confirmAction('Replace all channels in ' + name + '? Its rosters will rebuild. Other tuners, accounts, and settings are kept.')) return;
+      submit.disabled = true;
+      $('#lineup-result').textContent = 'Replacing channels…';
+      await api(profilePath('/api/lineup', profileID), 'POST', {confirmed: true, lineup});
+      if (selectedProfile === profileID) selectProfile(profileID, true);
+      await loadChannels();
+      $('#lineup-result').textContent = 'Lineup replaced for ' + name + '. Its rosters will rebuild when enabled.';
+    } catch (error) { $('#lineup-result').textContent = error.message; }
+    finally { submit.disabled = false; }
+  };
   help($('#channel-form').elements.station.parentElement, 'Optional exact station ID, such as WNBC. Both primary and backup sources must identify it in their name or guide ID. Generic network labels are insufficient; fewer feeds may qualify. Match the station to the guide selected in Plex.', 'Required station ID');
-  const [s, links] = await Promise.all([api('/api/settings'), api('/api/connection')]);
-  const root = $('#tuner-links');
-  root.replaceChildren();
-  for (const [key, title] of [
-      ['tuner_url', 'Recommended · private Docker network'],
-      ['private_tuner_url', 'Private address alternative'],
-      ['stream_fallback_url', 'Stream-only fallback · not a tuner registration URL']
-    ]) {
-    if (!links[key]) continue;
-    const box = el('div', undefined, 'tuner-link'),
-      input = el('input');
-    input.value = links[key];
-    input.readOnly = true;
-    input.setAttribute('aria-label', title);
-    box.append(el('strong', title), input, button('Copy', () => navigator.clipboard.writeText(input.value)));
-    root.append(box)
-  }
-
+  $('#output-profile').onchange = event => selectProfile(event.target.value, true);
+  const s = await api('/api/settings');
   const f = $('#output-settings');
   f.before(el('p','Roster checks run continuously in passes. Once each eligible stream has had a turn, the next pass begins. Provider pacing and playback priority still apply.'));
   f.replaceChildren();
@@ -92,6 +108,7 @@ export async function init() {
     try {
       await api('/api/channels', 'POST', {
         id: f.elements.id.value,
+        profile_id: f.elements.profile_id.value || operationProfile(),
         number: f.elements.number.value,
         name: f.elements.name.value,
         region: f.elements.region.value,
@@ -106,46 +123,258 @@ export async function init() {
     }
   };
   $('#clear-channel').onclick = () => {
-    $('#channel-form').reset();
-    $('#channel-form').elements.id.value = ''
+    selectProfile(operationProfile(), true)
   };
   $('#output-search').onsubmit=e=>{e.preventDefault();location.hash=pageURL('output',{q:e.currentTarget.elements.q.value.trim()})};
   await loadChannels();
-  for (const [id,defaults] of [['clear-all-channels',false],['reset-us-channels',true]]) {
-    $('#'+id).onclick=async()=>{
-      if(!await confirmAction(defaults?'Replace all channels and rosters with the 150 default US channels? Custom channels and rules will be removed. Accounts and login are kept; no backup is created.':'Remove all channels and their roster assignments? Accounts and streams are kept. No backup is created.'))return;
-      try {await api('/api/channels/bulk','POST',{confirmed:true,default_us:defaults});$('#bulk-result').textContent='Channel selection updated.';await loadChannels()}catch(e){$('#bulk-result').textContent=e.message}
+  for (const [id, reset] of [['clear-all-channels', false], ['reset-preset-channels', true]]) {
+    $('#' + id).onclick = async () => {
+      try {
+        const profileID = operationProfile(), name = profileLabel(profiles, profileID);
+        const message = reset
+          ? 'Replace channels and rosters in ' + name + ' with its original preset? Custom channel edits in this tuner will be removed.'
+          : 'Remove all channels and roster assignments from ' + name + '?';
+        if (!await confirmAction(message + ' Other tuners, accounts, streams, and login are kept. No backup is created.')) return;
+        await api(profilePath('/api/channels/bulk', profileID), 'POST', {confirmed: true, reset_preset: reset});
+        if (selectedProfile === profileID) selectProfile(profileID, true);
+        await loadChannels();
+        $('#bulk-result').textContent = 'Channel selection updated for ' + name + '.';
+      } catch (error) { $('#bulk-result').textContent = error.message; }
     };
   }
   ready = true
 }
-async function loadChannels() {
-  const [cs, summary] = await Promise.all([api('/api/channels'), api('/api/roster')]);
-  channels = cs;
-  const root = $('#output-channels');
+// Rebuilding after a mutation retains open tuner/channel sections. Periodic
+// refreshes update counters in place and do not reset edits or keyboard focus.
+function loadChannels() {
+  if (loadingProfiles) return loadingProfiles;
+  loadingProfiles = renderProfiles().finally(() => { loadingProfiles = null; });
+  return loadingProfiles;
+}
+async function renderProfiles() {
+  const openProfiles = new Set([...profileCards].filter(([, card]) => card.open).map(([id]) => id));
+  const openChannels = new Set([...channelCards].filter(([, value]) => value.card.open).map(([id]) => id));
+  const [loadedProfiles, loadedPresets] = await Promise.all([
+    api('/api/profiles'), api('/api/presets')
+  ]);
+  const [channelLists, savedRosters] = await Promise.all([
+    Promise.all(loadedProfiles.map(profile => api(profilePath('/api/channels', profile.id)))),
+    Promise.all(loadedProfiles.map(profile => api(profilePath('/api/roster', profile.id))))
+  ]);
+  // Disabled tuners still show saved counts and policy overrides. The default
+  // roster summary remains restricted to work eligible for background checks.
+  const summary = {channels: savedRosters.flatMap(roster => roster.channels)};
+  profiles = loadedProfiles;
+  presets = loadedPresets;
+  channels = channelLists.flat();
+  const editor = $('#channel-form');
+  // Deleted/replaced channels must not remain editable under another tuner.
+  // Keep genuine unsaved edits when their original channel still exists.
+  if (editor.elements.id.value && !channels.some(channel => channel.id === editor.elements.id.value)) {
+    editor.reset();
+    editor.elements.id.value = '';
+    $('#channel-result').textContent = '';
+  }
+  if (!profiles.some(profile => profile.id === selectedProfile)) selectedProfile = profiles[0]?.id || '';
+  const selector = $('#output-profile');
+  selector.replaceChildren();
+  for (const profile of profiles) {
+    const option = el('option', profile.name);
+    option.value = profile.id;
+    selector.append(option);
+  }
+  selector.value = selectedProfile;
+  selector.disabled = !profiles.length;
+  $('#output-profile-tools').hidden = !profiles.length;
+  $('#channel-form').elements.profile_id.value = selectedProfile;
+  const root = $('#output-tuners');
   root.replaceChildren();
+  profileCards.clear();
   channelCards.clear();
-  for (const ch of cs) {
+  for (const profile of profiles) {
+    const tuner = el('details', undefined, 'tuner-card');
+    tuner.dataset.profileId = profile.id;
+    tuner.open = openProfiles.has(profile.id);
+    const head = el('summary'), state = el('span', profile.enabled ? 'Enabled' : 'Disabled', 'badge');
+    state.dataset.profileState = profile.id;
+    state.setAttribute('aria-live', 'polite');
+    if (profile.enabled) state.classList.add('good');
+    const ownChannels = profileChannels(channels, profile.id);
+    const toggleLabel = el('label', undefined, 'tuner-toggle'), toggle = el('input');
+    Object.assign(toggle, {type: 'checkbox', checked: profile.enabled});
+    toggle.setAttribute('aria-label', 'Enable ' + profile.name);
+    toggleLabel.append(toggle, document.createTextNode(' Enable'));
+    // A checkbox in the always-visible summary operates independently of the
+    // disclosure. Keep keyboard and label clicks from bubbling to the summary.
+    toggleLabel.addEventListener('click', event => event.stopPropagation());
+    toggleLabel.addEventListener('keydown', event => event.stopPropagation());
+    help(toggleLabel, 'Disabled tuners keep their channels and rosters. They reject new viewing sessions and pause background recruitment and checks. Existing viewers may finish. Viewer and upstream limits are shared by all tuners.', 'Enable tuner');
+    head.append(el('strong', profile.name), toggleLabel, state, el('span', ownChannels.length + (ownChannels.length === 1 ? ' channel' : ' channels'), 'muted'));
+    tuner.append(head);
+    const result = el('p', '', 'save-status');
+    result.setAttribute('role', 'status');
+    toggle.onchange = async () => {
+      const wanted = toggle.checked;
+      toggle.disabled = true;
+      result.textContent = 'Saving…';
+      try {
+        await api('/api/profiles/' + encodeURIComponent(profile.id), 'POST', {enabled: wanted});
+        profile.enabled = wanted;
+        state.textContent = wanted ? 'Enabled' : 'Disabled';
+        state.className = 'badge' + (wanted ? ' good' : '');
+        renderPresets();
+        result.textContent = wanted ? 'Enabled. Available roster places can now be filled.' : 'Disabled. Channels and rosters are kept; existing viewers may finish.';
+      } catch (error) {
+        toggle.checked = profile.enabled;
+        result.textContent = 'Not saved: ' + error.message;
+        notice(result.textContent);
+      } finally { toggle.disabled = false; }
+    };
+    tuner.append(result);
+    const guideLocation = [profile.guide_location, profile.market, profile.country].filter(Boolean).join(' · ');
+    const guide = el('p', guideLocation ? 'Plex guide location: ' + guideLocation + '. Set up this tuner separately in Plex and select a matching local guide.' : 'Choose the matching country, postal code, and guide in Plex.', 'muted');
+    guide.classList.add('tuner-guide');
+    tuner.append(guide);
+    if (profile.timezone) tuner.append(el('small', 'Programme time zone: ' + profile.timezone));
+    const links = el('details');
+    links.append(el('summary', 'Plex tuner links'));
+    appendTunerLinks(links, profile);
+    tuner.append(links);
+    const controls = el('div', undefined, 'row');
+    controls.append(button('Add channel', () => {
+      selectProfile(profile.id, true);
+      $('#output-profile-tools').open = true;
+      $('#edit-channel').open = true;
+      $('#edit-channel').scrollIntoView({block: 'nearest'});
+      $('#channel-form').elements.number.focus();
+    }), button('Lineup tools', () => {
+      selectProfile(profile.id, true);
+      $('#output-profile-tools').open = true;
+      $('#output-profile-tools').scrollIntoView({block: 'nearest'});
+    }));
+    tuner.append(controls);
+    const list = el('div', undefined, 'tuner-channels');
+    for (const channel of ownChannels) {
+      const card = channelCard(channel, summary, tuner);
+      card.open = openChannels.has(channel.id);
+      list.append(card);
+    }
+    if (!ownChannels.length) list.append(el('p', 'No channels in this tuner. Add one or import a lineup.'));
+    tuner.append(list);
+    const settings = el('details');
+    settings.append(el('summary', 'Tuner settings'));
+    const nameForm = el('form', undefined, 'settings-grid');
+    const nameInput = field(nameForm, 'name', 'Tuner name', profile.name);
+    nameInput.maxLength = 100;
+    autosave(nameForm, async () => {
+      const name = nameInput.value.trim();
+      await api('/api/profiles/' + encodeURIComponent(profile.id), 'POST', {name});
+      profile.name = name;
+      head.querySelector('strong').textContent = name;
+      toggle.setAttribute('aria-label', 'Enable ' + name);
+      const option = [...selector.options].find(option => option.value === profile.id);
+      if (option) option.textContent = name;
+      updateToolScope();
+    });
+    settings.append(nameForm, el('p', 'Removing this tuner deletes its channels and rosters. Re-adding its preset creates a new device that must be set up again in Plex.', 'muted'));
+    const remove = button('Remove tuner', async () => {
+      if (!await confirmAction('Remove ' + profile.name + ' and its channels and rosters? Other tuners and shared accounts are kept. Re-adding creates a new Plex device. No backup is created.')) return;
+      await api('/api/profiles/' + encodeURIComponent(profile.id), 'DELETE', {confirmed: true});
+      await loadChannels();
+    });
+    remove.className = 'danger';
+    settings.append(remove);
+    tuner.append(settings);
+    profileCards.set(profile.id, tuner);
+    root.append(tuner);
+  }
+  if (!profiles.length) root.append(el('p', 'No tuners configured. Add a preset below to begin.'));
+  renderPresets();
+  updateToolScope();
+  searchSignature = null;
+  if (ready) await route();
+}
+function appendTunerLinks(root, profile) {
+  if (profile.address_error) root.append(el('p', profile.address_error, 'warning-text'));
+  let count = 0;
+  for (const [key, title] of [
+    ['tuner_url', 'Tuner address for Plex'],
+    ['private_tuner_url', 'Private address alternative'],
+    ['stream_fallback_url', 'Stream-only fallback · not a tuner registration URL']
+  ]) {
+    if (!profile[key]) continue;
+    const box = el('div', undefined, 'tuner-link'), input = el('input');
+    input.value = profile[key];
+    input.readOnly = true;
+    input.setAttribute('aria-label', profile.name + ' · ' + title);
+    box.append(el('strong', title), input, button('Copy', () => navigator.clipboard.writeText(input.value)));
+    root.append(box);
+    count++;
+  }
+  if (!count) root.append(el('p', 'Tuner address unavailable. Check the listening address and Docker port mappings.'));
+  if (profile.listen_port) root.append(el('p', 'TCP port ' + profile.listen_port + '. Plex must reach this port on the shared Docker network or through a private LAN port mapping.', 'muted'));
+}
+function renderPresets() {
+  const root = $('#output-presets');
+  root.replaceChildren();
+  for (const preset of presets) {
+    const id = preset.preset_id || preset.id;
+    const added = profiles.find(profile => profile.preset_id === id);
+    const row = el('article', undefined, 'preset-card');
+    row.append(el('h3', preset.name), el('p', preset.channel_count + ' editable channels'), el('p', preset.guide_location || '', 'muted'));
+    if (added) row.append(el('p', 'Already added · ' + (added.enabled ? 'enabled' : 'disabled'), 'muted'));
+    else row.append(button('Add ' + preset.name, async () => {
+      await api('/api/profiles', 'POST', {preset_id: id});
+      await loadChannels();
+    }));
+    root.append(row);
+  }
+}
+function selectProfile(profileID, clearEditor = false) {
+  if (!profiles.some(profile => profile.id === profileID)) return;
+  selectedProfile = profileID;
+  $('#output-profile').value = profileID;
+  if (clearEditor) {
+    const form = $('#channel-form');
+    form.reset();
+    form.elements.id.value = '';
+    form.elements.region.value = profiles.find(profile => profile.id === profileID).country || '';
+    $('#channel-result').textContent = '';
+  }
+  $('#channel-form').elements.profile_id.value = profileID;
+  updateToolScope();
+}
+function updateToolScope() {
+  const profile = profiles.find(profile => profile.id === selectedProfile);
+  $('#output-profile-scope').textContent = profile ? 'These tools affect ' + profile.name + ' only.' : 'Choose a tuner first.';
+  $('#reset-preset-channels').disabled = !profile?.preset_id;
+}
+function channelCard(ch, summary, parent) {
     const r = summary.channels.find(r => r.channel_id === ch.id);
     const card = el('details', undefined, 'card'),
       head = el('summary');
+    card.dataset.channelId = ch.id;
     head.append(el('strong', ch.number + ' · ' + ch.name), el('span', r ? `${r.count}/${r.policy.target} verified · ${r.providers} provider${r.providers === 1 ? '' : 's'}` : 'Not offered to Plex', 'count-pill'));
     head.lastChild.dataset.channelCount = ch.id;
     if (r) paintRoster(head.lastChild, r);
+    if (!ch.enabled) head.append(el('span', 'Channel disabled', 'badge'));
     card.append(head);
     const controls = el('div', undefined, 'row');
     controls.append(button('Refresh sources', () => entries(ch, list)), button('Edit channel', () => {
+      selectProfile(ch.profile_id, true);
       const f = $('#channel-form');
       for (const k of ['id', 'number', 'name', 'region', 'station']) f.elements[k].value = ch[k] || '';
       f.elements.aliases.value = (ch.aliases || []).join('\n');
       f.elements.enabled.checked = ch.enabled;
+      $('#output-profile-tools').open = true;
       $('#edit-channel').open = true;
       $('#edit-channel').scrollIntoView({
         block: 'nearest'
       })
     }), button('Remove channel', async () => {
-      if (await confirmAction('Remove ' + ch.name + ' from Plex?')) {
+      if (await confirmAction('Remove ' + ch.name + ' from ' + profileLabel(profiles, ch.profile_id) + '?')) {
         await api('/api/channels/' + encodeURIComponent(ch.id), 'DELETE');
+        if ($('#channel-form').elements.id.value === ch.id) selectProfile(ch.profile_id, true);
         await loadChannels()
       }
     }));
@@ -174,12 +403,8 @@ async function loadChannels() {
     card.addEventListener('toggle', () => {
       if (card.open) entries(ch, list).catch(e => notice(e.message))
     });
-    channelCards.set(ch.id,{card,list,ch});
-    root.append(card)
-  }
-  if (!cs.length) root.append(el('p', 'Add a channel to begin.'));
-  searchSignature=null;
-  if(ready)await route();
+    channelCards.set(ch.id, {card, list, ch, parent});
+    return card;
 }
 const entryLoads = new WeakMap();
 function entries(ch, root) {
@@ -240,9 +465,10 @@ async function renderEntries(ch, root) {
   }
 }
 export async function refresh() {
-  const s = await api('/api/roster');
-  for (const r of s.channels) {
-    const n = Array.from(document.querySelectorAll('[data-channel-count]')).find(n => n.dataset.channelCount === r.channel_id);
+  const saved = await Promise.all(profiles.map(profile => api(profilePath('/api/roster', profile.id))));
+  const counts = new Map([...document.querySelectorAll('[data-channel-count]')].map(node => [node.dataset.channelCount, node]));
+  for (const r of saved.flatMap(roster => roster.channels)) {
+    const n = counts.get(r.channel_id);
     if (n) paintRoster(n, r)
   }
   if(routeParams().get('q'))await route();
@@ -262,6 +488,7 @@ export async function route() {
  if(!q){
   searchSignature=null;searchMatches=new Set();root.replaceChildren();
   for(const {card} of channelCards.values()){card.hidden=false;card.classList.remove('search-match')}
+  for(const card of profileCards.values())card.hidden=false;
   return;
  }
  const v=await api('/api/output/search?q='+encodeURIComponent(q));
@@ -272,14 +499,15 @@ export async function route() {
  if(v.exact_kind&&!v.exists){root.append(el('p',`This ${v.exact_kind} has been removed or is unavailable.`));}
  else if(!visible.size&&!v.streams.length)root.append(el('p','No matching channels or streams.'));
  else root.append(el('p',`${visible.size} matching channels · ${v.streams.length}${v.truncated?'+':''} matching streams${v.truncated?' — narrow the search for more precise results':''}`));
- for(const [id,{card,list,ch}] of channelCards){
+ for(const [id,card] of profileCards)card.hidden=!channels.some(channel=>channel.profile_id===id&&visible.has(channel.id));
+ for(const [id,{card,list,ch,parent}] of channelCards){
   card.hidden=!visible.has(id);
-  if(!card.hidden){card.classList.add('search-match');if(visible.size<=5){card.open=true;await entries(ch,list);if(generation!==searchGeneration)return}}
+  if(!card.hidden){card.classList.add('search-match');if(visible.size<=5){parent.open=true;card.open=true;await entries(ch,list);if(generation!==searchGeneration)return}}
  }
  for(const s of v.streams){
   const row=el('article',undefined,'roster-row search-result');row.dataset.searchStreamId=s.stream_id;
   row.append(el('strong',s.name),linkedText(`${s.provider} · account #${s.account_id} · stream #${s.stream_id}`),el('small',s.in_roster?'Verified roster member':`Outside current rosters · ${s.state}`));
-  for(const id of s.channels){const target=channelCards.get(id);if(!target)continue;row.append(button('Show '+target.ch.name,async()=>{target.card.hidden=false;target.card.open=true;await entries(target.ch,target.list);target.card.scrollIntoView({block:'start'})}))}
+  for(const id of s.channels){const target=channelCards.get(id);if(!target)continue;row.append(button('Show '+profileLabel(profiles,target.ch.profile_id)+' · '+target.ch.name,async()=>{target.parent.hidden=false;target.parent.open=true;target.card.hidden=false;target.card.open=true;await entries(target.ch,target.list);target.card.scrollIntoView({block:'start'})}))}
   root.append(row);
  }
 }

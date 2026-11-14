@@ -2,7 +2,7 @@
 # and third-party notices. Never build this from a live container filesystem.
 FROM debian:trixie-slim AS runtime
 ARG TARGETARCH
-ARG VERSION=v1.0.0
+ARG VERSION=v1.1.0-alpha.2
 ARG REVISION
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl tini util-linux && rm -rf /var/lib/apt/lists/* && useradd -u 10001 -m antennarr
 WORKDIR /opt/antennarr
@@ -11,7 +11,7 @@ COPY LICENSE /usr/share/doc/antennarr/LICENSE
 COPY binaries/antennarr-${TARGETARCH} /usr/local/bin/antennarr
 LABEL org.opencontainers.image.licenses="GPL-3.0-or-later" \
       org.opencontainers.image.title="Antennarr" \
-      org.opencontainers.image.description="IPTV-to-Plex virtual tuner with shared streams and live hot-backup failover. v1.0.0." \
+      org.opencontainers.image.description="IPTV-to-Plex virtual tuner with shared streams and live hot-backup failover." \
       org.opencontainers.image.authors="fxPPC" \
       org.opencontainers.image.url="https://hub.docker.com/r/antennarr/antennarr" \
       org.opencontainers.image.version="${VERSION}" \
@@ -19,7 +19,7 @@ LABEL org.opencontainers.image.licenses="GPL-3.0-or-later" \
 COPY packaging/entrypoint.sh /usr/local/bin/antennarr-entrypoint
 RUN chmod 755 /usr/local/bin/antennarr-entrypoint
 USER 0:0
-EXPOSE 9192 9193
+EXPOSE 9192 9193 9200-9207
 HEALTHCHECK --interval=30s --timeout=3s --start-period=30s CMD curl -fsS http://127.0.0.1:9192/healthz || exit 1
 ENTRYPOINT ["/usr/local/bin/antennarr-entrypoint"]
 

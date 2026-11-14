@@ -8,7 +8,7 @@ import (
 	"sync"
 )
 
-// Optional channel metadata uses the schema-8 settings namespace. It travels
+// Optional channel metadata uses a channel-scoped settings namespace. It travels
 // with full backups and lineup exports, without rewriting existing lineups.
 func stationSetting(id string) string  { return "channel_station:" + id }
 func normaliseStation(s string) string { return strings.ToUpper(strings.TrimSpace(s)) }
@@ -40,7 +40,7 @@ func readStation(q interface{ QueryRow(string, ...any) *sql.Row }, id string) (s
 func readChannelMatchers(q interface {
 	Query(string, ...any) (*sql.Rows, error)
 }) ([]channelMatcher, error) {
-	rows, err := q.Query(`SELECT c.id,c.number,c.name,c.region,c.enabled,c.aliases,coalesce((SELECT value FROM settings WHERE name='channel_station:'||c.id),'') FROM channels c`)
+	rows, err := q.Query(`SELECT c.profile_id,c.id,c.number,c.name,c.region,c.enabled,c.aliases,coalesce((SELECT value FROM settings WHERE name='channel_station:'||c.id),'') FROM channels c`)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +49,7 @@ func readChannelMatchers(q interface {
 	for rows.Next() {
 		var c Channel
 		var raw string
-		if err := rows.Scan(&c.ID, &c.Number, &c.Name, &c.Region, &c.Enabled, &raw, &c.Station); err != nil {
+		if err := rows.Scan(&c.ProfileID, &c.ID, &c.Number, &c.Name, &c.Region, &c.Enabled, &raw, &c.Station); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal([]byte(raw), &c.Aliases); err != nil {
@@ -135,7 +135,22 @@ func (m channelMatcher) identifiesGuide(guide channelLabel) bool {
 	if m.guideKeys[strings.ReplaceAll(guide.key, " ", "")] {
 		return true
 	}
-	return m.channel.Station != "" && m.stationEvidence(guide.key)
+	if m.channel.Station == "" {
+		return false
+	}
+	// A callsign identifies a station by itself. A shared market marker such as
+	// London identifies only a region: require its network as well, otherwise
+	// bbc.one.london would appear to identify both BBC One and ITV1 London.
+	if broadcastCallsign.MatchString(m.stationKey) {
+		return m.stationEvidence(guide.key)
+	}
+	id := strings.ReplaceAll(guide.key, " ", "")
+	for network := range m.guideKeys {
+		if network != "" && network != m.stationKey && (id == network+m.stationKey || id == m.stationKey+network) {
+			return true
+		}
+	}
+	return false
 }
 func guideConflict(channels []channelMatcher, target channelMatcher, label sourceLabel) bool {
 	if label.guide.key == "" {
@@ -177,6 +192,11 @@ var referenceGuideMatchers = sync.OnceValue(func() []channelMatcher {
 	if err != nil {
 		panic("invalid bundled channel definitions: " + err.Error())
 	}
+	london, err := DefaultLondonChannels()
+	if err != nil {
+		panic("invalid bundled London definitions: " + err.Error())
+	}
+	channels = append(channels, london...)
 	// Reference-only identities veto contradictory metadata; they neither add
 	// output channels nor assign a feed by its guide ID alone. These services
 	// appeared under unrelated names in provider catalogues.

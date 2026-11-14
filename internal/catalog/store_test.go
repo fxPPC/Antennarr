@@ -127,7 +127,7 @@ func TestMigrationRestartAndChannelLimit(t *testing.T) {
 	defer s.Close()
 	var version int
 	s.DB.QueryRow("PRAGMA user_version").Scan(&version)
-	if version != 8 {
+	if version != 9 {
 		t.Fatal(version)
 	}
 	if _, e = s.SaveChannel(Channel{Number: "NaN", Name: "Invalid"}); e == nil {

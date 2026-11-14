@@ -2,6 +2,8 @@
 
 The main listener defaults to `:9192` and serves tuner routes plus authenticated administration routes. Setting `ANTENNARR_ADMIN_LISTEN=:9193` enables a separate administration listener that omits tuner discovery/playback. Administration requires HTTP Basic authentication; `/healthz` and `/branding/logo.png` are public exceptions. Keep the main listener private and use HTTPS for remote administration. See [listener and proxy setup](INSTALL.md#addresses-and-docker-networking). Administration mutations require `X-Antennarr-Request: 1`. Bodies are bounded, and errors omit credentials.
 
+Additional profiles have their own tuner-only listeners, initially `9200–9207`. `ANTENNARR_TUNER_PORTS` configures that private range. The same paths on different ports identify different devices. The administration-only listener exposes none of them. See [multi-tuner setup](MULTI-TUNER.md).
+
 ## Tuner
 
 | Method / path | Purpose |
@@ -12,7 +14,7 @@ The main listener defaults to `:9192` and serves tuner routes plus authenticated
 | GET `/auto/v{number}` | MPEG-TS session; viewers of a channel share its upstream pair |
 | GET `/healthz` | Process liveness |
 
-An additional viewer beyond the configured limit receives 503; an unknown channel receives 404. Media startup failures return 502/504. HTTP 200 starts when media arrives. HEAD requests do not allocate viewers. Keeping HTTP connected does not establish decoder continuity.
+A disabled tuner returns 503; an unused listener slot returns 404. Each device advertises the global viewer cap, and admission enforces that shared cap across all devices (it is not multiplied by device count). An additional viewer beyond the configured limit receives 503; an unknown channel receives 404. Media startup failures return 502/504. HTTP 200 starts when media arrives. HEAD requests do not allocate viewers. Keeping HTTP connected does not establish decoder continuity.
 
 ## Administration
 
@@ -31,12 +33,16 @@ An additional viewer beyond the configured limit receives 503; an unknown channe
 | GET `/api/input/accounts?q=...&offset=0` | Paginated, redacted accounts; search provider/status or account/stream IDs; `{items,total,offset,limit,has_next}` |
 | GET `/api/output/search?q=...` | Redacted stream metadata and matching channel IDs; at most 100 stream detail rows, with `truncated` when more match |
 | POST `/api/input/clear` | Confirmed removal of unassigned input accounts; active/rostered accounts protected |
+| GET `/api/profiles`, `/api/presets` | Saved tuners with addresses and channel counts; available portable presets |
+| POST `/api/profiles` | Add `{preset_id}` as a disabled tuner with a new identity |
+| POST `/api/profiles/{id}` | Partial name, enabled-state, country, market, timezone, or guide-location update |
+| DELETE `/api/profiles/{id}` | Confirmed removal; requires idle playback |
 | GET, POST `/api/channels` | List/save channels, permanent IDs, numbers, names, region, optional required station ID, enabled state, and aliases |
 | DELETE `/api/channels/{id}` | Remove a channel |
-| POST `/api/channels/bulk` | Confirmed clear-all or reset-to-US-preset operation |
+| POST `/api/channels/bulk` | Confirmed clear or reset-to-own-preset, scoped by `profile_id` |
 | GET `/api/channels/{id}/excluded` | Excluded stream mappings |
 | POST `/api/mappings` | `{channel_id,stream_id,enabled}`; explicit channel inclusion/exclusion |
-| GET `/api/roster` | Channel coverage; add `?queue=1` for input queue totals |
+| GET `/api/roster` | Enabled-tuner coverage; `?profile_id=...` includes that tuner’s saved disabled data; `?queue=1` adds global input totals |
 | GET `/api/roster/{id}` | Verified stream memberships |
 | POST `/api/roster/{id}/policy` | Channel overrides: `{target,preference,race}`; zero/empty inherits output settings |
 | GET `/api/events` | Bounded recent events |
@@ -57,6 +63,8 @@ Send JSON with `Content-Type: application/json` and `X-Antennarr-Request: 1`, pl
 | POST `/api/channels/bulk` — US preset | `{"confirmed":true,"default_us":true}` | Idle |
 | POST `/api/reset` | `{"confirmed":true}` | Idle; restarts the application |
 | POST `/api/lineup` | `{"confirmed":true,"lineup":{"version":1,"channels":[...]}}` | Idle; replaces channels and rebuilds rosters |
+
+`GET /api/channels` lists all saved tuners; `?profile_id=...` selects one. Channel writes carry `profile_id` (omission targets the primary tuner; edits to another tuner must include its profile ID). Lineup export/import and bulk operations accept `?profile_id=...`; omission targets the existing primary tuner. Use `{confirmed:true,reset_preset:true}` to restore the selected tuner’s own preset. Global channel IDs prevent edits from crossing tuner boundaries; numbers need only be unique within a tuner. Disabling retains saved channels and rosters, stops background work, and rejects new tunes; accepted viewers can finish.
 
 Lineup JSON is limited to 2 MiB and 1,000 channels. Export `GET /api/lineup` for the complete portable structure; each channel carries `id`, `number`, `name`, `region`, optional `station`, `enabled`, `aliases`, and `policy` (`target`, `preference`, `race`). IDs and numbers must be unique. Policy zero/empty values inherit output settings. `station` is an optional case-insensitive station identifier (up to 32 letters, digits, dots, or hyphens); empty removes the station requirement. Channel edits retain the permanent ID and re-evaluate affected source assignments.
 

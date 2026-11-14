@@ -20,7 +20,7 @@ TS packaging repairs continuity counters and handles source timestamp discontinu
 
 ## State and recovery
 
-All persistent state is under /data. Config format/profile identities and SQLite schema 8 support additive metadata while preserving tuner/channel identity. v1 exposes one tuner profile. Backups/restores are manual, bounded, validated, and include application state; Plex state is external. Startup integrity failure refuses the database rather than replacing it. See INSTALL.md for upgrades and recovery.
+All persistent state is under /data. The 1.1 alpha migrates SQLite schema 8 to 9, retaining the primary tuner and channel identities. Each output profile owns its channel definitions and roster memberships; accounts and stream budgets remain shared. Private per-profile listeners use one stream manager, keyed by globally unique channel IDs. Backups/restores are manual, bounded, validated, and include application state; Plex state is external. Startup integrity failure refuses the database rather than replacing it. See INSTALL.md for upgrades and recovery.
 
 ## Bounded candidate reserves
 

@@ -11,7 +11,7 @@ python3 scripts/make-upgrade-fixture.py /tmp/antennarr-upgrade-fixture
 ANTENNARR_UPGRADE_FIXTURE=/tmp/antennarr-upgrade-fixture go test ./internal/recovery -run TestPublishedBeta3UpgradeAndManualRestore -count=1 -v
 ```
 
-The generator refuses an existing output directory, runs with networking disabled, and seeds only reserved `.invalid` provider addresses. The test copies the synthetic data, opens it with current code, verifies default settings and additive schema-8 metadata, lowers the roster threshold without dropping entries, and performs a manual backup/restore. It compares the exact HDHomeRun discovery, lineup, and device XML with the published version, along with accounts, rosters, login, random queue positions, and saved check-pass state.
+The generator refuses an existing output directory, runs with networking disabled, and seeds only reserved `.invalid` provider addresses. The test copies the synthetic data, opens it with current code, verifies settings and the schema-8 → schema-9 migration, lowers the roster threshold without dropping entries, and performs a manual backup/restore. It compares the exact HDHomeRun discovery, lineup, and device XML with the published version, along with accounts, rosters, login, random queue positions, and saved check-pass state. The existing primary lineup is compared separately from the new disabled London preset; backup/restore must preserve both device identities.
 
 The v1.1 development line also checks upgrades from the published v1.0.4 image, pinned by digest:
 

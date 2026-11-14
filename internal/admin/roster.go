@@ -10,7 +10,9 @@ import (
 func (a *API) rosterSummary(w http.ResponseWriter, r *http.Request) {
 	var v catalog.RosterSummary
 	var e error
-	if r.URL.Query().Get("queue") == "1" {
+	if id := r.URL.Query().Get("profile_id"); id != "" {
+		v, e = a.Store.RosterStateForProfile(id)
+	} else if r.URL.Query().Get("queue") == "1" {
 		v, e = a.Store.RosterSummary()
 	} else {
 		v, e = a.Store.RosterState()

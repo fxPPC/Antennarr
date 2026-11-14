@@ -13,6 +13,7 @@ def start(uid=None,puid=None,pgid=None,vol=volume,extra=()):
  if pgid is not None:args+=['-e','PGID='+str(pgid)]
  run(*args,image)
 def request(path):return run('exec',name,'curl','-fsS','-u','admin:admin','http://127.0.0.1:9193'+path)
+def update(path,payload):return run('exec',name,'curl','-fsS','-u','admin:admin','-H','X-Antennarr-Request: 1','-H','Content-Type: application/json','-d',json.dumps(payload),'http://127.0.0.1:9193'+path)
 def ready():
  for _ in range(30):
   p=run('exec',name,'curl','-fsS','-u','admin:admin','http://127.0.0.1:9193/api/login',ok=False)
@@ -24,8 +25,14 @@ def identity(want):
  out=run('exec',name,'cat','/proc/1/status').stdout
  assert next(x for x in out.splitlines() if x.startswith('Uid:')).split()[1]==str(want),out
 try:
- start();ready();identity(10001);channels=json.loads(request('/api/channels').stdout);assert len(channels)==150
- accounts=json.loads(request('/api/input/accounts').stdout);assert accounts['items']==[] and accounts['total']==0;stop();print('PASS default IDs, 150 channels, zero accounts',flush=True)
+ start();ready();identity(10001);channels=json.loads(request('/api/channels').stdout);assert len(channels)==260
+ profiles=json.loads(request('/api/profiles').stdout);assert len(profiles)==2 and not any(p['enabled'] for p in profiles)
+ assert sorted(p['channel_count'] for p in profiles)==[110,150]
+ london=next(p for p in profiles if p['preset_id']=='uk-london')
+ update('/api/profiles/'+london['id'],{'enabled':True})
+ lineup=json.loads(run('exec',name,'curl','-fsS','http://127.0.0.1:9200/lineup.json').stdout);assert len(lineup)==110
+ update('/api/profiles/'+london['id'],{'enabled':False})
+ accounts=json.loads(request('/api/input/accounts').stdout);assert accounts['items']==[] and accounts['total']==0;stop();print('PASS default IDs, 260 channels, two disabled tuners, zero accounts',flush=True)
  start(puid=12345,pgid=12346);ready();identity(12345);assert json.loads(request('/api/channels').stdout)==channels;stop();print('PASS custom PUID/PGID adjusts existing ownership and preserves channels',flush=True)
  start(uid='12345:12346',extra=('--cap-drop','ALL','--read-only','--tmpfs','/tmp'));ready();identity(12345);stop();print('PASS explicit --user and no capabilities',flush=True)
  start(puid=12345,pgid=12346,extra=('--cap-drop','ALL','--cap-add','CHOWN','--cap-add','DAC_OVERRIDE','--cap-add','SETUID','--cap-add','SETGID','--read-only','--tmpfs','/tmp','--security-opt','no-new-privileges:true'));ready();identity(12345);stop();print('PASS hardened initialisation',flush=True)

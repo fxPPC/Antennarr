@@ -2,7 +2,7 @@
 
 # Antennarr
 
-This branch starts **v1.1 development**: multiple Plex tuners and downgrade compatibility between stable 1.1 patch releases. Both features are still pending; see the [implementation plan](docs/V1.1-PLAN.md) and [versioning policy](docs/VERSIONING.md). Stable 1.0 fixes continue on `release/1.0`. Use a separate copy of appdata for development builds.
+**v1.1.0-alpha.2 — GitHub source preview.** Output now offers independently enabled **USA - New York City** and **UK - London** tuners. This alpha is not published to Docker Hub; stable Docker images remain on 1.0. Use separate disposable appdata for alpha testing. See [multi-tuner setup](docs/MULTI-TUNER.md), [remaining acceptance work](docs/V1.1-PLAN.md), and [compatibility](docs/VERSIONING.md).
 
 **Stick your antenna into the Internet.** · by **fxPPC**
 
@@ -59,9 +59,11 @@ Those projects helped establish the territory. Antennarr's reason to exist is th
 
 Go, SQLite, and FFmpeg on Debian. One container, one persistent `/data` directory, and a built-in web interface. Antennarr presents an HDHomeRun-compatible tuner, supports simultaneous channels and configurable viewer limits, and provides manual full backup/restore, shareable channel lineups, and Docker logging.
 
-**No provider accounts, passwords, or playable streams are supplied.** Bring account lists you are authorised to use. Fresh installations include **150 editable US channels**; you can replace them with your own market's lineup. Supported page formats are handled automatically; locked, script-only, or unsupported pages may need another source URL.
+**No provider accounts, passwords, or playable streams are supplied.** Bring account lists you are authorised to use. This preview includes **150 editable US channels** and **110 editable UK channels**, in separate tuners. Fresh installations list both tuners disabled; enable the ones you want under Output. Supported page formats are handled automatically; locked, script-only, or unsupported pages may need another source URL.
 
-## Install with Docker
+## Install the stable Docker release
+
+The command below installs stable 1.0, with one US tuner. For this two-tuner source preview, use [the alpha setup instructions](docs/MULTI-TUNER.md).
 
 Create a dedicated appdata directory, then replace the LAN IP and appdata path:
 
@@ -92,9 +94,9 @@ Screenshots use disposable synthetic data, not real provider accounts.
 
 ## Upgrades and limitations
 
-Read the [v1.0.4 release notes](docs/RELEASE-NOTES.md). Existing **schema-8** data opens directly, retaining settings, channels, accounts, login, and tuner identity. Older schema-1–7 directories must first upgrade through `antennarr/antennarr:v1.0.0-beta.2`. Unsupported data is refused without replacing it. Do not downgrade an upgraded data directory. Backups are manual.
+Read the [release notes](docs/RELEASE-NOTES.md). This alpha automatically migrates **schema 8 to schema 9**, retaining existing settings, channels, accounts, login, and primary tuner identity. London is added disabled once. Returning to 1.0 requires restoring a manual pre-upgrade backup. Older schema-1–7 directories must first upgrade through `antennarr/antennarr:v1.0.0-beta.2`. Unsupported data is refused without replacing it. Do not downgrade an upgraded data directory. Backups are manual.
 
-Provider failure, codec changes, broadcast timing differences, and Plex client behaviour can still interrupt viewing. Controlled tests verify source switching and concurrent playback; they do not prove uninterrupted playback on every provider or client. Native unRAID playback testing remains pending. v1 exposes one tuner profile; multiple simultaneous market profiles are future work.
+Provider failure, codec changes, broadcast timing differences, and Plex client behaviour can still interrupt viewing. Controlled tests verify source switching and concurrent playback; they do not prove uninterrupted playback on every provider or client. Native unRAID playback testing remains pending. This alpha exposes multiple tuner profiles. Actual Plex registration with separate UK/US guides and simultaneous scheduled recordings is still an acceptance gate; HTTP and synthetic media tests do not prove it.
 
 ## Build and contribute
 

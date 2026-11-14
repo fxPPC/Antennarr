@@ -108,7 +108,7 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 	}
 	check := func(c config.Config, s *catalog.Store) {
 		t.Helper()
-		for table, want := range map[string]int{"accounts": 31, "roster": 30, "channels": channelCount} {
+		for table, want := range map[string]int{"accounts": 31, "roster": 30, "channels": channelCount + 110} {
 			var n int
 			if e := s.DB.QueryRow("SELECT count(*) FROM " + table).Scan(&n); e != nil || n != want {
 				t.Fatal(table, n, e)
@@ -121,7 +121,7 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 		}
 		var schema int
 		s.DB.QueryRow("PRAGMA user_version").Scan(&schema)
-		if schema != 8 {
+		if schema != 9 {
 			t.Fatal(schema)
 		}
 		if c.DeviceID != originalID || c.Settings.RosterTarget != 20 || !c.Settings.ReplenishWhilePlaying {
@@ -142,7 +142,7 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 		manager := stream.New(c.Settings.MaxOutgoingStreams, time.Duration(c.GraceSeconds)*time.Second, nil)
 		defer manager.Close()
 		server := tuner.Server{Config: c, Streams: manager, BaseURL: expected["base"], ChannelList: func() []config.Channel {
-			chs, _ := s.Channels()
+			chs, _ := s.ChannelsForProfile("primary")
 			out := []config.Channel{}
 			for _, ch := range chs {
 				if ch.Enabled {
@@ -160,6 +160,10 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 		}
 	}
 	check(c, s)
+	profilesBefore, err := s.Profiles()
+	if err != nil || len(profilesBefore) != 2 || profilesBefore[1].Enabled {
+		t.Fatal("upgrade profile defaults", profilesBefore, err)
+	}
 	var queueBefore string
 	s.DB.QueryRow("SELECT group_concat(position,',') FROM (SELECT position FROM queue_positions ORDER BY kind,source_id)").Scan(&queueBefore)
 	name, e := recovery.Create(root, expected["base"], s)
@@ -187,6 +191,10 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 		t.Fatal(e)
 	}
 	check(saved, after)
+	profilesAfter, err := after.Profiles()
+	if err != nil || !reflect.DeepEqual(profilesBefore, profilesAfter) {
+		t.Fatal("profile identities changed on restore", err)
+	}
 	var queueAfter string
 	after.DB.QueryRow("SELECT group_concat(position,',') FROM (SELECT position FROM queue_positions ORDER BY kind,source_id)").Scan(&queueAfter)
 	if queueAfter != queueBefore {
