@@ -63,9 +63,9 @@ type Channel struct {
 
 func Open(root string) (*Store, error) { return open(root, false) }
 
-// OpenWithUSDefaults seeds disabled US and London tuners and removal defaults
+// OpenWithDefaults seeds disabled US and London tuners and removal defaults
 // only for a new catalogue. Existing lineups retain their saved state.
-func OpenWithUSDefaults(root string) (*Store, error) { return open(root, true) }
+func OpenWithDefaults(root string) (*Store, error) { return open(root, true) }
 
 func open(root string, defaults bool) (*Store, error) {
 	for _, d := range []string{"database", "secrets", "backups"} {

@@ -7,7 +7,7 @@ import (
 
 func TestFreshUSDefaultsPreserveEdits(t *testing.T) {
 	root := t.TempDir()
-	s, err := OpenWithUSDefaults(root)
+	s, err := OpenWithDefaults(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -24,7 +24,7 @@ func TestFreshUSDefaultsPreserveEdits(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Close()
-	s, err = OpenWithUSDefaults(root)
+	s, err = OpenWithDefaults(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +41,7 @@ func TestExistingEmptyCatalogueNotSeeded(t *testing.T) {
 		t.Fatal(e)
 	}
 	s.Close()
-	s, e = OpenWithUSDefaults(root)
+	s, e = OpenWithDefaults(root)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -142,7 +142,7 @@ func TestGuideNumberConflictRollsBackRenumbering(t *testing.T) {
 
 func TestFreshRemovalPolicyDoesNotOverwriteSavedPolicy(t *testing.T) {
 	root := t.TempDir()
-	s, err := OpenWithUSDefaults(root)
+	s, err := OpenWithDefaults(root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +154,7 @@ func TestFreshRemovalPolicyDoesNotOverwriteSavedPolicy(t *testing.T) {
 		t.Fatal(err)
 	}
 	s.Close()
-	s, err = OpenWithUSDefaults(root)
+	s, err = OpenWithDefaults(root)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -70,7 +70,7 @@ func main() {
 		startupError("admin credential unavailable", root, err)
 		os.Exit(1)
 	}
-	store, err := catalog.OpenWithUSDefaults(root)
+	store, err := catalog.OpenWithDefaults(root)
 	if err != nil {
 		startupError("catalogue unavailable", root, err)
 		os.Exit(1)

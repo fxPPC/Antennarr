@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	// Keep IANA zone validation portable in minimal container images.
+	_ "time/tzdata"
 )
 
 // Profiles are independently addressable outputs. Device identity and listener
@@ -38,25 +40,33 @@ func DefaultLondonChannels() ([]Channel, error) {
 	return out, err
 }
 
+// One registry owns market metadata and its versioned channel definitions.
+// Future markets add one entry and matching fixtures, without changing routing.
+type presetDefinition struct {
+	profile  Profile
+	channels func() ([]Channel, error)
+}
+
+var tunerPresets = []presetDefinition{
+	{Profile{Kind: "hdhomerun", Name: "USA - New York City", Market: "New York City", Country: "US", Timezone: "America/New_York", GuideLocation: "10001", Preset: "us-nyc"}, DefaultUSChannels},
+	{Profile{Kind: "hdhomerun", Name: "UK - London", Market: "London", Country: "GB", Timezone: "Europe/London", GuideLocation: "SW1A 1AA", Preset: "uk-london"}, DefaultLondonChannels},
+}
+
 func presetProfile(id string) (Profile, error) {
-	switch id {
-	case "us-nyc":
-		return Profile{Kind: "hdhomerun", Name: "USA - New York City", Market: "New York City", Country: "US", Timezone: "America/New_York", GuideLocation: "10001", Preset: id}, nil
-	case "uk-london":
-		return Profile{Kind: "hdhomerun", Name: "UK - London", Market: "London", Country: "GB", Timezone: "Europe/London", GuideLocation: "SW1A 1AA", Preset: id}, nil
-	default:
-		return Profile{}, errors.New("unknown tuner preset")
+	for _, preset := range tunerPresets {
+		if preset.profile.Preset == id {
+			return preset.profile, nil
+		}
 	}
+	return Profile{}, errors.New("unknown tuner preset")
 }
 func presetChannels(id string) ([]Channel, error) {
-	switch id {
-	case "us-nyc":
-		return DefaultUSChannels()
-	case "uk-london":
-		return DefaultLondonChannels()
-	default:
-		return nil, errors.New("unknown tuner preset")
+	for _, preset := range tunerPresets {
+		if preset.profile.Preset == id {
+			return preset.channels()
+		}
 	}
+	return nil, errors.New("unknown tuner preset")
 }
 
 const profileColumns = `id,kind,name,market,country,timezone,guide_location,preset_id,enabled,device_id,port_offset`
@@ -336,10 +346,10 @@ type Preset struct {
 
 func Presets() []Preset {
 	out := []Preset{}
-	for _, id := range []string{"us-nyc", "uk-london"} {
-		p, _ := presetProfile(id)
-		chs, _ := presetChannels(id)
-		out = append(out, Preset{ID: id, Name: p.Name, Country: p.Country, Market: p.Market, Timezone: p.Timezone, GuideLocation: p.GuideLocation, Channels: len(chs), Version: 1})
+	for _, preset := range tunerPresets {
+		p := preset.profile
+		chs, _ := preset.channels()
+		out = append(out, Preset{ID: p.Preset, Name: p.Name, Country: p.Country, Market: p.Market, Timezone: p.Timezone, GuideLocation: p.GuideLocation, Channels: len(chs), Version: 1})
 	}
 	return out
 }

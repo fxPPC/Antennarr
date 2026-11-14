@@ -197,15 +197,20 @@ async function renderProfiles() {
     tuner.open = openProfiles.has(profile.id);
     const head = el('summary'), state = el('span', profile.enabled ? 'Enabled' : 'Disabled', 'badge');
     state.dataset.profileState = profile.id;
+    state.setAttribute('aria-live', 'polite');
     if (profile.enabled) state.classList.add('good');
     const ownChannels = profileChannels(channels, profile.id);
-    head.append(el('strong', profile.name), state, el('span', ownChannels.length + (ownChannels.length === 1 ? ' channel' : ' channels'), 'muted'));
-    tuner.append(head);
     const toggleLabel = el('label', undefined, 'tuner-toggle'), toggle = el('input');
     Object.assign(toggle, {type: 'checkbox', checked: profile.enabled});
     toggle.setAttribute('aria-label', 'Enable ' + profile.name);
-    toggleLabel.append(toggle, document.createTextNode(' Enable this tuner'));
+    toggleLabel.append(toggle, document.createTextNode(' Enable'));
+    // A checkbox in the always-visible summary operates independently of the
+    // disclosure. Keep keyboard and label clicks from bubbling to the summary.
+    toggleLabel.addEventListener('click', event => event.stopPropagation());
+    toggleLabel.addEventListener('keydown', event => event.stopPropagation());
     help(toggleLabel, 'Disabled tuners keep their channels and rosters. They reject new viewing sessions and pause background recruitment and checks. Existing viewers may finish. Viewer and upstream limits are shared by all tuners.', 'Enable tuner');
+    head.append(el('strong', profile.name), toggleLabel, state, el('span', ownChannels.length + (ownChannels.length === 1 ? ' channel' : ' channels'), 'muted'));
+    tuner.append(head);
     const result = el('p', '', 'save-status');
     result.setAttribute('role', 'status');
     toggle.onchange = async () => {
@@ -222,9 +227,10 @@ async function renderProfiles() {
       } catch (error) {
         toggle.checked = profile.enabled;
         result.textContent = 'Not saved: ' + error.message;
+        notice(result.textContent);
       } finally { toggle.disabled = false; }
     };
-    tuner.append(toggleLabel, result);
+    tuner.append(result);
     const guideLocation = [profile.guide_location, profile.market, profile.country].filter(Boolean).join(' · ');
     const guide = el('p', guideLocation ? 'Plex guide location: ' + guideLocation + '. Set up this tuner separately in Plex and select a matching local guide.' : 'Choose the matching country, postal code, and guide in Plex.', 'muted');
     guide.classList.add('tuner-guide');

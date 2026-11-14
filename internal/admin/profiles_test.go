@@ -10,7 +10,7 @@ import (
 )
 
 func TestProfileAPIIsolationAndConfirmation(t *testing.T) {
-	s, err := catalog.OpenWithUSDefaults(t.TempDir())
+	s, err := catalog.OpenWithDefaults(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
