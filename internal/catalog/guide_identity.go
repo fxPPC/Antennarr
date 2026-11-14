@@ -1,6 +1,19 @@
 package catalog
 
-import "strings"
+import (
+	"regexp"
+	"strings"
+)
+
+var guideTimeshift = regexp.MustCompile(`^(.+?)plus([1-9][0-9]?)$`)
+
+func timeshiftGuide(guide channelLabel) (channelLabel, bool) {
+	parts := guideTimeshift.FindStringSubmatch(strings.ReplaceAll(guide.key, " ", ""))
+	if parts == nil {
+		return channelLabel{}, false
+	}
+	return channelLabel{key: parts[1], country: guide.country}, true
+}
 
 // A dotted guide-ID country suffix is explicit metadata, unlike an ordinary
 // word in a display name: CartoonNetwork.in is Indian, but STARZ in Black is
