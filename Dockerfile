@@ -4,7 +4,7 @@ FROM cgr.dev/chainguard/wolfi-base:latest@sha256:2c12da5496e21e99003b3db3b9246f0
 ARG VERSION=v1.0.6-dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Antennarr" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.licenses="GPL-3.0-or-later" org.opencontainers.image.source="https://github.com/fxPPC/Antennarr" org.opencontainers.image.revision="${REVISION}"
-RUN apk upgrade --no-cache && apk add --no-cache ffmpeg ca-certificates-bundle curl tini util-linux-misc coreutils findutils shadow && useradd -u 10001 -m antennarr
+RUN apk upgrade --no-cache && apk add --no-cache ffmpeg ca-certificates-bundle curl tini util-linux-misc util-linux-bins coreutils findutils shadow && useradd -u 10001 -m antennarr
 RUN ffmpeg -version && ffprobe -version && taskset --version && setpriv --version
 WORKDIR /opt/antennarr
 COPY docs/licenses /usr/share/doc/antennarr/licenses
