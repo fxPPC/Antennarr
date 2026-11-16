@@ -2,11 +2,19 @@ package catalog
 
 import (
 	"database/sql"
+	_ "embed"
 	"encoding/json"
 	"regexp"
 	"strings"
 	"sync"
 )
+
+// Reference-only identities prevent a convincing display name from overriding
+// another regional, sister, or retired service in the provider's guide ID.
+// They never create output channels or assign streams.
+//
+//go:embed data/uk_reference_channels.json
+var ukReferenceChannelData []byte
 
 // Optional channel metadata uses a channel-scoped settings namespace. It travels
 // with full backups and lineup exports, without rewriting existing lineups.
@@ -100,19 +108,35 @@ func (m channelMatcher) stationMatches(label sourceLabel) bool {
 	if m.conflictingStation(label.guide.key) {
 		return false
 	}
-	return m.stationEvidence(label.key) || (m.compatible(sourceLabel{channelLabel: label.guide}) && m.stationEvidence(label.guide.key))
+	// A regional marker alone (london.uk) does not identify a network. Guide
+	// evidence must also name the service; a callsign already does both jobs.
+	return m.stationEvidence(label.key) || (m.identifiesGuide(label.guide) && m.stationEvidence(label.guide.key))
 }
 
 var broadcastCallsign = regexp.MustCompile(`^[kw][a-z]{2,3}$`)
 
-// A correct callsign in the display name cannot excuse a different affiliate
-// in a recognisable guide ID. Restrict this check to callsign-shaped station
-// constraints and exact network/callsign combinations, not arbitrary IDs.
+// A correct station/region in the display name cannot excuse a different
+// edition in a recognisable guide ID. Callsigns use exact network/callsign
+// combinations; regional markers use the configured network aliases.
 func (m channelMatcher) conflictingStation(key string) bool {
-	if !broadcastCallsign.MatchString(m.stationKey) {
+	if m.stationKey == "" {
 		return false
 	}
 	id := strings.ReplaceAll(key, " ", "")
+	if !broadcastCallsign.MatchString(m.stationKey) {
+		// Known regional network IDs may be generic or identify our region, but
+		// cannot name an unknown/different edition. Opaque provider IDs are left
+		// alone. This is deliberately conservative and applies to any market.
+		if m.identifiesGuide(channelLabel{key: key}) {
+			return false
+		}
+		for network := range m.guideKeys {
+			if len(network) >= 3 && (strings.HasPrefix(id, network) || strings.HasSuffix(id, network)) {
+				return true
+			}
+		}
+		return false
+	}
 	if broadcastCallsign.MatchString(id) {
 		return id != m.stationKey
 	}
@@ -167,6 +191,22 @@ func guideConflict(channels []channelMatcher, target channelMatcher, label sourc
 	if label.guide.country != "" && !target.compatible(sourceLabel{channelLabel: label.guide}) {
 		return true
 	}
+	// Compact IDs can describe a delayed sister service: legendxtraplus1 is
+	// neither Legend nor the undelayed Legend Xtra. Recognise the base only as
+	// a veto, never as an assignment. Explicitly configured +1 channels still
+	// work, and numeric/opaque provider IDs are not treated as delays.
+	if base, shifted := timeshiftGuide(label.guide); shifted && !target.identifiesGuide(label.guide) {
+		for _, reference := range referenceGuideMatchers() {
+			if reference.identifiesGuide(base) {
+				return true
+			}
+		}
+		for _, other := range channels {
+			if other.identifiesGuide(base) {
+				return true
+			}
+		}
+	}
 	// Recognise bundled service IDs even if the user has removed that service
 	// from their output. For example CNBC remains different from NBC when NBC
 	// is the only selected channel. This supplies vetoes, never assignments.
@@ -197,6 +237,11 @@ var referenceGuideMatchers = sync.OnceValue(func() []channelMatcher {
 		panic("invalid bundled London definitions: " + err.Error())
 	}
 	channels = append(channels, london...)
+	var ukReferences []Channel
+	if err := json.Unmarshal(ukReferenceChannelData, &ukReferences); err != nil {
+		panic("invalid bundled UK reference identities: " + err.Error())
+	}
+	channels = append(channels, ukReferences...)
 	// Reference-only identities veto contradictory metadata; they neither add
 	// output channels nor assign a feed by its guide ID alone. These services
 	// appeared under unrelated names in provider catalogues.

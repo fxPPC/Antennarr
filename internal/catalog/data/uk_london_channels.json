@@ -10,6 +10,9 @@
       "BBC 1",
       "BBC1",
       "BBC ONE Ln",
+      "BBC1 London",
+      "BBCOneLondon",
+      "BBC1London",
       "-+1",
       "-+2",
       "-+3",
@@ -43,7 +46,13 @@
       "-cambridge",
       "-channel islands",
       "-bbc news",
-      "-bbc two"
+      "-bbc two",
+      "-northwest",
+      "-northeast",
+      "-southeast",
+      "-southwest",
+      "-cambridgeshire",
+      "-yourkshire"
     ],
     "station": "LONDON"
   },
@@ -91,6 +100,8 @@
       "ITV1",
       "ITV 1",
       "ITV",
+      "ITV1London",
+      "ITVLondon",
       "-+1",
       "-+2",
       "-+3",
@@ -119,7 +130,8 @@
       "-border",
       "-channel islands",
       "-stv",
-      "-utv"
+      "-utv",
+      "-tynetees"
     ],
     "station": "LONDON"
   },
@@ -718,6 +730,7 @@
     "aliases": [
       "Sky Sci Fi",
       "SkySciFi",
+      "Syfy",
       "-+1",
       "-+2",
       "-+3",
@@ -1773,7 +1786,9 @@
       "-ireland",
       "-irish",
       "-roi",
-      "-eire"
+      "-eire",
+      "-mystery",
+      "-christmas"
     ]
   },
   {
@@ -2527,6 +2542,8 @@
     "enabled": true,
     "aliases": [
       "RacingTV",
+      "Racing UK",
+      "RacingUK",
       "-+1",
       "-+2",
       "-+3",
