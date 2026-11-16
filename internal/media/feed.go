@@ -107,9 +107,13 @@ func (g *Gateway) Copy(ctx context.Context, binary, raw string, emit func([]byte
 	defer release()
 	// A broadcast can announce AAC before sending an audio frame. Allow enough
 	// bounded analysis to discover its sample rate before writing TS headers.
+	// HLS references use opaque IDs with safe media suffixes; URL validation
+	// stays in Go and FFmpeg keeps its normal extension checks.
+	// Limit demuxers to supported television inputs. Formats with their own
+	// external-resource fetching (for example DASH/IMF) bypass HLS rewriting.
 	// FFmpeg stops probing when satisfied; the caller's startup deadline still
 	// caps slow sources. Video and audio remain codec-copy at this input stage.
-	args := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-protocol_whitelist", "http,tcp,crypto", "-rw_timeout", "10000000", "-threads", "1", "-re", "-probesize", "4194304", "-analyzeduration", "5000000", "-fflags", "+genpts+discardcorrupt", "-i", local, "-map", "0:v:0", "-map", "0:a:0", "-c", "copy", "-streamid", "0:256", "-streamid", "1:257", "-mpegts_flags", "+resend_headers+initial_discontinuity", "-f", "mpegts", "pipe:1"}
+	args := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-protocol_whitelist", "http,tcp,crypto", "-format_whitelist", "mpegts,hls,mov,aac,mp3,ac3,eac3", "-rw_timeout", "10000000", "-threads", "1", "-re", "-probesize", "4194304", "-analyzeduration", "5000000", "-fflags", "+genpts+discardcorrupt", "-i", local, "-map", "0:v:0", "-map", "0:a:0", "-c", "copy", "-streamid", "0:256", "-streamid", "1:257", "-mpegts_flags", "+resend_headers+initial_discontinuity", "-f", "mpegts", "pipe:1"}
 	cmd := checkcpu.Command(ctx, binary, args...)
 	var diagnostic processDiagnostic
 	cmd.Stderr = &diagnostic

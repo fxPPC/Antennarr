@@ -63,3 +63,64 @@ func TestHLSRewritingAndPrivateReferenceBlock(t *testing.T) {
 		t.Fatal("released source accessible")
 	}
 }
+
+func TestGatewayPreservesFailureStatusWithoutBody(t *testing.T) {
+	for _, status := range []int{401, 403, 404, 429, 500, 503} {
+		g, err := NewGateway(&http.Client{Transport: rt(func(r *http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: status, Body: io.NopCloser(strings.NewReader("private provider credential")), Header: make(http.Header), Request: r}, nil
+		})})
+		if err != nil {
+			t.Fatal(err)
+		}
+		local, release, err := g.Add(context.Background(), "https://fixture.example/stream.ts")
+		if err != nil {
+			t.Fatal(err)
+		}
+		r, err := http.Get(local)
+		if err != nil {
+			t.Fatal(err)
+		}
+		body, _ := io.ReadAll(r.Body)
+		r.Body.Close()
+		release()
+		g.Close()
+		if r.StatusCode != status || strings.Contains(string(body), "private") {
+			t.Fatalf("status=%d body=%q", r.StatusCode, body)
+		}
+	}
+}
+
+func TestHLSOpaqueLinksHaveMediaSuffixes(t *testing.T) {
+	for _, tc := range []struct {
+		body     string
+		suffixes []string
+	}{
+		{"#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=1000000\nplay?token=secret\n", []string{".m3u8"}},
+		{"#EXTM3U\n#EXT-X-MAP:URI=\"init?token=secret\"\n#EXTINF:2,\nchunk?token=secret\n", []string{".mp4", ".m4s"}},
+		{"#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"key?token=secret\"\n#EXTINF:2,\nchunk?token=secret\n", []string{".key", ".ts"}},
+	} {
+		g, err := NewGateway(&http.Client{Transport: rt(func(r *http.Request) (*http.Response, error) {
+			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(tc.body)), Header: make(http.Header), Request: r}, nil
+		})})
+		if err != nil {
+			t.Fatal(err)
+		}
+		local, release, _ := g.Add(context.Background(), "https://fixture.example/playlist")
+		r, err := http.Get(local)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b, _ := io.ReadAll(r.Body)
+		r.Body.Close()
+		release()
+		g.Close()
+		if strings.Contains(string(b), "secret") {
+			t.Fatal("provider token exposed")
+		}
+		for _, suffix := range tc.suffixes {
+			if !strings.Contains(string(b), suffix) {
+				t.Fatalf("missing %s in %s", suffix, b)
+			}
+		}
+	}
+}
