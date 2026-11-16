@@ -32,7 +32,7 @@ type Settings struct {
 // remains the compatibility fallback for fields absent from older saved files.
 func FreshSettings() Settings {
 	return Settings{
-		LoggingLevel: "debug", RosterTarget: 20, SelectionPreference: "stability", MaxOutgoingStreams: 4,
+		LoggingLevel: "debug", RosterTarget: 15, SelectionPreference: "stability", MaxOutgoingStreams: 4,
 		StartupRace: 5, GlobalConnections: 15, ProviderConnections: 3,
 		BufferSeconds: 3, StallTimeoutMS: 1500, ProbeSeconds: 5,
 		CheckAPISeconds: 33, CheckGlobalSeconds: 2, CheckStreamSeconds: 63,
