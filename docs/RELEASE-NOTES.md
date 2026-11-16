@@ -1,3 +1,14 @@
+# v1.1.0-alpha.3 — GitHub preview
+
+- Bring the v1.0.6 catalogue, HLS playback, guarded demuxing, and credential-safe media diagnostic fixes into the multi-tuner branch.
+- Refresh the container runtime and run native amd64/ARM64 media and permission tests against its packaged FFmpeg.
+- Test upgrades and manual restore from published v1.0.0 and v1.0.4 images, preserving user-edited channels and tuner identities.
+- Keep the independent US and London tuners, London matching rules, and existing 1.1 data format unchanged.
+
+GitHub prerelease only. Docker Hub and Slander remain on the stable 1.0 series. Use separate test appdata; returning to 1.0 requires a manually created pre-upgrade backup.
+
+---
+
 # v1.1.0-alpha.2 — GitHub source preview
 
 - Add independently enabled **USA - New York City** and **UK - London** tuners. London has 110 editable channels, informed by 22 provider catalogues and current broadcaster listings, with conservative region, service, timeshift, and sister-channel exclusions.

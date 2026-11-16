@@ -4,11 +4,11 @@
 
 **Stick your antenna into the Internet**
 
-**v1.0.4 · 11 November build · by fxPPC**
+**v1.0.6 · 16 November build · by fxPPC**
 
 An IPTV-to-Plex tuner I'm building because apparently watching television needed another software project. Import account-list URLs (plain or Base64), choose your channels, and let it maintain a roster of checked feeds. Viewers share a primary stream and live backup; failed feeds get replaced automatically, mid-session, (hopefully) without interrupting playback. That's the idea. Still testing the awkward bits.
 
-Go, SQLite, and FFmpeg on Debian 13. ARM64 and amd64. Video is copied, audio normalised to AAC. One `/data` directory; manual backups.
+Go, SQLite, and FFmpeg in one Linux container. ARM64 and amd64. Video is copied, audio normalised to AAC. One `/data` directory; manual backups.
 
 Fresh installs now include **150 editable US channels**. Bring your own authorised account lists: **no accounts, passwords, or stream URLs are included**. Existing installations keep their channel setup; this update does not automatically overwrite it. Channels become playable as working sources fill their rosters.
 
@@ -37,20 +37,14 @@ Open `http://YOUR_SERVER_LAN_IP:39192`. Fresh login: **admin / admin**; change i
 
 **Upgrading hardened containers:** if you previously used `--cap-drop ALL`, keep the old non-root mode with `--user 10001:10001`, or add `CHOWN`, `DAC_OVERRIDE`, `SETUID`, and `SETGID` for ownership setup. Existing channels and logins are preserved.
 
-Tags: `latest` or pinned `v1.0.4`. Historical beta tags remain available. Beta 2 remains available as `v1.0.0-beta.2` for older data upgrades. Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Debian package sources](https://sources.debian.org/).
+Tags: `latest` or pinned `v1.0.6`. Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Runtime package sources](https://github.com/wolfi-dev/os).
 
-**Existing installs:** v1/schema-8 data upgrades directly, preserving channels, accounts, settings, login, and tuner identity. Older early-preview/schema-1–7 directories must first run `antennarr/antennarr:v1.0.0-beta.2` to upgrade their data, then v1.0.4. Unsupported databases are refused without replacing their contents. Schema 8 is intended to remain stable through v1. Do not downgrade an upgraded directory. Backups are manual.
+**Data compatibility:** The 1.0 series uses a stable data format. The planned 1.1 series will introduce a new data format that will remain stable within 1.1. Updates within each series preserve your settings, channels, accounts, login, and tuner identity. Backups are manual.
 
 Debug-level JSON logs go to Docker by default. Choose None, Normal (warnings/errors), or Debug under Admin. Saved settings take precedence over the bootstrap `ANTENNARR_LOG_LEVEL` environment variable. Enable Docker log rotation.
 
 GPL-3.0-or-later. The image includes buildable source at `/usr/share/doc/antennarr/source.tar.gz`; the source is also available on GitHub. Extract it with `docker cp antennarr:/usr/share/doc/antennarr/source.tar.gz .`.
 
-## New in v1.0.4
+## New in v1.0.6
 
-- Review all 150 US channel definitions and expand provider aliases for 27 channels, including numbered New York affiliates, Investigation Discovery, ESPN, American Heroes, and legacy premium-network names. Keep existing guide numbers and station requirements.
-- Reject conflicting regional and service metadata more consistently: compact guide IDs now respect exclusions such as `-pacific` and `-latin america`, and dotted country suffixes distinguish feeds such as `.in` from `.us`. A conflicting affiliate ID cannot override the required station in the name.
-- Recognise additional unrelated guide services and reject catalogue section headings. Ambiguous feeds stay unassigned; missing sources are preferable to the wrong programme.
-- Handle provider `VIP` quality decoration and bracketed `[BK]` backup markers without relaxing complete-name matching or the UHD setting.
-- Allow more input probing time and bytes for valid MPEG-TS feeds whose AAC audio arrives late, fixing a startup failure seen with NBC. Video is still copied; startup deadlines remain bounded.
-
-Schema 8, account history, channel IDs, and tuner identity are retained. Saved streams are rematched once; contradictory memberships are removed without failure strikes. Existing channel definitions are not overwritten. The improved preset is used for fresh installs or an explicit reset. Backups remain manual. Metadata checks cannot prove programme content or uninterrupted playback across every provider and Plex client.
+Fixes for large provider catalogues and HLS playback, clearer media failure diagnostics, and a refreshed Linux runtime. Both architectures pass container media, permission, and upgrade tests. Existing settings and lineups are preserved. UK/multi-tuner work remains on the separate 1.1 preview branch.

@@ -14,11 +14,11 @@ import time
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('output', type=Path)
-parser.add_argument('--baseline', choices=['beta3', 'v1.0.4'], default='beta3')
+parser.add_argument('--baseline', choices=['v1.0.0', 'v1.0.4'], default='v1.0.0')
 parser.add_argument('--image', help='Override the pinned image for the selected baseline')
 args = parser.parse_args()
 images = {
-    'beta3': 'antennarr/antennarr@sha256:c9440b4f3670def133a7d3b95c003a840dbea44a065a0b92668b8882d57f7951',
+    'v1.0.0': 'antennarr/antennarr@sha256:6387c9ad3ddad3653d67e98d0eaa4e7be595cd94f9617dd40eb6515ddb196695',
     'v1.0.4': 'antennarr/antennarr@sha256:41c81d60454aa854fa93bf5335b1e8818985061a4edac2c07223a1a24091061b',
 }
 root = args.output.resolve()
@@ -73,13 +73,14 @@ try:
                           station='WTEST', enabled=False, aliases=['Fixture Local']))
         channels = json.loads(get('/api/channels'))
     expected = {path: get(path, False) for path in ['/discover.json', '/lineup.json', '/device.xml']}
-    expected.update(base='http://fixture:9192', channel=channel, channel_count=str(len(channels)), baseline=args.baseline)
+    settings = json.loads(get('/api/settings'))
+    expected.update(replenish=str(settings.get('replenish_while_playing', False)).lower(), base='http://fixture:9192', channel=channel, channel_count=str(len(channels)), baseline=args.baseline)
     if args.baseline == 'v1.0.4':
         expected['lineup_export'] = get('/api/lineup')
     docker('stop', name)
     with sqlite3.connect(data / 'database/antennarr.db') as db:
         has_diagnostics = 'last_failure_kind' in [row[1] for row in db.execute('pragma table_info(accounts)')]
-        assert has_diagnostics == (args.baseline != 'beta3'), 'Unexpected baseline schema'
+        assert has_diagnostics, 'Unexpected published baseline schema'
         stamp = int(time.time())
         for number in range(1, 32):
             host = f'fixture{number}.invalid'

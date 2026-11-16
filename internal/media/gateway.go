@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,11 +30,12 @@ type Gateway struct {
 	slots    chan struct{}
 }
 type origin struct {
-	ctx     context.Context
-	mu      sync.Mutex
-	urls    map[string]string
-	reverse map[string]string
-	next    uint64
+	ctx       context.Context
+	mu        sync.Mutex
+	urls      map[string]string
+	reverse   map[string]string
+	playlists map[string]bool
+	next      uint64
 }
 
 var uriAttr = regexp.MustCompile(`URI="([^"]*)"`)
@@ -62,14 +64,14 @@ func (g *Gateway) Add(ctx context.Context, raw string) (string, func(), error) {
 		return "", nil, e
 	}
 	token := hex.EncodeToString(b)
-	o := &origin{ctx: ctx, urls: map[string]string{"0": raw}, reverse: map[string]string{raw: "0"}, next: 1}
+	o := &origin{ctx: ctx, urls: map[string]string{"0": raw}, reverse: map[string]string{raw: "0"}, playlists: map[string]bool{"0": true}, next: 1}
 	g.mu.Lock()
 	g.sessions[token] = o
 	g.mu.Unlock()
 	var once sync.Once
 	return g.base + "/" + token + "/0", func() { once.Do(func() { g.mu.Lock(); delete(g.sessions, token); g.mu.Unlock() }) }, nil
 }
-func (g *Gateway) resolve(o *origin, token string, parent *url.URL, raw string) (string, error) {
+func (g *Gateway) resolve(o *origin, token string, parent *url.URL, raw, suffix string) (string, error) {
 	ref, e := url.Parse(raw)
 	if e != nil {
 		return "", errors.New("invalid playlist reference")
@@ -91,7 +93,7 @@ func (g *Gateway) resolve(o *origin, token string, parent *url.URL, raw string) 
 			}
 			for old, value := range o.urls {
 				n, _ := strconv.ParseUint(old, 10, 64)
-				if n > 0 && n < cutoff && !strings.Contains(strings.ToLower(value), "m3u8") {
+				if n > 0 && n < cutoff && !o.playlists[old] {
 					delete(o.urls, old)
 					delete(o.reverse, value)
 				}
@@ -105,7 +107,10 @@ func (g *Gateway) resolve(o *origin, token string, parent *url.URL, raw string) 
 		o.urls[id] = raw
 		o.reverse[raw] = id
 	}
-	return g.base + "/" + token + "/" + id, nil
+	if suffix == ".m3u8" {
+		o.playlists[id] = true
+	}
+	return g.base + "/" + token + "/" + id + suffix, nil
 }
 func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" && r.Method != "HEAD" {
@@ -125,7 +130,8 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	o.mu.Lock()
-	raw, ok := o.urls[parts[1]]
+	id, _, _ := strings.Cut(parts[1], ".")
+	raw, ok := o.urls[id]
 	o.mu.Unlock()
 	if !ok {
 		http.NotFound(w, r)
@@ -162,7 +168,11 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer upstream.Body.Close()
 	if upstream.StatusCode != 200 && upstream.StatusCode != 206 {
-		http.Error(w, "Source unavailable", 502)
+		status := upstream.StatusCode
+		if status < 400 || status > 599 {
+			status = http.StatusBadGateway
+		}
+		http.Error(w, "Source unavailable", status)
 		return
 	}
 	body := bufio.NewReaderSize(upstream.Body, 4096)
@@ -175,12 +185,23 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		lines := strings.Split(string(b), "\n")
 		var rewriteErr error
+		// Suffixes describe HLS roles, never credentials or provider filenames.
+		// FFmpeg validates these suffixes even though the URLs are opaque IDs.
+		fragmented := strings.Contains(string(b), "#EXT-X-MAP:")
+		master := strings.Contains(string(b), "#EXT-X-STREAM-INF:")
 		for i, line := range lines {
 			line = strings.TrimSuffix(line, "\r")
 			if strings.HasPrefix(strings.TrimSpace(line), "#") {
 				lines[i] = uriAttr.ReplaceAllStringFunc(line, func(attr string) string {
 					m := uriAttr.FindStringSubmatch(attr)
-					dest, e := g.resolve(o, parts[0], upstream.Request.URL, m[1])
+					suffix := ".m3u8"
+					switch {
+					case strings.HasPrefix(line, "#EXT-X-KEY:"), strings.HasPrefix(line, "#EXT-X-SESSION-KEY:"):
+						suffix = ".key"
+					case strings.HasPrefix(line, "#EXT-X-MAP:"):
+						suffix = ".mp4"
+					}
+					dest, e := g.resolve(o, parts[0], upstream.Request.URL, m[1], suffix)
 					if e != nil {
 						rewriteErr = e
 						return ""
@@ -188,7 +209,20 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					return `URI="` + dest + `"`
 				})
 			} else if strings.TrimSpace(line) != "" {
-				lines[i], rewriteErr = g.resolve(o, parts[0], upstream.Request.URL, strings.TrimSpace(line))
+				suffix := ".ts"
+				if parsed, err := url.Parse(strings.TrimSpace(line)); err == nil {
+					switch ext := strings.ToLower(path.Ext(parsed.Path)); ext {
+					case ".aac", ".mp3", ".ac3", ".ec3":
+						suffix = ext
+					}
+				}
+				if fragmented {
+					suffix = ".m4s"
+				}
+				if master {
+					suffix = ".m3u8"
+				}
+				lines[i], rewriteErr = g.resolve(o, parts[0], upstream.Request.URL, strings.TrimSpace(line), suffix)
 			}
 			if rewriteErr != nil {
 				http.Error(w, "Playlist reference blocked", 502)

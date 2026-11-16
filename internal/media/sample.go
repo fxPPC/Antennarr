@@ -26,7 +26,7 @@ func Inspect(ctx context.Context, binary string, sample []byte) (Info, error) {
 	if filepath.Dir(binary) == "." {
 		probe = "ffprobe"
 	}
-	cmd := checkcpu.Command(ctx, probe, "-v", "error", "-threads", "1", "-show_streams", "-show_entries", "stream=codec_type,codec_name,width,height", "-of", "json", "-i", "pipe:0")
+	cmd := checkcpu.Command(ctx, probe, "-v", "error", "-threads", "1", "-show_streams", "-show_entries", "stream=codec_type,codec_name,width,height", "-of", "json", "-f", "mpegts", "-i", "pipe:0")
 	cmd.Stdin = bytes.NewReader(sample)
 	raw, e := cmd.Output()
 	if e != nil {
@@ -62,7 +62,7 @@ func Inspect(ctx context.Context, binary string, sample []byte) (Info, error) {
 	if info.Codec == "" || !audio {
 		return info, errors.New("video or audio missing")
 	}
-	decode := checkcpu.Command(ctx, binary, "-nostdin", "-hide_banner", "-v", "error", "-filter_threads", "1", "-filter_complex_threads", "1", "-threads", "1", "-i", "pipe:0", "-map", "0:v:0", "-map", "0:a:0", "-threads", "1", "-frames:v", "1", "-t", "2", "-progress", "pipe:1", "-f", "null", "-")
+	decode := checkcpu.Command(ctx, binary, "-nostdin", "-hide_banner", "-v", "error", "-filter_threads", "1", "-filter_complex_threads", "1", "-threads", "1", "-f", "mpegts", "-i", "pipe:0", "-map", "0:v:0", "-map", "0:a:0", "-threads", "1", "-frames:v", "1", "-t", "2", "-progress", "pipe:1", "-f", "null", "-")
 	decode.Stdin = bytes.NewReader(sample)
 	progress, decodeErr := decode.Output()
 	frames := 0
