@@ -4,7 +4,7 @@ The root [Dockerfile](../Dockerfile) builds the application and the runtime imag
 
 ## What goes into the image
 
-The Go build stage runs tests, compiles a static application binary, and creates an allowlisted corresponding-source archive with `packaging/source-bundle.sh`. The candidate runtime uses the public, digest-pinned Wolfi base, with FFmpeg 9, FFprobe, CA certificates, curl, tini, and the util-linux-misc/bins packages. GNU ownership tools preserve the existing PUID/PGID and Docker --user behaviour. Package metadata is retained for scanners. It copies the application, source archive, and licence notices; it does not copy the Go toolchain or test executables.
+CI runs source and race tests on both architectures. The Go build stage compiles a static application binary, and creates an allowlisted corresponding-source archive with `packaging/source-bundle.sh`. The candidate runtime uses the public, digest-pinned Wolfi base, with FFmpeg 9, FFprobe, CA certificates, curl, tini, and the util-linux-misc/bins packages. GNU ownership tools preserve the existing PUID/PGID and Docker --user behaviour. Package metadata is retained for scanners. It copies the application, source archive, and licence notices; it does not copy the Go toolchain or test executables.
 
 The image contains no runtime accounts, playable stream URLs, appdata, private server configuration, or Docker credentials. `.dockerignore` excludes runtime and private files from the build context. The source archive has a separate allowlist. Keep both lists current when adding project files.
 
