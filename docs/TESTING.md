@@ -30,7 +30,7 @@ ARM64 jobs are both required; the existing combined required check reports
 failure if either architecture fails.
 
 Release publication checks every finding in the complete scan:
-`python3 scripts/check-image-vulnerabilities.py --require-clean < REPORT.json`.
+`python3 scripts/check-image-vulnerabilities.py REPORT.json --require-clean`.
 This includes low-severity and unfixed findings. An explicit maintainer review in
 `scripts/release-security-reviews.json` can approve exact findings for one release
 using `--release-version VERSION`. Changed packages, severities, new findings, or

@@ -116,7 +116,7 @@ jobs:
       - name: Check complete vulnerability report against release review
         env:
           RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
-        run: python3 scripts/check-image-vulnerabilities.py --require-clean --release-version "$RELEASE_VERSION" < /tmp/image-vulnerabilities.json
+        run: python3 scripts/check-image-vulnerabilities.py /tmp/image-vulnerabilities.json --require-clean --release-version "$RELEASE_VERSION"
       - name: Record candidate identity
         env:
           ARCH: ${{ matrix.arch }}
