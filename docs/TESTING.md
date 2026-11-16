@@ -4,11 +4,11 @@ Run `go vet ./...` and `go test -race -p 1 -timeout 15m ./...`. Generate control
 
 ## Published-version upgrade and manual restore
 
-Create a disposable fixture with the published Beta 3 image:
+Create a disposable fixture with the published v1.0.0 image:
 
 ```
 python3 scripts/make-upgrade-fixture.py /tmp/antennarr-upgrade-fixture
-ANTENNARR_UPGRADE_FIXTURE=/tmp/antennarr-upgrade-fixture go test ./internal/recovery -run TestPublishedBeta3UpgradeAndManualRestore -count=1 -v
+ANTENNARR_UPGRADE_FIXTURE=/tmp/antennarr-upgrade-fixture go test ./internal/recovery -run TestPublishedV1UpgradeAndManualRestore -count=1 -v
 ```
 
 The generator refuses an existing output directory, runs with networking disabled, and seeds only reserved `.invalid` provider addresses. The test copies the synthetic data, opens it with current code, verifies default settings and additive schema-8 metadata, lowers the roster threshold without dropping entries, and performs a manual backup/restore. It compares the exact HDHomeRun discovery, lineup, and device XML with the published version, along with accounts, rosters, login, random queue positions, and saved check-pass state.

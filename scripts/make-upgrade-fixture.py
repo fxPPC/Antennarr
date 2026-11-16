@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create synthetic upgrade-test appdata with the published Beta 3 image.
+"""Create synthetic upgrade-test appdata with the published v1.0.0 image.
 
 Usage: python3 scripts/make-upgrade-fixture.py /tmp/antennarr-upgrade-fixture
 Requires Docker. Refuses an existing output directory. Never reads live appdata.
@@ -14,7 +14,7 @@ import time
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('output', type=Path)
-parser.add_argument('--image', default='antennarr/antennarr@sha256:c9440b4f3670def133a7d3b95c003a840dbea44a065a0b92668b8882d57f7951')
+parser.add_argument('--image', default='antennarr/antennarr@sha256:6387c9ad3ddad3653d67e98d0eaa4e7be595cd94f9617dd40eb6515ddb196695')
 args = parser.parse_args()
 root = args.output.resolve()
 if root.exists():
@@ -53,10 +53,10 @@ try:
     channels = json.loads(get('/api/channels'))
     channel = next(c['id'] for c in channels if c['name'] == 'CNN')
     expected = {path: get(path, False) for path in ['/discover.json', '/lineup.json', '/device.xml']}
-    expected.update(base='http://fixture:9192', channel=channel)
+    settings = json.loads(get('/api/settings'))
+    expected.update(base='http://fixture:9192', channel=channel, channel_count=str(len(channels)), replenish=str(settings.get('replenish_while_playing', False)).lower())
     docker('stop', name)
     with sqlite3.connect(data / 'database/antennarr.db') as db:
-        assert 'last_failure_kind' not in [row[1] for row in db.execute('pragma table_info(accounts)')]
         stamp = int(time.time())
         for number in range(1, 32):
             host = f'fixture{number}.invalid'
@@ -70,6 +70,6 @@ try:
                 db.execute('insert into roster(channel_id,stream_id,account_id,admitted,verified,due) values(?,?,?,?,?,?)',
                            (channel, number, number, stamp, stamp, stamp))
     (root / 'expected.json').write_text(json.dumps(expected))
-    print('Synthetic Beta 3 fixture ready: 31 accounts, 30 roster entries, 143 channels')
+    print(f'Synthetic published-v1 fixture ready: 31 accounts, 30 roster entries, {len(channels)} channels')
 finally:
     subprocess.run(['docker', 'rm', '-f', name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
