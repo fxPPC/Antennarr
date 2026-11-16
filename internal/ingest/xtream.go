@@ -15,6 +15,7 @@ import (
 
 // maxCatalogueEntries bounds a provider response independently of the byte limit.
 const maxCatalogueEntries = 40000
+const maxCatalogueBytes = 64 << 20
 
 type Xtream struct{ Client *http.Client }
 type AccountInfo struct {
@@ -25,10 +26,10 @@ type AccountInfo struct {
 	ActiveConnections int
 }
 
-func (x Xtream) request(ctx context.Context, a Entry, action string, v any) error {
+func (x Xtream) response(ctx context.Context, a Entry, action string) (*http.Response, error) {
 	u, e := url.Parse(a.Endpoint + "/player_api.php")
 	if e != nil {
-		return ProviderError{Kind: "invalid_endpoint"}
+		return nil, ProviderError{Kind: "invalid_endpoint"}
 	}
 	q := u.Query()
 	q.Set("username", a.Username)
@@ -39,10 +40,10 @@ func (x Xtream) request(ctx context.Context, a Entry, action string, v any) erro
 	u.RawQuery = q.Encode()
 	r, e := netguard.Request(ctx, x.Client, "GET", u.String())
 	if e != nil {
-		return ProviderError{Kind: FailureKind(e), Status: FailureStatus(e), cause: e}
+		return nil, ProviderError{Kind: FailureKind(e), Status: FailureStatus(e), cause: e}
 	}
-	defer r.Body.Close()
 	if r.StatusCode != 200 {
+		r.Body.Close()
 		kind := "http_error"
 		if r.StatusCode == 401 || r.StatusCode == 403 {
 			kind = "access_denied"
@@ -50,8 +51,17 @@ func (x Xtream) request(ctx context.Context, a Entry, action string, v any) erro
 		if r.StatusCode == 429 {
 			kind = "rate_limited"
 		}
-		return ProviderError{Kind: kind, Status: r.StatusCode}
+		return nil, ProviderError{Kind: kind, Status: r.StatusCode}
 	}
+	return r, nil
+}
+
+func (x Xtream) request(ctx context.Context, a Entry, action string, v any) error {
+	r, e := x.response(ctx, a, action)
+	if e != nil {
+		return e
+	}
+	defer r.Body.Close()
 	b, e := io.ReadAll(io.LimitReader(r.Body, (8<<20)+1))
 	if e != nil {
 		if ctx.Err() != nil {
@@ -138,19 +148,52 @@ func (x Xtream) Validate(ctx context.Context, a Entry) (AccountInfo, error) {
 }
 func fmtString(v any) string { s, _ := v.(string); return s }
 func (x Xtream) Live(ctx context.Context, a Entry) ([]Entry, error) {
-	var rows []struct {
-		Name string      `json:"name"`
-		ID   json.Number `json:"stream_id"`
-		EPG  string      `json:"epg_channel_id"`
+	r, err := x.response(ctx, a, "get_live_streams")
+	if err != nil {
+		return nil, err
 	}
-	if e := x.request(ctx, a, "get_live_streams", &rows); e != nil {
-		return nil, e
+	defer r.Body.Close()
+	if r.ContentLength > maxCatalogueBytes {
+		return nil, ProviderError{Kind: "oversized_response"}
 	}
-	if len(rows) > maxCatalogueEntries {
-		return nil, ProviderError{Kind: "oversized_catalogue"}
+	// Decode one entry at a time: provider logos and unused metadata must not
+	// require a second, full-catalogue buffer. Both wire bytes and rows are bounded.
+	limited := &io.LimitedReader{R: r.Body, N: maxCatalogueBytes + 1}
+	decoder := json.NewDecoder(limited)
+	readError := func(err error) error {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if netguard.IsTimeout(err) {
+			return context.DeadlineExceeded
+		}
+		if limited.N == 0 {
+			return ProviderError{Kind: "oversized_response"}
+		}
+		return ProviderError{Kind: "malformed_response"}
 	}
-	out := make([]Entry, 0, len(rows))
-	for _, r := range rows {
+	opening, err := decoder.Token()
+	if err != nil {
+		return nil, readError(err)
+	}
+	if opening != json.Delim('[') {
+		return nil, ProviderError{Kind: "malformed_response"}
+	}
+	out := make([]Entry, 0)
+	count := 0
+	for decoder.More() {
+		count++
+		if count > maxCatalogueEntries {
+			return nil, ProviderError{Kind: "oversized_catalogue"}
+		}
+		var r struct {
+			Name string      `json:"name"`
+			ID   json.Number `json:"stream_id"`
+			EPG  string      `json:"epg_channel_id"`
+		}
+		if err = decoder.Decode(&r); err != nil {
+			return nil, readError(err)
+		}
 		if _, e := strconv.ParseInt(string(r.ID), 10, 64); e != nil {
 			continue
 		}
@@ -160,6 +203,21 @@ func (x Xtream) Live(ctx context.Context, a Entry) ([]Entry, error) {
 		v.TVGID = r.EPG
 		v.URL = a.Endpoint + "/live/" + url.PathEscape(a.Username) + "/" + url.PathEscape(a.Password) + "/" + string(r.ID) + ".ts"
 		out = append(out, v)
+	}
+	closing, err := decoder.Token()
+	if err != nil {
+		return nil, readError(err)
+	}
+	if closing != json.Delim(']') {
+		return nil, ProviderError{Kind: "malformed_response"}
+	}
+	// Reject partial JSON, extra documents, and oversized trailing padding.
+	var extra any
+	if err = decoder.Decode(&extra); err != io.EOF {
+		return nil, readError(err)
+	}
+	if limited.N == 0 {
+		return nil, ProviderError{Kind: "oversized_response"}
 	}
 	return out, nil
 }

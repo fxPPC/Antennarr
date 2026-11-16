@@ -4,9 +4,13 @@ on:
 permissions:
   contents: read
 jobs:
-  test:
-    name: Source and media tests
-    runs-on: ubuntu-24.04
+  native:
+    name: Native source and media tests
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -21,16 +25,46 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: test -z "$(gofmt -l cmd internal)"
       - run: python3 scripts/test-release-policy.py
+      - run: python3 scripts/test-image-vulnerabilities.py
       - run: node --test scripts/ui.test.mjs
       - run: go vet ./...
       - run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
-      - run: python3 scripts/make-upgrade-fixture.py /tmp/antennarr-upgrade-fixture
-      - run: ANTENNARR_UPGRADE_FIXTURE=/tmp/antennarr-upgrade-fixture go test ./internal/recovery -run TestPublishedBeta3UpgradeAndManualRestore -count=1
-      - run: python3 scripts/make-upgrade-fixture.py --baseline v1.0.4 /tmp/antennarr-v104-upgrade-fixture
-      - run: ANTENNARR_V104_UPGRADE_FIXTURE=/tmp/antennarr-v104-upgrade-fixture go test ./internal/recovery -run TestPublishedV104UpgradeAndManualRestore -count=1
       - run: sh scripts/fixtures.sh /tmp/antennarr-fixtures
       - run: ANTENNARR_TEST_FIXTURES=/tmp/antennarr-fixtures go test -race -p 1 -timeout 15m ./...
+      - run: python3 scripts/make-upgrade-fixture.py /tmp/antennarr-upgrade-fixture
+      - run: ANTENNARR_UPGRADE_FIXTURE=/tmp/antennarr-upgrade-fixture go test ./internal/recovery -run TestPublishedV1UpgradeAndManualRestore -count=1
+      - run: python3 scripts/make-upgrade-fixture.py --baseline v1.0.4 /tmp/antennarr-v104-upgrade-fixture
+      - run: ANTENNARR_V104_UPGRADE_FIXTURE=/tmp/antennarr-v104-upgrade-fixture go test ./internal/recovery -run TestPublishedV104UpgradeAndManualRestore -count=1
       - run: GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o /tmp/antennarr-arm64 ./cmd/antennarr
       - run: docker compose -f compose.portable.yaml config --quiet
-      - run: docker build -t antennarr:source-check .
+      - run: docker build --pull -t antennarr:source-check .
       - run: ANTENNARR_TEST_IMAGE=antennarr:source-check python3 packaging/test-permissions.py
+      - run: ANTENNARR_TEST_IMAGE=antennarr:source-check ANTENNARR_TEST_FIXTURES=/tmp/antennarr-fixtures sh packaging/test-runtime-media.sh
+      - name: Scan runtime packages
+        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7
+        with:
+          image: antennarr:source-check
+          grype-version: v0.121.3
+          fail-build: false
+          output-format: json
+          output-file: /tmp/image-vulnerabilities.json
+      - name: Retain complete vulnerability report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vulnerabilities-source-${{ matrix.runner }}
+          path: /tmp/image-vulnerabilities.json
+          if-no-files-found: error
+      - name: Reject fixable high and critical vulnerabilities
+        run: python3 scripts/check-image-vulnerabilities.py /tmp/image-vulnerabilities.json
+
+  test:
+    name: Source and media tests
+    needs: native
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require both architectures
+        env:
+          RESULT: ${{ needs.native.result }}
+        run: test "$RESULT" = success

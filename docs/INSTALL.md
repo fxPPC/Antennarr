@@ -1,8 +1,8 @@
 # Installation, upgrades, and manual recovery
 
-**This branch is v1.1.0-alpha.2.** The published-image instructions below install stable 1.0.4. To test the source preview with two tuners, use [multi-tuner setup](MULTI-TUNER.md) and separate disposable appdata. No alpha image has been published to Docker Hub.
+**This branch is v1.1.0-alpha.3.** The published-image instructions below install stable 1.0.4. To test the source preview with two tuners, use [multi-tuner setup](MULTI-TUNER.md) and separate disposable appdata. No alpha image has been published to Docker Hub.
 
-Use Linux Docker on ARM64 or amd64, with local writable appdata. Debian, FFmpeg, and FFprobe are included in the image. Docker source builds also include the Go toolchain in their build stage; Go is needed on your host only for local development outside Docker. Store SQLite appdata locally, not on SMB/NFS.
+Use Linux Docker on ARM64 or amd64, with local writable appdata. The Wolfi Linux runtime, FFmpeg, and FFprobe are included in the image. Docker source builds also include the Go toolchain in their build stage; Go is needed on your host only for local development outside Docker. Store SQLite appdata locally, not on SMB/NFS.
 
 ## Install the published image
 
@@ -86,7 +86,7 @@ Replace that example with your actual proxy address. Multiple IPs/CIDRs are comm
 
 ## Upgrade
 
-Keep the same `/data` bind mount, tuner URL, and Plex server. Stable 1.0 uses schema 8. This 1.1 alpha converts schema 8 to schema 9 before starting workers, preserving existing identities and configuration and adding London disabled. Returning to 1.0 requires the complete manual pre-upgrade backup. Old schema-1–7 data must first run `antennarr/antennarr:v1.0.0-beta.2`, then the current version. Unsupported/unversioned populated databases are refused rather than replaced. Do not downgrade an upgraded data directory. Same-minor stable patch downgrade support is a v1.1 release requirement; alpha builds do not yet carry that guarantee.
+Keep the same `/data` bind mount, tuner URL, and Plex server. Stable 1.0 uses schema 8. This 1.1 alpha converts schema 8 to schema 9 before starting workers, preserving existing identities and configuration and adding London disabled. Returning to 1.0 requires the complete manual pre-upgrade backup. Unsupported/unversioned populated databases are refused rather than replaced. Do not downgrade an upgraded data directory. Same-minor stable patch downgrade support is a v1.1 release requirement; alpha builds do not yet carry that guarantee.
 
 For a published-image Compose installation, change `ANTENNARR_IMAGE` in `.env` to the desired release, stop playback, then run:
 
