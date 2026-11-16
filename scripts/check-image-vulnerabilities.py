@@ -32,7 +32,6 @@ def blocking_findings(report, require_clean=False, approvals=()):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('report')
     parser.add_argument('--require-clean', action='store_true', help='Reject every detected vulnerability, including unfixed and low-severity findings')
     parser.add_argument('--release-version', help='Use only the approvals recorded for this exact release')
     args = parser.parse_args()
@@ -41,8 +40,7 @@ if __name__ == '__main__':
         from pathlib import Path
         reviews = json.loads(Path(__file__).with_name('release-security-reviews.json').read_text())
         approvals = reviews.get(args.release_version, {}).get('findings', [])
-    with open(args.report, encoding='utf-8') as source:
-        report = json.load(source)
+    report = json.load(sys.stdin)
     blocked = blocking_findings(report, args.require_clean, approvals)
     for match in blocked:
         v, package = match['vulnerability'], match['artifact']
