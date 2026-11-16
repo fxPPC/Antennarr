@@ -13,7 +13,7 @@
     "buffer_seconds": 3,
     "stall_timeout_ms": 1500,
     "probe_seconds": 5,
-    "roster_target": 20,
+    "roster_target": 15,
     "selection_preference": "stability",
     "allow_uhd": false,
     "check_api_seconds": 33,
