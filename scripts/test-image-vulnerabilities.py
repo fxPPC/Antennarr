@@ -12,6 +12,12 @@ class GateTests(unittest.TestCase):
                    for severity in ['Critical', 'High', 'Medium', 'Low']
                    for state in ['fixed', 'not-fixed', 'unknown']]
         self.assertEqual(len(gate.blocking_findings({'matches': matches})), 2)
+    def test_clean_release_rejects_every_finding(self):
+        matches = [{'vulnerability': {'severity': severity, 'fix': {'state': state}}}
+                   for severity in ['Critical', 'High', 'Medium', 'Low', 'Unknown']
+                   for state in ['fixed', 'not-fixed', 'unknown']]
+        self.assertEqual(gate.blocking_findings({'matches': matches}, require_clean=True), matches)
+        self.assertEqual(gate.blocking_findings({'matches': []}, require_clean=True), [])
     def test_incomplete_report_fails_closed(self):
         for report in [{}, {'matches': None}, {'matches': {}}]:
             with self.assertRaises(ValueError):

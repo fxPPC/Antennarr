@@ -111,6 +111,8 @@ func (g *Gateway) Copy(ctx context.Context, binary, raw string, emit func([]byte
 	// caps slow sources. Video and audio remain codec-copy at this input stage.
 	args := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-protocol_whitelist", "http,tcp,crypto", "-rw_timeout", "10000000", "-threads", "1", "-re", "-probesize", "4194304", "-analyzeduration", "5000000", "-fflags", "+genpts+discardcorrupt", "-i", local, "-map", "0:v:0", "-map", "0:a:0", "-c", "copy", "-streamid", "0:256", "-streamid", "1:257", "-mpegts_flags", "+resend_headers+initial_discontinuity", "-f", "mpegts", "pipe:1"}
 	cmd := checkcpu.Command(ctx, binary, args...)
+	var diagnostic processDiagnostic
+	cmd.Stderr = &diagnostic
 	pipe, e := cmd.StdoutPipe()
 	if e != nil {
 		return e
@@ -135,7 +137,10 @@ func (g *Gateway) Copy(ctx context.Context, binary, raw string, emit func([]byte
 		}
 	}
 	if e = cmd.Wait(); e != nil {
-		return errors.New("source media process stopped")
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		return errors.New(diagnostic.reason())
 	}
 	return nil
 }
@@ -259,7 +264,8 @@ func probeEndReason(err error, invalid bool) string {
 		return "source ended before sample completed"
 	}
 	switch err.Error() {
-	case "source URL blocked", "media process failed to start", "partial transport packet", "source media process stopped":
+	case "source URL blocked", "media process failed to start", "partial transport packet", "source media process stopped",
+		"source rejected access (HTTP 401)", "source rejected access (HTTP 403)", "source stream not found (HTTP 404)", "source rate limited (HTTP 429)", "source server error (HTTP 5xx)", "source connection timed out", "source missing required video or audio", "source returned invalid media":
 		return err.Error()
 	default:
 		return "source adapter failed"

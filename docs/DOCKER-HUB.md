@@ -8,7 +8,7 @@
 
 An IPTV-to-Plex tuner I'm building because apparently watching television needed another software project. Import account-list URLs (plain or Base64), choose your channels, and let it maintain a roster of checked feeds. Viewers share a primary stream and live backup; failed feeds get replaced automatically, mid-session, (hopefully) without interrupting playback. That's the idea. Still testing the awkward bits.
 
-Go, SQLite, and FFmpeg on Debian 13. ARM64 and amd64. Video is copied, audio normalised to AAC. One `/data` directory; manual backups.
+Go, SQLite, and FFmpeg in one Linux container. ARM64 and amd64. Video is copied, audio normalised to AAC. One `/data` directory; manual backups.
 
 Fresh installs now include **150 editable US channels**. Bring your own authorised account lists: **no accounts, passwords, or stream URLs are included**. Existing installations keep their channel setup; this update does not automatically overwrite it. Channels become playable as working sources fill their rosters.
 
@@ -37,9 +37,9 @@ Open `http://YOUR_SERVER_LAN_IP:39192`. Fresh login: **admin / admin**; change i
 
 **Upgrading hardened containers:** if you previously used `--cap-drop ALL`, keep the old non-root mode with `--user 10001:10001`, or add `CHOWN`, `DAC_OVERRIDE`, `SETUID`, and `SETGID` for ownership setup. Existing channels and logins are preserved.
 
-Tags: `latest` or pinned `v1.0.5`. Historical beta tags remain available. Beta 2 remains available as `v1.0.0-beta.2` for older data upgrades. Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Debian package sources](https://sources.debian.org/).
+Tags: `latest` or pinned `v1.0.5`. Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Runtime package sources](https://github.com/wolfi-dev/os).
 
-**Existing installs:** v1/schema-8 data upgrades directly, preserving channels, accounts, settings, login, and tuner identity. Older early-preview/schema-1–7 directories must first run `antennarr/antennarr:v1.0.0-beta.2` to upgrade their data, then v1.0.5. Unsupported databases are refused without replacing their contents. Schema 8 is intended to remain stable through v1. Do not downgrade an upgraded directory. Backups are manual.
+**Data compatibility:** The 1.0 series uses a stable data format. The planned 1.1 series will introduce a new data format that will remain stable within 1.1. Updates within each series preserve your settings, channels, accounts, login, and tuner identity. Backups are manual.
 
 Debug-level JSON logs go to Docker by default. Choose None, Normal (warnings/errors), or Debug under Admin. Saved settings take precedence over the bootstrap `ANTENNARR_LOG_LEVEL` environment variable. Enable Docker log rotation.
 
@@ -47,4 +47,4 @@ GPL-3.0-or-later. The image includes buildable source at `/usr/share/doc/antenna
 
 ## New in v1.0.5
 
-Updated runtime packages and Go dependencies, stable-branch dependency maintenance, and runtime image security checks before publication. Schema-8 settings and lineups are preserved. UK/multi-tuner work remains on the separate 1.1 preview branch.
+Updated runtime packages and Go dependencies, stable-branch dependency maintenance, and runtime image security checks before publication. Existing settings and lineups are preserved. UK/multi-tuner work remains on the separate 1.1 preview branch.

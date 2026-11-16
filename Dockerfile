@@ -1,9 +1,11 @@
-# Standard Debian stable runtime; no fixture video or build toolchain is shipped.
-FROM debian:trixie-slim AS runtime-base
-ARG VERSION=v1.0.5
+# Maintained Wolfi runtime. Keep package metadata for complete image scans;
+# no fixture video or build toolchain is shipped.
+FROM cgr.dev/chainguard/wolfi-base:latest@sha256:2c12da5496e21e99003b3db3b9246f025e53d533c4df334205391260f1e8f85b AS runtime-base
+ARG VERSION=v1.0.6-dev
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Antennarr" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.licenses="GPL-3.0-or-later" org.opencontainers.image.source="https://github.com/fxPPC/Antennarr" org.opencontainers.image.revision="${REVISION}"
-RUN apt-get update && apt-get upgrade -y --no-install-recommends && apt-get install -y --no-install-recommends ffmpeg ca-certificates curl tini util-linux && rm -rf /var/lib/apt/lists/* && useradd -u 10001 -m antennarr
+RUN apk upgrade --no-cache && apk add --no-cache ffmpeg ca-certificates-bundle curl tini util-linux-misc coreutils findutils shadow && useradd -u 10001 -m antennarr
+RUN ffmpeg -version && ffprobe -version && taskset --version && setpriv --version
 WORKDIR /opt/antennarr
 COPY docs/licenses /usr/share/doc/antennarr/licenses
 COPY LICENSE /usr/share/doc/antennarr/LICENSE
