@@ -1,6 +1,6 @@
 # Installation, upgrades, and manual recovery
 
-Use Linux Docker on ARM64 or amd64, with local writable appdata. Debian, FFmpeg, and FFprobe are included in the image. Docker source builds also include the Go toolchain in their build stage; Go is needed on your host only for local development outside Docker. Store SQLite appdata locally, not on SMB/NFS.
+Use Linux Docker on ARM64 or amd64, with local writable appdata. The Linux runtime, FFmpeg, and FFprobe are included in the image. Docker source builds also include the Go toolchain in their build stage; Go is needed on your host only for local development outside Docker. Store SQLite appdata locally, not on SMB/NFS.
 
 ## Install the published image
 

@@ -55,7 +55,7 @@ Those projects helped establish the territory. Antennarr's reason to exist is th
 
 ## Under the bonnet
 
-Go, SQLite, and FFmpeg on Debian. One container, one persistent `/data` directory, and a built-in web interface. Antennarr presents an HDHomeRun-compatible tuner, supports simultaneous channels and configurable viewer limits, and provides manual full backup/restore, shareable channel lineups, and Docker logging.
+Go, SQLite, and FFmpeg in one Linux container. One container, one persistent `/data` directory, and a built-in web interface. Antennarr presents an HDHomeRun-compatible tuner, supports simultaneous channels and configurable viewer limits, and provides manual full backup/restore, shareable channel lineups, and Docker logging.
 
 **No provider accounts, passwords, or playable streams are supplied.** Bring account lists you are authorised to use. Fresh installations include **150 editable US channels**; you can replace them with your own market's lineup. Supported page formats are handled automatically; locked, script-only, or unsupported pages may need another source URL.
 
@@ -90,7 +90,7 @@ Screenshots use disposable synthetic data, not real provider accounts.
 
 ## Upgrades and limitations
 
-Read the [v1.0.5 release notes](docs/RELEASE-NOTES.md). Existing **schema-8** data opens directly, retaining settings, channels, accounts, login, and tuner identity. Older schema-1–7 directories must first upgrade through `antennarr/antennarr:v1.0.0-beta.2`. Unsupported data is refused without replacing it. Do not downgrade an upgraded data directory. Backups are manual.
+The 1.0 series uses a stable data format. Updates within this series preserve your settings, channels, accounts, login, and tuner identity. The planned 1.1 series will introduce a new data format that remains stable within 1.1. Backups are manual. Read the [release notes](docs/RELEASE-NOTES.md) before updating.
 
 Provider failure, codec changes, broadcast timing differences, and Plex client behaviour can still interrupt viewing. Controlled tests verify source switching and concurrent playback; they do not prove uninterrupted playback on every provider or client. Native unRAID playback testing remains pending. v1 exposes one tuner profile; multiple simultaneous market profiles are future work.
 

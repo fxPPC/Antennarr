@@ -1,0 +1,74 @@
+{
+  "v1.0.6": {
+    "reviewed_on": "2026-11-16",
+    "decision": "Maintainer approved publication after reviewing these findings. Full reports remain release assets. This approval does not apply to later versions or newly fixable findings.",
+    "findings": [
+      {
+        "id": "CVE-2026-107696",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-120210",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-107675",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-120244",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-120245",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-107677",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-120243",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-120246",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-120247",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-107676",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-107678",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      }
+    ]
+  }
+}

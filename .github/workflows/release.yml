@@ -6,7 +6,7 @@ on:
       version:
         description: New version (vMAJOR.MINOR.PATCH, optionally -alpha.N, -beta.N, or -rc.N)
         required: true
-        default: v1.0.5
+        default: v1.0.6
       promote_latest:
         description: Make this stable release the recommended version (never for prereleases or older maintenance lines)
         type: boolean
@@ -84,6 +84,13 @@ jobs:
           sudo apt-get install -y skopeo
           skopeo copy oci-archive:/tmp/candidate.tar docker-daemon:antennarr:candidate
           ANTENNARR_TEST_IMAGE=antennarr:candidate python3 packaging/test-permissions.py
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.27.4'
+      - run: |
+          sudo apt-get install -y ffmpeg
+          sh scripts/fixtures.sh /tmp/antennarr-fixtures
+          ANTENNARR_TEST_IMAGE=antennarr:candidate ANTENNARR_TEST_FIXTURES=/tmp/antennarr-fixtures sh packaging/test-runtime-media.sh
       - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           image: antennarr:candidate
@@ -106,8 +113,10 @@ jobs:
           name: vulnerabilities-${{ matrix.arch }}
           path: /tmp/image-vulnerabilities.json
           if-no-files-found: error
-      - name: Reject fixable high and critical vulnerabilities
-        run: python3 scripts/check-image-vulnerabilities.py /tmp/image-vulnerabilities.json
+      - name: Check complete vulnerability report against release review
+        env:
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: python3 scripts/check-image-vulnerabilities.py --require-clean --release-version "$RELEASE_VERSION" < /tmp/image-vulnerabilities.json
       - name: Record candidate identity
         env:
           ARCH: ${{ matrix.arch }}
