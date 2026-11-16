@@ -56,7 +56,7 @@ jobs:
           path: /tmp/image-vulnerabilities.json
           if-no-files-found: error
       - name: Reject fixable high and critical vulnerabilities
-        run: python3 scripts/check-image-vulnerabilities.py /tmp/image-vulnerabilities.json
+        run: python3 scripts/check-image-vulnerabilities.py < /tmp/image-vulnerabilities.json
 
   test:
     name: Source and media tests
