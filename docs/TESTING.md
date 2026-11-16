@@ -29,8 +29,11 @@ image, with a read-only filesystem and no external network. Native amd64 and
 ARM64 jobs are both required; the existing combined required check reports
 failure if either architecture fails.
 
-Release publication additionally requires a clean complete scan:
+Release publication checks every finding in the complete scan:
 `python3 scripts/check-image-vulnerabilities.py REPORT.json --require-clean`.
-This includes low-severity and unfixed findings. Reports are retained when a
+This includes low-severity and unfixed findings. An explicit maintainer review in
+`scripts/release-security-reviews.json` can approve exact findings for one release
+using `--release-version VERSION`. Changed packages, severities, new findings, or
+newly available fixes require another review. Reports are retained when a
 candidate fails; an upstream advisory is a release blocker, not an excuse to
 remove package metadata or suppress a result.

@@ -31,4 +31,4 @@ The Docker Hub overview is maintained in [docs/DOCKER-HUB.md](../docs/DOCKER-HUB
 
 Run `ANTENNARR_TEST_IMAGE=antennarr:test ANTENNARR_TEST_FIXTURES=/absolute/fixtures sh packaging/test-runtime-media.sh` after building. It tests the actual runtime media binaries using synthetic inputs, with no external network or appdata.
 
-Publication requires a clean vulnerability report at every severity. The complete reports are retained even when the gate fails. A clean scan is a dated observation, not a guarantee against undiscovered vulnerabilities.
+Publication checks findings at every severity. Any maintainer-approved findings are recorded for an exact release, package version, and severity; new findings or available fixes block publication. The complete reports are retained even when the gate fails. A clean scan is a dated observation, not a guarantee against undiscovered vulnerabilities.

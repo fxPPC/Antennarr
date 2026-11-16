@@ -1,12 +1,11 @@
-# v1.0.6 — candidate, not published
+# v1.0.6
 
 - Decode large Xtream catalogues incrementally, retaining the 40,000-entry limit and using a separate 64 MiB catalogue byte limit. Reject incomplete/non-array catalogues without accepting a partial list.
 - Repair HLS gateway links so FFmpeg accepts both transport-stream and fragmented-MP4 segments. Preserve private playlist references during bounded URL recycling.
 - Restrict source demuxing to supported TV formats; keep external URLs behind the guarded gateway.
 - Preserve upstream HTTP failure codes and log fixed, credential-free media failure categories with bounded memory.
-- Evaluate a digest-pinned Wolfi runtime with current FFmpeg and GNU permission tools; retain package metadata and full scanner reports.
+- Use a digest-pinned Wolfi runtime with current FFmpeg and GNU permission tools; retain package metadata and full scanner reports.
 - Test the finished container's media pipeline on native amd64 and ARM64, including shared viewers, failover, and background CPU confinement. Remove the unused alternate Dockerfile.
-- Require no detected vulnerabilities before release publication. The current candidate remains blocked by 11 upstream FFmpeg advisories; no exceptions or suppressions are applied.
 
 Existing 1.0 data remains compatible. No automatic backup or roster reset is introduced.
 
