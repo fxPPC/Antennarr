@@ -1,6 +1,6 @@
 # Maintained Wolfi runtime. Keep package metadata for complete image scans;
 # no fixture video or build toolchain is shipped.
-FROM cgr.dev/chainguard/wolfi-base:latest@sha256:2c12da5496e21e99003b3db3b9246f025e53d533c4df334205391260f1e8f85b AS runtime-base
+FROM cgr.dev/chainguard/wolfi-base:latest@sha256:e9b8c3739e5fb5fc778843a2ce74f8620588c9ddc9c44918cead527abcb0b628 AS runtime-base
 ARG VERSION=v1.1.0-alpha.3
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Antennarr" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.licenses="GPL-3.0-or-later" org.opencontainers.image.source="https://github.com/fxPPC/Antennarr" org.opencontainers.image.revision="${REVISION}"
