@@ -1,0 +1,122 @@
+name: Publish ARM64 preview
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Existing immutable GitHub alpha release
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: preview-${{ inputs.version }}
+  cancel-in-progress: false
+jobs:
+  candidate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      revision: ${{ steps.source.outputs.revision }}
+    env:
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - id: source
+        name: Select immutable alpha source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^v1\.1\.[0-9]+-alpha\.[0-9]+$ ]]
+          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$VERSION" | jq -e '.immutable and .prerelease and (.draft|not)'
+          git worktree add --detach /tmp/preview-source "refs/tags/$VERSION"
+          echo "revision=$(git -C /tmp/preview-source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.27.4'
+      - name: Build and test the ARM64 runtime
+        working-directory: /tmp/preview-source
+        env:
+          REVISION: ${{ steps.source.outputs.revision }}
+          ANTENNARR_TEST_IMAGE: antennarr:preview
+          ANTENNARR_TEST_FIXTURES: /tmp/preview-fixtures
+        run: |
+          set -eu
+          docker build --pull --platform linux/arm64 --build-arg VERSION --build-arg REVISION -t "$ANTENNARR_TEST_IMAGE" .
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          sh scripts/fixtures.sh "$ANTENNARR_TEST_FIXTURES"
+          python3 packaging/test-permissions.py
+          sh packaging/test-runtime-media.sh
+      - uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439
+        with:
+          image: antennarr:preview
+          grype-version: v0.121.3
+          fail-build: false
+          output-format: json
+          output-file: /tmp/preview-scan.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: preview-scan-arm64
+          path: /tmp/preview-scan.json
+          if-no-files-found: error
+      - run: |
+          python3 scripts/check-image-vulnerabilities.py --require-clean --release-version "$VERSION" < /tmp/preview-scan.json
+          python3 - <<'PYSCAN'
+          import json, os
+          from pathlib import Path
+          approved = json.loads(Path('scripts/release-security-reviews.json').read_text()).get(os.environ['VERSION'], {}).get('findings', [])
+          report = json.loads(Path('/tmp/preview-scan.json').read_text())
+          actual = []
+          for match in report['matches']:
+              v, pkg = match['vulnerability'], match['artifact']
+              if v.get('fix', {}).get('versions'):
+                  raise SystemExit('Candidate includes a finding with a fix')
+              actual.append(dict(id=v['id'], package=pkg['name'], version=pkg['version'], severity=v['severity']))
+          def identities(rows):
+              return sorted(tuple(sorted(row.items())) for row in rows)
+          if identities(actual) != identities(approved):
+              raise SystemExit('Candidate findings differ from the approved list')
+          PYSCAN
+          docker save -o /tmp/preview.tar antennarr:preview
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: tested-arm64-image
+          path: /tmp/preview.tar
+          if-no-files-found: error
+          retention-days: 3
+  publish:
+    needs: candidate
+    runs-on: ubuntu-24.04-arm
+    environment: release
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: tested-arm64-image
+          path: /tmp
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Publish only the versioned ARM64 tag
+        env:
+          VERSION: ${{ inputs.version }}
+          REVISION: ${{ needs.candidate.outputs.revision }}
+        run: |
+          set -euo pipefail
+          target="antennarr/antennarr:$VERSION"
+          if info=$(docker manifest inspect "$target" 2>&1); then
+            echo 'Preview tag already published' >&2
+            exit 1
+          fi
+          grep -Eiq 'no such manifest|manifest unknown' <<< "$info"
+          docker load -i /tmp/preview.tar
+          test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' antennarr:preview)" = linux/arm64
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' antennarr:preview)" = "$REVISION"
+          docker tag antennarr:preview "$target"
+          docker push "$target"
+          docker pull "$target"
+          test "$(docker image inspect --format '{{.Id}}' "$target")" = "$(docker image inspect --format '{{.Id}}' antennarr:preview)"
