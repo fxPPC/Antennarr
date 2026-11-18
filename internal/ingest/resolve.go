@@ -29,6 +29,10 @@ type ImportProblem string
 
 func (p ImportProblem) Error() string { return string(p) }
 
+// Match a labelled device address, including the arrow used in portal reports.
+// A standalone hexadecimal identifier is insufficient evidence of this format.
+var portalMAC = regexp.MustCompile(`(?i)\bmac(?:[ \t]+address)?[^\pL\pN\r\n]{1,20}(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b`)
+
 var markdownLink = regexp.MustCompile(`\[[^\]]*\]\((https?://[^\s]+)\)`)
 
 // ResolveLists accepts URLs (including encoded URLs) at the UI boundary. Flexible
@@ -184,10 +188,16 @@ func (r Resolver) resolve(ctx context.Context, input string) (ImportReport, erro
 				}
 			}
 			body := pageText(b, resp.Header.Get("Content-Type"))
-			if e := walk(body, depth+1); e != nil {
-				if total > 8<<20 {
-					return e
-				}
+			// Some reports parse as bare portal URLs, which yield no importable
+			// entries. Diagnose these after giving supported records a chance.
+			page, before, warnings := report.Pages, len(report.Entries)+report.Duplicates, len(report.Warnings)
+			walkErr := walk(body, depth+1)
+			if walkErr != nil && total > 8<<20 {
+				return walkErr
+			}
+			if before == len(report.Entries)+report.Duplicates && warnings == len(report.Warnings) && portalMAC.MatchString(body) {
+				report.Warnings = append(report.Warnings, fmt.Sprintf("Page %d contains MAC-based portal entries. Antennarr accepts Xtream accounts and M3U playlists.", page))
+			} else if walkErr != nil {
 				report.Warnings = append(report.Warnings, "A source page contained no complete accounts or used an unsupported format.")
 			}
 		}

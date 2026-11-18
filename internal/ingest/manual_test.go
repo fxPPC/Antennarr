@@ -167,3 +167,27 @@ func TestOversizedPageDoesNotDiscardNextPage(t *testing.T) {
 		t.Fatalf("unexpected result: entries=%d warnings=%v err=%v", len(report.Entries), report.Warnings, err)
 	}
 }
+
+func TestPortalReportDiagnosis(t *testing.T) {
+	const mac = "├─• Mac ➤ 02:00:00:00:00:01"
+	const portal = "Portal: https://device.example/c/\n" + mac
+	for _, tc := range []struct {
+		name, body           string
+		macWarning, imported bool
+	}{
+		{"report with bare portal", portal, true, false},
+		{"label only", mac, true, false},
+		{"unlabelled address", "device 02:00:00:00:00:01", false, false},
+		{"mixed page", portal + "\nhttps://media.example/live/sample.ts", false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			client := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(tc.body))}, nil
+			})}
+			report, err := (Resolver{Client: client}).ResolveLists(context.Background(), "https://example.org/list")
+			if (err == nil) != tc.imported || (len(report.Entries) > 0) != tc.imported || strings.Contains(strings.Join(report.Warnings, " "), "MAC-based portal entries") != tc.macWarning {
+				t.Fatalf("entries=%d warnings=%v err=%v", len(report.Entries), report.Warnings, err)
+			}
+		})
+	}
+}
