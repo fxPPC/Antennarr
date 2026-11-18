@@ -130,6 +130,9 @@ func TestFreshDefaultsDoNotOverwriteExistingSettings(t *testing.T) {
 	if err != nil || c.Settings != FreshSettings() {
 		t.Fatalf("fresh settings: %+v %v", c.Settings, err)
 	}
+	if c.Settings.RosterTarget != 15 {
+		t.Fatalf("fresh roster target = %d, want 15", c.Settings.RosterTarget)
+	}
 	// Fresh values must be persisted, not just returned in memory.
 	raw, err := os.ReadFile(filepath.Join(root, "config/config.json"))
 	if err != nil {
@@ -141,6 +144,8 @@ func TestFreshDefaultsDoNotOverwriteExistingSettings(t *testing.T) {
 	}
 	saved.Settings = Settings{}
 	saved.Settings.Defaults()
+	// A saved target from an earlier install must survive the new default.
+	saved.Settings.RosterTarget = 20
 	saved.Settings.MaxOutgoingStreams = 7
 	saved.Settings.AllowUHD = true
 	if err = Save(root, saved); err != nil {
