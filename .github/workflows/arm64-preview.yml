@@ -65,6 +65,22 @@ jobs:
           if-no-files-found: error
       - run: |
           python3 scripts/check-image-vulnerabilities.py --require-clean --release-version "$VERSION" < /tmp/preview-scan.json
+          python3 - <<'PYSCAN'
+          import json, os
+          from pathlib import Path
+          approved = json.loads(Path('scripts/release-security-reviews.json').read_text()).get(os.environ['VERSION'], {}).get('findings', [])
+          report = json.loads(Path('/tmp/preview-scan.json').read_text())
+          actual = []
+          for match in report['matches']:
+              v, pkg = match['vulnerability'], match['artifact']
+              if v.get('fix', {}).get('versions'):
+                  raise SystemExit('Candidate includes a finding with a fix')
+              actual.append(dict(id=v['id'], package=pkg['name'], version=pkg['version'], severity=v['severity']))
+          def identities(rows):
+              return sorted(tuple(sorted(row.items())) for row in rows)
+          if identities(actual) != identities(approved):
+              raise SystemExit('Candidate findings differ from the approved list')
+          PYSCAN
           docker save -o /tmp/preview.tar antennarr:preview
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
