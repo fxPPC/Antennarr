@@ -1,3 +1,7 @@
+# v1.1.0-alpha.4
+
+Full accounts wait an hour between discovery retries. Roster checks continue across available providers while others are blocked. New installations default to 15 streams per channel.
+
 # v1.1.0-alpha.3 — GitHub preview
 
 - Bring the v1.0.6 catalogue, HLS playback, guarded demuxing, and credential-safe media diagnostic fixes into the multi-tuner branch.
