@@ -1,3 +1,7 @@
+# v1.0.7
+
+Full accounts wait an hour between discovery retries. Roster checks continue across available providers while others are blocked. New installations default to 15 streams per channel.
+
 # v1.0.6
 
 - Decode large Xtream catalogues incrementally, retaining the 40,000-entry limit and using a separate 64 MiB catalogue byte limit. Reject incomplete/non-array catalogues without accepting a partial list.
