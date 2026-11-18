@@ -65,7 +65,22 @@ func (s *Store) EnsureRosterPass(now int64) error {
 		return e
 	}
 	if p.Generation > 0 && p.Remaining > 0 {
-		return tx.Commit()
+		// A long provider backoff must not hold up the next sweep of other
+		// providers. Keep the pass when every roster member is blocked.
+		var canRoll bool
+		if e = tx.QueryRow(`SELECT NOT EXISTS (
+          SELECT 1 FROM roster_pass_work w JOIN streams s ON s.id=w.stream_id
+          JOIN accounts a ON a.id=s.account_id LEFT JOIN provider_rates p ON p.provider=a.rate_key
+          WHERE w.status=0 AND coalesce(p.blocked_until,0)<=?
+        ) AND EXISTS (
+          SELECT 1 FROM roster r JOIN active_channels c ON c.id=r.channel_id AND c.enabled=1 JOIN accounts a ON a.id=r.account_id
+          LEFT JOIN provider_rates p ON p.provider=a.rate_key WHERE coalesce(p.blocked_until,0)<=?
+        )`, now*1000, now*1000).Scan(&canRoll); e != nil {
+			return e
+		}
+		if !canRoll {
+			return tx.Commit()
+		}
 	}
 	var n int
 	if e = tx.QueryRow("SELECT count(DISTINCT r.stream_id) FROM roster r JOIN active_channels c ON c.id=r.channel_id AND c.enabled=1").Scan(&n); e != nil {
