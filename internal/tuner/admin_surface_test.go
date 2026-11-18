@@ -71,3 +71,43 @@ func TestOnlyBrandLogoIsPublic(t *testing.T) {
 		}
 	}
 }
+
+func TestWebKitPreviewDoesNotConsumeDashboardAllowance(t *testing.T) {
+	const preview = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko)"
+	s := testServer(t)
+	s.Admin = &admin.API{}
+	h := s.AdminHandler()
+	request := func(method, path, agent string, login bool) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, path, nil)
+		r.Header.Set("User-Agent", agent)
+		if login {
+			r.SetBasicAuth("admin", s.Password)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w
+	}
+	for i := 0; i < 100; i++ {
+		w := request("GET", "/", preview, true)
+		if w.Code != 200 || w.Body.String() != previewEntry || w.Header().Get("Vary") != "User-Agent" {
+			t.Fatal("expected lightweight preview", w.Code)
+		}
+	}
+	for _, path := range []string{"/admin", "/admin/"} {
+		w := request("HEAD", path, preview, false)
+		if w.Code != 200 || w.Body.Len() != 0 {
+			t.Fatal("unexpected preview HEAD response", path, w.Code)
+		}
+	}
+	for _, path := range []string{"/admin?open=1", "/admin/app.js", "/api/status"} {
+		if w := request("GET", path, preview, false); w.Code != 401 {
+			t.Fatal("expected login challenge", path, w.Code)
+		}
+	}
+	if w := request("GET", "/", preview+" Version/18.0 Safari/605.1.15", false); w.Code != 401 {
+		t.Fatal("regular Safari should use normal login", w.Code)
+	}
+	if w := request("GET", "/admin?open=1", preview, true); w.Code != 200 || !bytes.Contains(w.Body.Bytes(), []byte("/admin/app.js")) {
+		t.Fatal("dashboard unavailable after previews", w.Code)
+	}
+}
