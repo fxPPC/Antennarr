@@ -10,13 +10,13 @@ Minor upgrades preserve supported existing configuration, accounts, channels, an
 
 For 1.1, all published stable 1.0 data formats must have a tested automatic upgrade path. Run migration before serving requests or starting background writers. Persist its completion only after validation succeeds; interrupted upgrades must roll back or resume safely. Reject unknown/newer formats with a clear error rather than guessing or resetting data. Cross-file changes need a recoverable staged operation because a database transaction alone cannot protect configuration files.
 
-## Patch downgrades, starting with stable 1.1.0
+## Data compatibility within stable 1.0 and 1.1
 
 Stable patch releases support in-place downgrades within the same minor version. Upgrades between minor versions preserve existing data; reverting to an earlier minor version requires a pre-upgrade backup.
 
 For example, 1.1.3 → 1.1.0 → 1.1.3 must preserve user configuration and credentials while continuing to work on the same directory. A 1.1 → 1.0 rollback requires restoring the complete matching backup, not just replacing the executable. Stop Antennarr before switching versions or restoring data; two instances must never open the same directory concurrently. A restored backup represents its capture time and cannot retain subsequent edits.
 
-This is an additional Antennarr promise, not a guarantee supplied by SemVer. It starts at stable 1.1.0 and does not retroactively certify 1.0 releases. Alpha, beta, and release-candidate builds have no general downgrade guarantee; use separate disposable copies of appdata until the stable compatibility tests pass.
+All stable 1.0.x releases share a data format. Stable 1.1.x releases will share their own data format from 1.1.0 onwards. Alpha and beta releases may change format. Test previews on a separate copy of your data. Release candidates should pass the stable compatibility checks before promotion.
 
 Within a stable minor line:
 
