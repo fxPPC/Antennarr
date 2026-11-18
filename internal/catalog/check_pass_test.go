@@ -199,3 +199,88 @@ func TestNewPassPrioritisesOldestVerification(t *testing.T) {
 		t.Fatal(c, e)
 	}
 }
+
+func TestProviderBackoffDoesNotHoldOtherRosters(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	ch, err := s.SaveChannel(Channel{Number: "1", Name: "CNN", Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.EnableRosters(RosterPolicy{3, "stability", 3}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 2; i++ {
+		v, err := ingest.FromURL(fmt.Sprintf("https://p%d.example/1.ts", i), "CNN", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = s.Import([]ingest.Entry{v}, "fixture"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, err := s.Candidates(ch, false)
+	if err != nil || len(rows) != 2 {
+		t.Fatal(rows, err)
+	}
+	for _, c := range rows {
+		if err = s.Record(c.StreamID, Result{Success: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	now := time.Now().Unix()
+	if err = s.EnsureRosterPass(now); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.FinishRosterCheck(rows[0].StreamID); err != nil {
+		t.Fatal(err)
+	}
+	_, err = s.DB.Exec("INSERT OR REPLACE INTO provider_rates(provider,blocked_until) SELECT rate_key,? FROM accounts WHERE id=?", (now+3600)*1000, rows[1].AccountID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.EnsureRosterPass(now + 1); err != nil {
+		t.Fatal(err)
+	}
+	p, err := s.CheckPassStatus()
+	if err != nil || p.Generation != 2 {
+		t.Fatal(p, err)
+	}
+	c, _, err := s.NextRosterCheck(now + 1)
+	if err != nil || c.StreamID != rows[0].StreamID {
+		t.Fatal(c, err)
+	}
+}
+
+func TestFullAccountDiscoveryWaitsBeforeRetry(t *testing.T) {
+	s, err := Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	v, err := ingest.FromURL("https://provider.example/get.php?username=fixture&password=fixture", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Import([]ingest.Entry{v}, "fixture"); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().Unix()
+	a, err := s.QueueAccount(now, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.AccountFull(a.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.QueueAccount(now+3599, time.Hour); err != sql.ErrNoRows {
+		t.Fatal("full account retried early", err)
+	}
+	b, err := s.QueueAccount(now+3602, time.Hour)
+	if err != nil || b.ID != a.ID {
+		t.Fatal(b, err)
+	}
+}

@@ -4,7 +4,7 @@
 
 **Stick your antenna into the Internet**
 
-**v1.0.6 · 16 November build · by fxPPC**
+**v1.0.7 · 18 November build · by fxPPC**
 
 An IPTV-to-Plex tuner I'm building because apparently watching television needed another software project. Import account-list URLs (plain or Base64), choose your channels, and let it maintain a roster of checked feeds. Viewers share a primary stream and live backup; failed feeds get replaced automatically, mid-session, (hopefully) without interrupting playback. That's the idea. Still testing the awkward bits.
 
@@ -37,7 +37,7 @@ Open `http://YOUR_SERVER_LAN_IP:39192`. Fresh login: **admin / admin**; change i
 
 **Upgrading hardened containers:** if you previously used `--cap-drop ALL`, keep the old non-root mode with `--user 10001:10001`, or add `CHOWN`, `DAC_OVERRIDE`, `SETUID`, and `SETGID` for ownership setup. Existing channels and logins are preserved.
 
-Tags: `latest` or pinned `v1.0.6`. Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Runtime package sources](https://github.com/wolfi-dev/os).
+Tags: `latest` or pinned `v1.0.7`. Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Runtime package sources](https://github.com/wolfi-dev/os).
 
 **Data compatibility:** The 1.0 series uses a stable data format. The planned 1.1 series will introduce a new data format that will remain stable within 1.1. Updates within each series preserve your settings, channels, accounts, login, and tuner identity. Backups are manual.
 
@@ -45,6 +45,6 @@ Debug-level JSON logs go to Docker by default. Choose None, Normal (warnings/err
 
 GPL-3.0-or-later. The image includes buildable source at `/usr/share/doc/antennarr/source.tar.gz`; the source is also available on GitHub. Extract it with `docker cp antennarr:/usr/share/doc/antennarr/source.tar.gz .`.
 
-## New in v1.0.6
+## New in v1.0.7
 
-Fixes for large provider catalogues and HLS playback, clearer media failure diagnostics, and a refreshed Linux runtime. Both architectures pass container media, permission, and upgrade tests. Existing settings and lineups are preserved. UK/multi-tuner work remains on the separate 1.1 preview branch.
+Full accounts wait an hour between discovery retries, and provider backoffs allow checks of other rosters to continue. Fresh installations start with a target of 15 streams per channel.

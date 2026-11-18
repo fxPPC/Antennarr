@@ -156,10 +156,11 @@ func (s *Store) QueueAccount(now int64, cache time.Duration) (Account, error) {
 	defer tx.Rollback()
 	e = tx.QueryRow(`SELECT a.id,a.provider,a.kind,a.state,a.connection_limit,a.last_check FROM accounts a
  WHERE a.kind='xtream' AND a.state NOT IN('retired','manually_blocked') AND (a.state!='inactive' OR ?)
+ AND (a.last_failure_kind!='full_connections' OR a.last_check<=?)
  AND (a.catalogue_checked<=? OR a.last_check=0 OR a.failures>0 OR a.external_connections>=a.connection_limit)
  AND NOT EXISTS(SELECT 1 FROM work_leases l WHERE l.kind='account' AND l.resource=a.id AND l.until>?)
  AND NOT EXISTS(SELECT 1 FROM provider_rates p WHERE p.provider=a.rate_key AND max(p.next_api,p.blocked_until)>?)
- ORDER BY coalesce((SELECT position FROM queue_positions q WHERE q.kind='account' AND q.source_id=a.id),0),a.id LIMIT 1`, policyIn(tx).AccountFailures > 0, now-int64(cache.Seconds()), now, now*1000).Scan(&a.ID, &a.Provider, &a.Kind, &a.State, &a.Limit, &a.LastCheck)
+ ORDER BY coalesce((SELECT position FROM queue_positions q WHERE q.kind='account' AND q.source_id=a.id),0),a.id LIMIT 1`, policyIn(tx).AccountFailures > 0, now-3600, now-int64(cache.Seconds()), now, now*1000).Scan(&a.ID, &a.Provider, &a.Kind, &a.State, &a.Limit, &a.LastCheck)
 	if e != nil {
 		return a, e
 	}
