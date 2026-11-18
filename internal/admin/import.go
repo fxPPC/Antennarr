@@ -7,6 +7,7 @@ import (
 	"antennarr/internal/netguard"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -59,8 +60,14 @@ func (a *API) importSources(w http.ResponseWriter, r *http.Request) {
 		}
 		report, err := (ingest.Resolver{Client: client}).ResolveLists(ctx, v.Text)
 		n := 0
-		summary := "Could not read this list. Check the URL and whether the page is public."
-		if err == nil {
+		summary := "Could not process the submitted list."
+		if err != nil {
+			var problem ingest.ImportProblem
+			if errors.As(err, &problem) {
+				summary = problem.Error()
+			}
+			slog.Warn("manual list import failed", "job_id", id, "pages", report.Pages, "reason", summary)
+		} else {
 			job.Stage("Saving queue entries and matching selected channels")
 			n, err = a.Store.Import(report.Entries, "Manual URL import")
 			if err == nil {

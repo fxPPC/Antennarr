@@ -143,3 +143,27 @@ func TestPlainTextPasswordWithAngleBrackets(t *testing.T) {
 		t.Fatal("plain-text password altered", e)
 	}
 }
+
+func TestFailedDownloadReportsStatusWithoutURL(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 403, Body: io.NopCloser(strings.NewReader("private diagnostic"))}, nil
+	})}
+	_, err := (Resolver{Client: client}).ResolveLists(context.Background(), "https://example.org/private?token=secret")
+	if err == nil || err.Error() != "No entries imported. Page 1 returned HTTP 403." {
+		t.Fatalf("unexpected diagnostic: %v", err)
+	}
+}
+
+func TestOversizedPageDoesNotDiscardNextPage(t *testing.T) {
+	client := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		body := strings.Repeat("a", (2<<20)+1)
+		if r.URL.Path == "/small" {
+			body = "#EXTM3U\n#EXTINF:-1,Test Channel\nhttps://media.example/test.ts"
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body))}, nil
+	})}
+	report, err := (Resolver{Client: client}).ResolveLists(context.Background(), "https://example.org/big\nhttps://example.org/small")
+	if err != nil || len(report.Entries) != 1 || len(report.Warnings) != 1 || !strings.Contains(report.Warnings[0], "2 MiB") {
+		t.Fatalf("unexpected result: entries=%d warnings=%v err=%v", len(report.Entries), report.Warnings, err)
+	}
+}
