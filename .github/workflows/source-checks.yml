@@ -41,7 +41,7 @@ jobs:
       - run: ANTENNARR_TEST_IMAGE=antennarr:source-check python3 packaging/test-permissions.py
       - run: ANTENNARR_TEST_IMAGE=antennarr:source-check ANTENNARR_TEST_FIXTURES=/tmp/antennarr-fixtures sh packaging/test-runtime-media.sh
       - name: Scan runtime packages
-        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with:
           image: antennarr:source-check
           grype-version: v0.121.3
