@@ -198,16 +198,14 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 	}
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	updates := make(chan func(), 256)
+	updates := newHistoryQueue()
 	e.metrics.Add(1)
 	go func() {
 		defer e.metrics.Done()
-		for update := range updates {
-			update()
-		}
+		updates.run()
 	}()
 	// History writes finish independently: a database writer must not delay a retune.
-	defer close(updates)
+	defer updates.close()
 	droppedUpdates := 0
 	var failedWrites atomic.Int64
 	record := func(id int64, r catalog.Result) {
@@ -216,16 +214,12 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 				observer.Invalidate(id)
 			}
 		}
-		select {
-		case updates <- func() {
+		updates.add(true, func() {
 			if err := e.Catalogue.Record(id, r); err != nil {
 				failedWrites.Add(1)
 				slog.Warn("stream health result could not be saved", "stream_id", id, "error_type", fmt.Sprintf("%T", err))
 			}
-		}:
-		default:
-			droppedUpdates++
-		}
+		})
 	}
 	recordEvent := func(kind, channel string, id int64, reason string) {
 		j := e.Activity.Begin("stream_recovery", reason, 0, id)
@@ -240,9 +234,7 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 			outcome = "waiting"
 		}
 		j.Finish(outcome)
-		select {
-		case updates <- func() { e.Catalogue.Event(kind, channel, id, reason) }:
-		default:
+		if !updates.add(false, func() { e.Catalogue.Event(kind, channel, id, reason) }) {
 			droppedUpdates++
 		}
 	}
@@ -727,7 +719,7 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 			if now.Before(outputRetry) {
 				retrySeconds = int(outputRetry.Sub(now).Seconds()) + 1
 			}
-			status := Status{Recovery: recovery, LastIssue: lastIssue, OutputRestarts: outputRestarts, RetrySeconds: retrySeconds, PendingMetrics: len(updates), DroppedMetrics: droppedUpdates + int(failedWrites.Load()), Channel: channel, Candidates: len(feeds), Failovers: failovers, Standby: "recruiting"}
+			status := Status{Recovery: recovery, LastIssue: lastIssue, OutputRestarts: outputRestarts, RetrySeconds: retrySeconds, PendingMetrics: updates.size(), DroppedMetrics: droppedUpdates + int(failedWrites.Load()), Channel: channel, Candidates: len(feeds), Failovers: failovers, Standby: "recruiting"}
 			if primary != nil {
 				status.Primary = primary.candidate.AccountID
 				status.PrimaryProcess = int(primary.process.Load())
