@@ -82,7 +82,7 @@ func main() {
 	} else if recovered > 0 {
 		slog.Info("interrupted imports recovered", "count", recovered)
 	}
-	if err = store.SetUHDAllowed(c.Settings.AllowUHD); err != nil {
+	if err = store.MigratePlaybackQuality(c.Settings.AllowUHD); err != nil {
 		slog.Error("quality policy setup failed")
 		os.Exit(1)
 	}
@@ -214,11 +214,6 @@ func main() {
 			checks.Preempt()
 			if e = store.EnableRosters(catalog.RosterPolicy{Target: v.RosterTarget, Preference: v.SelectionPreference, Race: v.StartupRace}); e != nil {
 				return e
-			}
-			if v.AllowUHD != store.UHDAllowed() {
-				if e = store.SetUHDAllowed(v.AllowUHD); e != nil {
-					return e
-				}
 			}
 			level.Set(v.LogLevel())
 			m.SetLimit(v.MaxOutgoingStreams)

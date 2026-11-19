@@ -137,15 +137,7 @@ func (s *Service) RaceSize(ch string) int {
 	}
 	return p.Race
 }
-func (s *Service) UHDAllowed() bool { return s.Store.UHDAllowed() }
-func (s *Service) PreferredHeight(channel string) int {
-	var height int
-	err := s.Store.DB.QueryRow(`SELECT coalesce(json_extract(p.extensions,'$.preferred_height'),0) FROM output_profiles p JOIN channels c ON c.profile_id=p.id WHERE c.id=?`, channel).Scan(&height)
-	if err != nil {
-		return 0
-	}
-	return height
-}
+func (s *Service) PreferredHeight(channel string) int { return s.Store.PreferredHeight(channel) }
 func (s *Service) PreferDiversity(ch string) bool {
 	p, e := s.Store.EffectivePolicy(ch)
 	return e == nil && p.Preference == "diversity"

@@ -62,7 +62,7 @@ func (s *Store) qualitySQL() string {
 	if s.UHDAllowed() {
 		return ""
 	}
-	return " AND instr(upper(s.name),'UHD')=0"
+	return " AND (instr(upper(s.name),'UHD')=0 OR EXISTS (SELECT 1 FROM mappings qm JOIN active_channels c ON c.id=qm.channel_id JOIN output_profiles p ON p.id=c.profile_id WHERE qm.stream_id=s.id AND qm.enabled=1 AND c.enabled=1 AND json_extract(p.extensions,'$.preferred_height')=2160))"
 }
 
 // Order within each quality class by freshness, then spread distinct canonical
@@ -94,4 +94,33 @@ func OrderCandidates(in []Candidate, uhd, diversity bool) []Candidate {
 		result = append(result, duplicates...)
 	}
 	return result
+}
+
+func (s *Store) PreferredHeight(channel string) int {
+	var height int
+	_ = s.DB.QueryRow("SELECT coalesce(json_extract(p.extensions,'$.preferred_height'),0) FROM output_profiles p JOIN channels c ON c.profile_id=p.id WHERE c.id=?", channel).Scan(&height)
+	return height
+}
+
+// Copy the old shared UHD preference once. A restart must preserve later tuner edits.
+func (s *Store) MigratePlaybackQuality(legacyUHD bool) error {
+	tx, err := s.DB.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	res, err := tx.Exec("INSERT OR IGNORE INTO settings(name,value) VALUES('tuner_quality_migrated','1')")
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n != 0 && legacyUHD {
+		if _, err = tx.Exec("UPDATE output_profiles SET extensions=json_set(extensions,'$.preferred_height',2160)"); err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
 }

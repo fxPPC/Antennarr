@@ -43,7 +43,7 @@ All devices share the configured maximum outgoing streams and account/provider l
 
 ## Data and future markets
 
-Each profile owns its channels, aliases, exclusions, policies, and rosters. Accounts, source catalogues, and resource budgets remain shared. Output settings such as UHD are global: changing quality mode rebuilds every tuner’s eligible roster, including disabled tuners, with the existing one-hour mode cache. Imports, exports, clear, and reset actions apply only to the selected tuner. Disabling retains saved data, stops background work for that tuner, and blocks new sessions; existing sessions may finish. Removing is a separate confirmed action.
+Each profile owns its channels, aliases, exclusions, policies, and rosters. Accounts, source catalogues, and resource budgets remain shared. Each tuner has one preferred playback quality: Automatic, 720p, 1080p, or UHD (4K). Choosing or leaving UHD rebuilds that tuner’s rosters, or restores assignments saved within the last hour. The other modes exclude streams labelled UHD. Imports, exports, clear, and reset actions apply only to the selected tuner. Disabling retains saved data, stops background work for that tuner, and blocks new sessions; existing sessions may finish. Removing is a separate confirmed action.
 
 Presets are versioned definitions copied when added. They contain no source accounts, passwords, or playable URLs, and an update does not overwrite your edits. A new market can be added through the preset registry and its own matching tests without creating another streaming engine or database. UK/US lookalikes with uncertain country evidence remain unassigned.
 

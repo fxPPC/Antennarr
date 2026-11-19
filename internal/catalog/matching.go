@@ -385,12 +385,17 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		matchers = append(matchers, compileChannel(c))
 	}
 	groups := groupMatchers(matchers)
+	profiles, e := s.Profiles()
+	if e != nil {
+		return nil, e
+	}
+	uhdProfiles := map[string]bool{}
+	for _, p := range profiles {
+		uhdProfiles[p.ID] = p.PreferredHeight == 2160 || s.UHDAllowed()
+	}
 	out := []ingest.Entry{}
 	var anchor *ingest.Entry
 	for _, entry := range entries {
-		if !s.UHDAllowed() && IsUHD(entry.Name) {
-			continue
-		}
 		label := sourceLabelWithID(entry.Name, entry.Region, entry.TVGID)
 		candidateRoom := room
 		if IsUHD(entry.Name) {
@@ -398,7 +403,7 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		}
 		accepted := false
 		for _, c := range resolveProfileGroups(groups, label, entry.TVGID, known) {
-			if !active[c.channel.ID] {
+			if !active[c.channel.ID] || (IsUHD(entry.Name) && !uhdProfiles[c.channel.ProfileID]) {
 				continue
 			}
 			if anchor == nil {

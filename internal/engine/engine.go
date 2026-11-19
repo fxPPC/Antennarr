@@ -418,11 +418,23 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 		recoveryJob.Stage(reason + "; retrying output")
 		recordEvent("output_recovery", channel, 0, reason)
 	}
+	// Poll the saved tuner preference at most once per second per playing channel.
+	var height int
+	var heightRead time.Time
+	preferredHeight := func() int {
+		if time.Since(heightRead) >= time.Second {
+			if policy, ok := e.Catalogue.(interface{ PreferredHeight(string) int }); ok {
+				height = policy.PreferredHeight(channel)
+			}
+			heightRead = time.Now()
+		}
+		return height
+	}
 	uhdAllowed := func() bool {
 		if policy, ok := e.Catalogue.(interface{ UHDAllowed() bool }); ok {
 			return policy.UHDAllowed()
 		}
-		return false
+		return preferredHeight() == 2160
 	}
 	recruitDelay := 500 * time.Millisecond
 	poolWaiting := false
@@ -470,14 +482,12 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 				return catalog.ProviderKey(pool[i].Provider) != same && catalog.ProviderKey(pool[j].Provider) == same
 			})
 		}
-		preferredUHD := uhdAllowed()
+		allowUHD := uhdAllowed()
+		preferredUHD := allowUHD
 		if primary != nil {
 			preferredUHD = primary.candidate.UHD
 		}
-		targetHeight := 0
-		if policy, ok := e.Catalogue.(interface{ PreferredHeight(string) int }); ok {
-			targetHeight = policy.PreferredHeight(channel)
-		}
+		targetHeight := preferredHeight()
 		used := map[int64]bool{}
 		pendingPreferred := false
 		pendingHeight := false
@@ -492,7 +502,7 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 		}
 		preferred, fallback := []catalog.Candidate{}, []catalog.Candidate{}
 		for _, c := range pool {
-			if c.UHD && !uhdAllowed() {
+			if c.UHD && !allowUHD {
 				continue
 			}
 			if failedAt, failed := failedPass[c.StreamID]; failed && c.LastSuccess <= failedAt {

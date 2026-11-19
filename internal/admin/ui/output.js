@@ -92,17 +92,6 @@ export async function init() {
   ];
   keys.forEach((k, i) => field(f, k, labels[i][0], s[k], labels[i][1], labels[i][2]));
   select(f, 'selection_preference', 'Source preference', s.selection_preference, preference);
-  const ul = el('label'),
-    u = el('input');
-  Object.assign(u, {
-    type: 'checkbox',
-    name: 'allow_uhd',
-    checked: s.allow_uhd === true
-  });
-  ul.append(u, document.createTextNode(' Enable UHD'));
-  help(ul, 'For fast LAN viewing only. Off excludes names containing UHD. On prefers UHD and avoids switching quality class unless necessary. Changing modes rebuilds the roster or restores its saved assignments if less than one hour old.', 'Enable UHD');
-  u.setAttribute('aria-label', 'Enable UHD');
-  f.append(ul);
  const rl=el('label'),ri=el('input');Object.assign(ri,{type:'checkbox',name:'replenish_while_playing',checked:s.replenish_while_playing===true});
  rl.append(ri,document.createTextNode(' Replenish playing channels in the background'));
  help(rl,'Fill vacancies only for channels currently playing. Uses extra bandwidth and upstream connection slots. Routine checks and idle-channel recruitment remain paused during playback.','Live replenishment');f.append(rl);
@@ -110,7 +99,7 @@ export async function init() {
     const v = {
       ...numeric(f, keys),
       selection_preference: f.elements.selection_preference.value,
-      allow_uhd: u.checked, replenish_while_playing: ri.checked
+      replenish_while_playing: ri.checked
     };
     const result = await patchSettings(v);
     if (result.settings && Number(f.elements.global_connections.value) === v.global_connections) f.elements.global_connections.value = result.settings.global_connections
@@ -279,8 +268,8 @@ async function renderProfiles() {
     const guide = el('p', guideLocation ? 'Plex guide location: ' + guideLocation + '. Set up this tuner separately in Plex and select a matching local guide.' : 'Choose the matching country, postal code, and guide in Plex.', 'muted');
     guide.classList.add('tuner-guide');
     tuner.append(guide);
-    const resolution = select(tuner, 'preferred_height', 'Preferred resolution', String(profile.preferred_height || 0),
-      [['0','Automatic'], ['720','Prefer 720p'], ['1080','Prefer 1080p']]);
+    const resolution = select(tuner, 'preferred_height', 'Preferred playback quality', String(profile.preferred_height || 0),
+      [['0','Automatic'], ['720','Prefer 720p'], ['1080','Prefer 1080p'], ['2160','Prefer UHD (4K)']]);
     resolution.onchange = async () => {
       resolution.disabled = true;
       try {

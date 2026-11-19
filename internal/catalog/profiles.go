@@ -131,8 +131,8 @@ func (s *Store) SaveProfile(p Profile) (Profile, error) {
 	if p.Name == "" || len(p.Name) > 100 || len(p.Market) > 100 || len(p.GuideLocation) > 160 || len(p.Country) > 3 {
 		return Profile{}, errors.New("invalid tuner metadata")
 	}
-	if p.PreferredHeight != 0 && p.PreferredHeight != 720 && p.PreferredHeight != 1080 {
-		return Profile{}, errors.New("preferred resolution must be automatic, 720p, or 1080p")
+	if p.PreferredHeight != 0 && p.PreferredHeight != 720 && p.PreferredHeight != 1080 && p.PreferredHeight != 2160 {
+		return Profile{}, errors.New("preferred resolution must be automatic, 720p, 1080p, or UHD")
 	}
 	if p.Timezone != "" {
 		if _, e := time.LoadLocation(p.Timezone); e != nil {
@@ -151,6 +151,18 @@ func (s *Store) SaveProfile(p Profile) (Profile, error) {
 	// Names and guide recommendations may change without giving Plex a new device.
 	if _, e = tx.Exec("UPDATE output_profiles SET name=?,market=?,country=?,timezone=?,guide_location=?,enabled=?,extensions=json_set(extensions,'$.preferred_height',?) WHERE id=?", p.Name, p.Market, p.Country, p.Timezone, p.GuideLocation, p.Enabled, p.PreferredHeight, p.ID); e != nil {
 		return Profile{}, e
+	}
+	if (old.PreferredHeight == 2160) != (p.PreferredHeight == 2160) {
+		now := time.Now().Unix()
+		if e = s.saveQualityRoster(tx, old.PreferredHeight == 2160, now, p.ID); e != nil {
+			return p, e
+		}
+		if _, e = tx.Exec("DELETE FROM roster WHERE channel_id IN (SELECT id FROM channels WHERE profile_id=?)", p.ID); e != nil {
+			return p, e
+		}
+		if e = s.restoreQualityRoster(tx, p.PreferredHeight == 2160, now, p.ID); e != nil {
+			return p, e
+		}
 	}
 	if !old.Enabled && p.Enabled {
 		if _, e = tx.Exec("UPDATE accounts SET catalogue_checked=0 WHERE kind='xtream' AND state NOT IN ('retired','manually_blocked')"); e != nil {

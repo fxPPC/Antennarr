@@ -115,7 +115,7 @@ func (s *Store) admit(channel string, id, verified int64) error {
 	due := verified
 	res, e := tx.Exec(`INSERT OR IGNORE INTO roster(channel_id,stream_id,account_id,admitted,verified,due)
  SELECT ?,s.id,s.account_id,?,?,? FROM streams s JOIN accounts a ON a.id=s.account_id JOIN mappings m ON m.stream_id=s.id JOIN active_channels ch ON ch.id=m.channel_id
- WHERE s.id=? AND m.channel_id=? AND m.enabled=1 AND ch.enabled=1 AND s.enabled=1 AND s.state='healthy' AND (? OR instr(upper(s.name),'UHD')=0) AND a.state NOT IN ('inactive','retired','manually_blocked') AND (SELECT count(*) FROM roster WHERE channel_id=?)<?`, channel, time.Now().Unix(), verified, due, id, channel, s.UHDAllowed(), channel, p.Target)
+ WHERE s.id=? AND m.channel_id=? AND m.enabled=1 AND ch.enabled=1 AND s.enabled=1 AND s.state='healthy' AND (? OR EXISTS(SELECT 1 FROM output_profiles p WHERE p.id=ch.profile_id AND json_extract(p.extensions,'$.preferred_height')=2160) OR instr(upper(s.name),'UHD')=0) AND a.state NOT IN ('inactive','retired','manually_blocked') AND (SELECT count(*) FROM roster WHERE channel_id=?)<?`, channel, time.Now().Unix(), verified, due, id, channel, s.UHDAllowed(), channel, p.Target)
 	if e != nil {
 		return e
 	}
@@ -140,7 +140,10 @@ func (s *Store) ReconcileRosters() error {
 func (s *Store) RosterMembers(channel string) ([]Candidate, error) {
 	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,r.verified,instr(upper(s.name),'UHD')>0,s.height FROM roster r JOIN streams s ON s.id=r.stream_id JOIN accounts a ON a.id=s.account_id JOIN mappings m ON m.channel_id=r.channel_id AND m.stream_id=r.stream_id JOIN channels ch ON ch.id=r.channel_id WHERE r.channel_id=? AND ch.enabled=1 AND m.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked')`
 	args := []any{channel}
-	q += s.qualitySQL()
+	uhd := s.UHDAllowed() || s.PreferredHeight(channel) == 2160
+	if !uhd {
+		q += " AND instr(upper(s.name),'UHD')=0"
+	}
 	q += " ORDER BY r.verified DESC,s.id LIMIT 200"
 	out, e := s.readCandidates(q, args...)
 	if e != nil {
@@ -150,7 +153,7 @@ func (s *Store) RosterMembers(channel string) ([]Candidate, error) {
 	if e != nil {
 		return nil, e
 	}
-	return OrderCandidates(out, s.UHDAllowed(), p.Preference == "diversity"), nil
+	return OrderCandidates(out, uhd, p.Preference == "diversity"), nil
 }
 func (s *Store) readCandidates(q string, args ...any) ([]Candidate, error) {
 	rows, e := s.DB.Query(q, args...)
@@ -199,16 +202,19 @@ func (s *Store) queueCandidates(channel string, limit int, account int64) ([]Can
 	if e != nil {
 		return nil, e
 	}
-	q += s.qualitySQL()
+	uhd := s.UHDAllowed() || s.PreferredHeight(channel) == 2160
+	if !uhd {
+		q += " AND instr(upper(s.name),'UHD')=0"
+	}
 	if p.Preference == "diversity" {
 		q += ` ORDER BY EXISTS(SELECT 1 FROM roster r JOIN accounts ra ON ra.id=r.account_id WHERE r.channel_id=m.channel_id AND ra.rate_key=a.rate_key),`
-		if s.UHDAllowed() {
+		if uhd {
 			q += "(instr(upper(s.name),'UHD')>0) DESC,"
 		}
 		q += "coalesce((SELECT position FROM queue_positions q WHERE q.kind='stream' AND q.source_id=s.id),0),s.id"
 	} else {
 		q += " ORDER BY "
-		if s.UHDAllowed() {
+		if uhd {
 			q += "(instr(upper(s.name),'UHD')>0) DESC,"
 		}
 		q += "coalesce((SELECT position FROM queue_positions q WHERE q.kind='stream' AND q.source_id=s.id),0),s.id"
