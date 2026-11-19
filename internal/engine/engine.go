@@ -215,7 +215,14 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 			}
 		}
 		updates.add(true, func() {
-			if err := e.Catalogue.Record(id, r); err != nil {
+			write := func() error { return e.Catalogue.Record(id, r) }
+			var err error
+			if r.Success {
+				err = write()
+			} else {
+				err = saveStrike(write)
+			}
+			if err != nil {
 				failedWrites.Add(1)
 				slog.Warn("stream health result could not be saved", "stream_id", id, "error_type", fmt.Sprintf("%T", err))
 			}

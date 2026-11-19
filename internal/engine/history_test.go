@@ -37,3 +37,21 @@ func TestStalledHistoryPreservesStrikesAndResets(t *testing.T) {
 		t.Fatalf("streak=%d total=%d", strikes, total)
 	}
 }
+
+type busyWrite struct{}
+
+func (busyWrite) Error() string { return "busy" }
+func (busyWrite) Code() int     { return 5 }
+func TestBusyStrikeRetriesUntilCommitted(t *testing.T) {
+	calls := 0
+	err := saveStrike(func() error {
+		calls++
+		if calls == 1 {
+			return busyWrite{}
+		}
+		return nil
+	})
+	if err != nil || calls != 2 {
+		t.Fatal(err, calls)
+	}
+}

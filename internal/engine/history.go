@@ -1,6 +1,10 @@
 package engine
 
-import "sync"
+import (
+	"errors"
+	"sync"
+	"time"
+)
 
 // A channel's health results must stay in order: success resets its failure streak.
 // Event history may be sampled under pressure. Playback never waits on a DB write.
@@ -44,5 +48,18 @@ func (q *historyQueue) run() {
 		q.mu.Unlock()
 		fn()
 		q.mu.Lock()
+	}
+}
+
+// SQLite BUSY and LOCKED mean the failed transaction did not commit. Retry on
+// the writer, keeping later successes behind the strike that precedes them.
+func saveStrike(write func() error) error {
+	for {
+		err := write()
+		var coded interface{ Code() int }
+		if !errors.As(err, &coded) || (coded.Code()&255 != 5 && coded.Code()&255 != 6) {
+			return err
+		}
+		time.Sleep(100 * time.Millisecond)
 	}
 }
