@@ -1,3 +1,10 @@
+# v1.1.0-alpha.6
+
+- Preserve playback failure strikes while history writes are busy.
+- Count catalogue reserves across channels in one local query.
+- Choose Automatic, 720p, or 1080p under each tuner in Output. Other resolutions can still serve as fallbacks.
+- Honour provider HTTP 503 responses as deferrals without striking accounts. Malformed authentication responses still count.
+
 # v1.1.0-alpha.5
 
 Missing or unrecognised provider authentication flags are reported as malformed responses. They count towards the configured consecutive account failure limit.

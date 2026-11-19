@@ -328,7 +328,7 @@ func main() {
 		}
 		_ = srv.Shutdown(shutdown)
 	}()
-	slog.Info("tuner starting", "version", "v1.1.0-alpha.5", "schema", 9, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
+	slog.Info("tuner starting", "version", "v1.1.0-alpha.6", "schema", 9, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
 	if err = srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("HTTP server failed")
 		os.Exit(1)
