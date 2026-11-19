@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"html/template"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -255,6 +256,12 @@ func (s *Server) channels() []config.Channel {
 	return s.Config.Channels
 }
 
+// Bare Mac WebKit clients can fetch a link repeatedly without a user opening
+// the dashboard. Avoid loading its assets or spending authenticated API credit.
+var bareMacWebKit = regexp.MustCompile(`^Mozilla/5\.0 \(Macintosh; Intel Mac OS X [0-9_]+\) AppleWebKit/[0-9.]+ \(KHTML, like Gecko\)$`)
+
+const previewEntry = `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Antennarr</title><h1>Antennarr</h1><a href="/admin?open=1">Open Antennarr</a></html>`
+
 // AdminHandler is used by the NPM-facing listener. Headers, Host values, and
 // credentials cannot turn this listener into an unauthenticated public tuner.
 func (s *Server) AdminHandler() http.Handler {
@@ -264,6 +271,19 @@ func (s *Server) AdminHandler() http.Handler {
 		if path != "/" && path != "/healthz" && path != "/branding/logo.png" && path != "/admin" && !strings.HasPrefix(path, "/admin/") && !strings.HasPrefix(path, "/api/") {
 			http.NotFound(w, r)
 			return
+		}
+		if (r.Method == http.MethodGet || r.Method == http.MethodHead) && (path == "/" || path == "/admin" || path == "/admin/") && r.URL.RawQuery == "" {
+			w.Header().Add("Vary", "User-Agent")
+			if bareMacWebKit.MatchString(r.UserAgent()) {
+				w.Header().Set("Cache-Control", "private, max-age=60")
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.Header().Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'; base-uri 'none'")
+				w.Header().Set("X-Content-Type-Options", "nosniff")
+				if r.Method == http.MethodGet {
+					fmt.Fprint(w, previewEntry)
+				}
+				return
+			}
 		}
 		private.ServeHTTP(w, r)
 	})
