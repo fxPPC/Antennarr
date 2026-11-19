@@ -64,3 +64,27 @@ func TestTransportCauseCannotLeakThroughJSON(t *testing.T) {
 		t.Fatal("transport cause exposed")
 	}
 }
+
+func TestAuthenticationFlag(t *testing.T) {
+	for _, tc := range []struct{ body, want string }{
+		{"{}", "malformed_response"}, {`{"auth": null}`, "malformed_response"},
+		{`{"auth": "unknown"}`, "malformed_response"}, {`{"auth": []}`, "malformed_response"},
+		{`{"auth": false}`, "malformed_response"}, {`{"auth": 1.5}`, "malformed_response"},
+		{`{"auth": 2}`, "malformed_response"}, {`{"auth":"0"}`, "invalid_credentials"},
+		{`{"auth":"1","status":"Active"}`, ""},
+	} {
+		t.Run(tc.body, func(t *testing.T) {
+			x := Xtream{Client: &http.Client{Transport: providerTestTransport(func(*http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"user_info":` + tc.body + `}`))}, nil
+			})}}
+			info, err := x.Validate(context.Background(), Entry{Endpoint: "https://provider.example"})
+			got := info.FailureKind
+			if err != nil {
+				got = FailureKind(err)
+			}
+			if got != tc.want || info.Active != (tc.want == "") {
+				t.Fatalf("active=%t kind=%q", info.Active, got)
+			}
+		})
+	}
+}

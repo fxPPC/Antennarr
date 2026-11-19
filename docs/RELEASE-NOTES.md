@@ -1,3 +1,7 @@
+# v1.1.0-alpha.5
+
+Missing or unrecognised provider authentication flags are reported as malformed responses. They count towards the configured consecutive account failure limit.
+
 # v1.1.0-alpha.4
 
 Full accounts wait an hour between discovery retries. Roster checks continue across available providers while others are blocked. New installations default to 15 streams per channel.

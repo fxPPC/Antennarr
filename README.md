@@ -2,7 +2,7 @@
 
 # Antennarr
 
-**v1.1.0-alpha.4 — GitHub source preview.** Output now offers independently enabled **USA - New York City** and **UK - London** tuners. This alpha is not published to Docker Hub; stable Docker images remain on 1.0. Use separate disposable appdata for alpha testing. See [multi-tuner setup](docs/MULTI-TUNER.md), [remaining acceptance work](docs/V1.1-PLAN.md), and [compatibility](docs/VERSIONING.md).
+**v1.1.0-alpha.5 — GitHub source preview.** Output now offers independently enabled **USA - New York City** and **UK - London** tuners. This alpha is not published to Docker Hub; stable Docker images remain on 1.0. Use separate disposable appdata for alpha testing. See [multi-tuner setup](docs/MULTI-TUNER.md), [remaining acceptance work](docs/V1.1-PLAN.md), and [compatibility](docs/VERSIONING.md).
 
 **Stick your antenna into the Internet.** · by **fxPPC**
 
