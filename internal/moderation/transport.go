@@ -117,10 +117,13 @@ func (t *Transport) RoundTrip(r *http.Request) (*http.Response, error) {
 		until := RetryAfter(response.Header.Get("Retry-After"), time.Now())
 		response.Body.Close()
 		trouble(until.UnixMilli(), response.StatusCode == 429)
-		_, err := deferred(response.StatusCode != 429)
+		_, err := deferred(response.StatusCode != http.StatusTooManyRequests && response.StatusCode != http.StatusServiceUnavailable)
 		marked := err.(DeferredError)
 		marked.Status = response.StatusCode
 		marked.Kind = "http_error"
+		if marked.Status == http.StatusServiceUnavailable {
+			marked.Kind = "provider_unavailable"
+		}
 		if marked.Status == 429 {
 			marked.Kind = "rate_limited"
 		}
