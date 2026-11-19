@@ -139,3 +139,15 @@ func TestMatchingQualityGhostReplacesLastResortGhost(t *testing.T) {
 	}
 	t.Fatal("matching-quality standby did not replace fallback")
 }
+
+func TestMeasuredResolutionTiers(t *testing.T) {
+	pool := []catalog.Candidate{{Height: 0}, {Height: 720}, {Height: 1080}, {Height: 720}}
+	match, other := resolutionTiers(pool, 720)
+	if len(match) != 2 || match[0].Height != 720 || len(other) != 2 || other[0].Height != 0 || other[1].Height != 1080 {
+		t.Fatal(match, other)
+	}
+	match, other = resolutionTiers(pool, 0)
+	if len(match) != 4 || len(other) != 0 {
+		t.Fatal(match, other)
+	}
+}

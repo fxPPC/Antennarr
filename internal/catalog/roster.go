@@ -138,7 +138,7 @@ func (s *Store) ReconcileRosters() error {
 	return nil
 }
 func (s *Store) RosterMembers(channel string) ([]Candidate, error) {
-	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,r.verified,instr(upper(s.name),'UHD')>0 FROM roster r JOIN streams s ON s.id=r.stream_id JOIN accounts a ON a.id=s.account_id JOIN mappings m ON m.channel_id=r.channel_id AND m.stream_id=r.stream_id JOIN channels ch ON ch.id=r.channel_id WHERE r.channel_id=? AND ch.enabled=1 AND m.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked')`
+	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,r.verified,instr(upper(s.name),'UHD')>0,s.height FROM roster r JOIN streams s ON s.id=r.stream_id JOIN accounts a ON a.id=s.account_id JOIN mappings m ON m.channel_id=r.channel_id AND m.stream_id=r.stream_id JOIN channels ch ON ch.id=r.channel_id WHERE r.channel_id=? AND ch.enabled=1 AND m.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked')`
 	args := []any{channel}
 	q += s.qualitySQL()
 	q += " ORDER BY r.verified DESC,s.id LIMIT 200"
@@ -162,7 +162,7 @@ func (s *Store) readCandidates(q string, args ...any) ([]Candidate, error) {
 	for rows.Next() {
 		var c Candidate
 		var raw []byte
-		if e = rows.Scan(&c.StreamID, &c.AccountID, &c.Provider, &c.Limit, &raw, &c.Codec, &c.Score, &c.LastSuccess, &c.UHD); e != nil {
+		if e = rows.Scan(&c.StreamID, &c.AccountID, &c.Provider, &c.Limit, &raw, &c.Codec, &c.Score, &c.LastSuccess, &c.UHD, &c.Height); e != nil {
 			return nil, e
 		}
 		var entry struct {
@@ -188,7 +188,7 @@ func (s *Store) QueueAccountCandidates(channel string, account int64) ([]Candida
 }
 
 func (s *Store) queueCandidates(channel string, limit int, account int64) ([]Candidate, error) {
-	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,s.last_success,instr(upper(s.name),'UHD')>0 FROM mappings m JOIN streams s ON s.id=m.stream_id JOIN accounts a ON a.id=s.account_id WHERE m.channel_id=? AND EXISTS(SELECT 1 FROM active_channels c WHERE c.id=m.channel_id AND c.enabled=1) AND m.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked') AND a.connection_limit>a.external_connections AND NOT EXISTS(SELECT 1 FROM provider_rates p WHERE p.provider=a.rate_key AND max(p.next_probe,p.blocked_until)>?) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.account_id=a.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM work_leases l WHERE l.kind IN ('stream','deferred') AND l.resource=s.id AND l.until>?)`
+	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,s.last_success,instr(upper(s.name),'UHD')>0,s.height FROM mappings m JOIN streams s ON s.id=m.stream_id JOIN accounts a ON a.id=s.account_id WHERE m.channel_id=? AND EXISTS(SELECT 1 FROM active_channels c WHERE c.id=m.channel_id AND c.enabled=1) AND m.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked') AND a.connection_limit>a.external_connections AND NOT EXISTS(SELECT 1 FROM provider_rates p WHERE p.provider=a.rate_key AND max(p.next_probe,p.blocked_until)>?) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.account_id=a.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM work_leases l WHERE l.kind IN ('stream','deferred') AND l.resource=s.id AND l.until>?)`
 	now := time.Now().Unix()
 	args := []any{channel, now * 1000, now}
 	if account > 0 {

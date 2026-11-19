@@ -224,3 +224,41 @@ func TestFullAccountDefaultPreservesAccountAndFailureStreak(t *testing.T) {
 		t.Fatal(failures, tr, s.recruitAccount)
 	}
 }
+
+func TestMalformedAccessResponseAccumulatesStrikes(t *testing.T) {
+	s, _, _, _, _ := fixture(t)
+	if err := s.Store.SaveRemovalPolicy(catalog.RemovalPolicy{AccountFailures: 2, StreamFailures: 2}); err != nil {
+		t.Fatal(err)
+	}
+	entry, err := ingest.FromURL("https://test.example/get.php?username=fixture&password=fixture", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Store.Import([]ingest.Entry{entry}, "fixture"); err != nil {
+		t.Fatal(err)
+	}
+	var id int64
+	if err = s.Store.DB.QueryRow("SELECT id FROM accounts WHERE kind='xtream'").Scan(&id); err != nil {
+		t.Fatal(err)
+	}
+	s.Client = &http.Client{Transport: roundTripCheck(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"user_info":{"status":"Active"}}`))}, nil
+	})}
+	for attempt := 1; attempt <= 2; attempt++ {
+		if ok, outcome := s.checkAccount(context.Background(), id, true, true, nil); ok || outcome != "failed" {
+			t.Fatal(ok, outcome)
+		}
+		s.pruneFailedAccounts()
+		if attempt == 1 {
+			var failures int
+			var kind string
+			if err = s.Store.DB.QueryRow("SELECT failures,last_failure_kind FROM accounts WHERE id=?", id).Scan(&failures, &kind); err != nil || failures != 1 || kind != "malformed_response" {
+				t.Fatal(failures, kind, err)
+			}
+		}
+	}
+	var remaining int
+	if err = s.Store.DB.QueryRow("SELECT count(*) FROM accounts WHERE id=?", id).Scan(&remaining); err != nil || remaining != 0 {
+		t.Fatal(remaining, err)
+	}
+}

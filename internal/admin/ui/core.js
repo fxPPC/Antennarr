@@ -68,6 +68,7 @@ const helpText = {
   max_outgoing_streams: 'Maximum simultaneous outgoing viewer connections, not upstream feeds. Viewers of the same channel share one primary and backup pair. Lowering the limit keeps existing viewers; new connections are rejected until capacity is available.',
   global_connections: 'Total upstream connection budget for startup candidates, primary feeds, backups, and checks. Leave room for two feeds per active channel plus startup candidates.',
   provider_connections: 'Maximum connections to one provider hostname, across its accounts. Must not exceed the total upstream budget. Each account’s own connection limit still applies.',
+  preferred_height: 'Prefer streams measured at this resolution. Other working streams remain available as fallbacks. The UHD setting still applies.',
   selection_preference: 'Stability favours similar replacement streams. Diversity favours as many different provider hostnames as possible. Both respect media health and connection limits.',
   preference: 'Override source selection for this channel only, or inherit the Output default.',
   target: 'Lowering this threshold keeps existing streams; recruitment resumes below it. Verified roster size for this channel only. Use 0 to inherit the Output default; otherwise use at least 2.',

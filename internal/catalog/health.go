@@ -9,6 +9,7 @@ import (
 )
 
 type Candidate struct {
+	Height      int
 	UHD         bool
 	StreamID    int64
 	AccountID   int64
@@ -127,6 +128,14 @@ func (s *Store) record(id int64, r Result, channels map[string]bool) error {
 	_, e = tx.Exec("INSERT INTO validations(stream_id,checked,success,reason,startup_ms,duration_ms) VALUES(?,?,?,?,?,?)", id, time.Now().Unix(), r.Success, reason, r.StartupMS, r.DurationMS)
 	if e != nil {
 		return e
+	}
+	if !r.Success {
+		if s.RosterEnabled() {
+			if e = evictFailedStream(tx, id); e != nil {
+				return e
+			}
+		}
+		return tx.Commit()
 	}
 	if e = tx.Commit(); e != nil {
 		return e
