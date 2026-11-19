@@ -157,6 +157,13 @@ func TestFreshProfilesAreOptionalAndNeverReseeded(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	for _, table := range []string{"output_profiles", "channels", "accounts", "streams", "mappings"} {
+		var n int
+		if err := s.DB.QueryRow("SELECT count(*) FROM " + table).Scan(&n); err != nil || n != 0 {
+			t.Fatalf("fresh %s: count=%d err=%v", table, n, err)
+		}
+	}
+	addTestPresets(t, s, "us-nyc", "uk-london")
 	profiles, e := s.Profiles()
 	if e != nil || len(profiles) != 2 {
 		t.Fatal(profiles, e)

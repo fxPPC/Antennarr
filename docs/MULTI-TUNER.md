@@ -14,7 +14,7 @@ cp portable.env.example .env
 docker compose -f compose.portable.yaml up -d --build
 ```
 
-Open administration on port 39192, sign in with `admin/admin` on a fresh install, and change the login. Under Output, both tuner cards are present. Enable the tuners you want, import authorised sources, and wait for suitable streams to fill their rosters. An upgraded primary tuner retains its previous enabled state and channels; the new London tuner starts disabled.
+Open administration on port 39192, sign in with `admin/admin` on a fresh install, and change the login. In first-time setup, choose the tuners you want and enable them, import authorised sources, and wait for suitable streams to fill their rosters. An upgraded primary tuner retains its previous enabled state and channels; the new London tuner starts disabled.
 
 ## Private ports
 

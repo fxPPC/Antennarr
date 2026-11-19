@@ -6,12 +6,13 @@ import (
 )
 
 type ChannelRoster struct {
-	ChannelID string       `json:"channel_id"`
-	Name      string       `json:"name"`
-	Policy    RosterPolicy `json:"policy"`
-	Override  RosterPolicy `json:"override"`
-	Count     int          `json:"count"`
-	Providers int          `json:"providers"`
+	LastVerified int64        `json:"last_verified"`
+	ChannelID    string       `json:"channel_id"`
+	Name         string       `json:"name"`
+	Policy       RosterPolicy `json:"policy"`
+	Override     RosterPolicy `json:"override"`
+	Count        int          `json:"count"`
+	Providers    int          `json:"providers"`
 }
 type RosterSummary struct {
 	RetiredDetails24  int             `json:"retired_details_24h"`
@@ -59,7 +60,7 @@ func (s *Store) rosterState(chs []Channel, activeOnly bool) (RosterSummary, erro
 			return out, e
 		}
 		r := ChannelRoster{ChannelID: ch.ID, Name: ch.Name, Policy: p, Override: o}
-		e = s.DB.QueryRow(`SELECT count(*),count(DISTINCT a.rate_key) FROM roster r JOIN accounts a ON a.id=r.account_id WHERE r.channel_id=?`, ch.ID).Scan(&r.Count, &r.Providers)
+		e = s.DB.QueryRow(`SELECT count(*),count(DISTINCT a.rate_key),coalesce(max(r.verified),0) FROM roster r JOIN accounts a ON a.id=r.account_id WHERE r.channel_id=?`, ch.ID).Scan(&r.Count, &r.Providers, &r.LastVerified)
 		if e != nil {
 			return out, e
 		}

@@ -136,6 +136,8 @@ export async function refresh() {
   let text = j.state === 'running' ? 'Reading your list in the background…' : j.state === 'imported' ? `Import complete · ${j.processed} entries processed.` : j.state === 'idle' ? '' : j.summary;
   try {
     const v = JSON.parse(j.summary);
+    if (Number.isInteger(v.accounts_added)) text = 'Import complete · '+v.accounts_added+' new accounts · '+v.accounts_existing+' already saved.';
+    if (j.state === 'imported' && Number.isInteger(v.duplicates)) text += ' ' + v.duplicates + ' duplicate entries in the submitted lists.';
     if (v.warnings?.length) text += ' ' + v.warnings.join(' ')
   } catch {}
   $('#import-result').textContent = text;

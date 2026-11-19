@@ -63,7 +63,7 @@ type Channel struct {
 
 func Open(root string) (*Store, error) { return open(root, false) }
 
-// OpenWithDefaults seeds disabled US and London tuners and removal defaults
+// OpenWithDefaults leaves tuner selection to first-time setup and sets removal defaults
 // only for a new catalogue. Existing lineups retain their saved state.
 func OpenWithDefaults(root string) (*Store, error) { return open(root, true) }
 
@@ -113,15 +113,13 @@ func open(root string, defaults bool) (*Store, error) {
 			return fail(err)
 		}
 		if _, err = tx.Exec(schema); err == nil && defaults {
-			_, err = tx.Exec("INSERT INTO settings(name,value) VALUES('initial_channel_preset','US')")
+			// Only the new schema contains this placeholder. Setup creates the first real tuner.
+			_, err = tx.Exec("DELETE FROM output_profiles; INSERT INTO settings(name,value) VALUES('multi_tuner_presets_seeded','1')")
 		}
 		if err == nil && defaults {
 			// Seed once in the new-database transaction. Existing policies, including
 			// deliberately disabled removal, must never change on an image update.
 			_, err = tx.Exec(`INSERT INTO settings(name,value) VALUES('removal_policy','{"account_failures":2,"stream_failures":3}')`)
-		}
-		if err == nil && defaults {
-			_, err = tx.Exec("UPDATE output_profiles SET enabled=0")
 		}
 		if err == nil && !defaults {
 			_, err = tx.Exec("INSERT INTO settings(name,value) VALUES('multi_tuner_presets_seeded','1'); UPDATE output_profiles SET name='Existing tuner',preset_id='',market='',country='',timezone='',guide_location=''")
@@ -190,12 +188,23 @@ func fingerprint(v string) string {
 	sum := sha256.Sum256([]byte(v))
 	return hex.EncodeToString(sum[:])
 }
+
+type ImportCounts struct{ Added, Existing int }
+
 func (s *Store) Import(entries []ingest.Entry, provenance string) (int, error) {
+	n, _, err := s.ImportWithCounts(entries, provenance)
+	return n, err
+}
+
+// Count distinct accounts across the committed batches for the import receipt.
+func (s *Store) ImportWithCounts(entries []ingest.Entry, provenance string) (int, ImportCounts, error) {
+	counts := ImportCounts{}
+	seen := map[int64]bool{}
 	if len(entries) == 0 || len(entries) > 20000 {
-		return 0, errors.New("invalid entry count")
+		return 0, counts, errors.New("invalid entry count")
 	}
 	if len(provenance) > 120 || strings.Contains(provenance, "://") {
-		return 0, errors.New("use a short provenance label without URLs")
+		return 0, counts, errors.New("use a short provenance label without URLs")
 	}
 	// Validate all endpoints before committing any part of a malformed list.
 	for _, entry := range entries {
@@ -205,30 +214,45 @@ func (s *Store) Import(entries []ingest.Entry, provenance string) (int, error) {
 		}
 		u, e := url.Parse(endpoint)
 		if e != nil || u.Host == "" {
-			return 0, errors.New("invalid endpoint")
+			return 0, counts, errors.New("invalid endpoint")
 		}
 	}
 	total := 0
 	for start := 0; start < len(entries); start += 100 {
-		n, e := s.importBatch(entries[start:min(start+100, len(entries))], provenance)
-		total += n
+		n, added, e := s.importBatch(entries[start:min(start+100, len(entries))], provenance)
 		if e != nil {
-			return total, e
+			return total, counts, e
 		}
+		for id, isNew := range added {
+			if !seen[id] {
+				if isNew {
+					counts.Added++
+				} else {
+					counts.Existing++
+				}
+				seen[id] = true
+			}
+		}
+		total += n
 	}
-	return total, nil
+	return total, counts, nil
 }
 
 // Earlier committed batches remain on a later database error; retrying is
 // idempotent. Each batch keeps stream metadata and its mappings atomic.
-func (s *Store) importBatch(entries []ingest.Entry, provenance string) (int, error) {
+func (s *Store) importBatch(entries []ingest.Entry, provenance string) (int, map[int64]bool, error) {
 	s.catalogueWrites.Lock()
 	defer s.catalogueWrites.Unlock()
 	tx, e := s.DB.Begin()
 	if e != nil {
-		return 0, e
+		return 0, nil, e
 	}
 	defer tx.Rollback()
+	var previousMax int64
+	if e = tx.QueryRow("SELECT coalesce(max(id),0) FROM accounts").Scan(&previousMax); e != nil {
+		return 0, nil, e
+	}
+	accounts := map[int64]bool{}
 	now := time.Now().Unix()
 	count := 0
 	changed := []int64{}
@@ -239,24 +263,25 @@ func (s *Store) importBatch(entries []ingest.Entry, provenance string) (int, err
 		}
 		u, e := url.Parse(endpoint)
 		if e != nil || u.Host == "" {
-			return 0, errors.New("invalid endpoint")
+			return 0, nil, errors.New("invalid endpoint")
 		}
 		identity := fingerprint(entry.Kind + "\x00" + entry.Endpoint + "\x00" + entry.Username)
 		protected, e := json.Marshal(entry)
 		if e != nil {
-			return 0, e
+			return 0, nil, e
 		}
 		_, e = tx.Exec(`INSERT INTO accounts(id,identity,provider,kind,secret,created,rate_key) VALUES((SELECT max(coalesce((SELECT max(id) FROM accounts),0),coalesce((SELECT CAST(value AS INTEGER) FROM settings WHERE name='deleted_accounts_highwater'),0))+1),?,?,?,?,?,?) ON CONFLICT(identity) DO UPDATE SET secret=excluded.secret,rate_key=excluded.rate_key`, identity, u.Host, entry.Kind, protected, now, ProviderKey(u.Host))
 		if e != nil {
-			return 0, e
+			return 0, nil, e
 		}
 		var aid int64
 		if e = tx.QueryRow("SELECT id FROM accounts WHERE identity=?", identity).Scan(&aid); e != nil {
-			return 0, e
+			return 0, nil, e
 		}
+		accounts[aid] = aid > previousMax
 		_, e = tx.Exec(`INSERT INTO provenance VALUES(?,?,?,?,?) ON CONFLICT(account_id,fingerprint) DO UPDATE SET last_seen=excluded.last_seen`, aid, fingerprint(provenance), provenance, now, now)
 		if e != nil {
-			return 0, e
+			return 0, nil, e
 		}
 		if entry.URL != "" {
 			identity := streamIdentity(entry)
@@ -264,12 +289,12 @@ func (s *Store) importBatch(entries []ingest.Entry, provenance string) (int, err
 			var oldName, oldTVG, oldRegion string
 			e = tx.QueryRow("SELECT id,name,tvg_id,region FROM streams WHERE identity=?", identity).Scan(&oldID, &oldName, &oldTVG, &oldRegion)
 			if e != nil && e != sql.ErrNoRows {
-				return 0, e
+				return 0, nil, e
 			}
 			var id int64
 			e = tx.QueryRow(`INSERT INTO streams(id,account_id,identity,name,tvg_id,region,secret) VALUES((SELECT max(coalesce((SELECT max(id) FROM streams),0),coalesce((SELECT CAST(value AS INTEGER) FROM settings WHERE name='deleted_streams_highwater'),0))+1),?,?,?,?,?,?) ON CONFLICT(identity) DO UPDATE SET name=excluded.name,tvg_id=excluded.tvg_id,region=excluded.region,secret=excluded.secret RETURNING id`, aid, identity, entry.Name, entry.TVGID, entry.Region, protected).Scan(&id)
 			if e != nil {
-				return 0, e
+				return 0, nil, e
 			}
 			count++
 			if oldID == 0 || oldName != entry.Name || oldTVG != entry.TVGID || oldRegion != entry.Region {
@@ -280,9 +305,12 @@ func (s *Store) importBatch(entries []ingest.Entry, provenance string) (int, err
 		}
 	}
 	if e = autoMapStreams(tx, changed); e != nil {
-		return 0, e
+		return 0, nil, e
 	}
-	return count, tx.Commit()
+	if e = tx.Commit(); e != nil {
+		return 0, nil, e
+	}
+	return count, accounts, nil
 }
 
 func (s *Store) Channels() ([]Channel, error) { return s.channels("", false) }

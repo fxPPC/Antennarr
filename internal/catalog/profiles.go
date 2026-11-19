@@ -186,8 +186,11 @@ func addProfilePreset(tx *sql.Tx, preset string, maxOffset ...int) (Profile, err
 	if e != nil {
 		return p, e
 	}
-	if e = tx.QueryRow("SELECT max(coalesce((SELECT max(port_offset) FROM output_profiles),0),coalesce((SELECT CAST(value AS INTEGER) FROM settings WHERE name='profile_slot_highwater'),0))+1").Scan(&p.PortOffset); e != nil {
+	if e = tx.QueryRow("SELECT max(coalesce((SELECT max(port_offset) FROM output_profiles),-1),coalesce((SELECT CAST(value AS INTEGER) FROM settings WHERE name='profile_slot_highwater'),-1))+1").Scan(&p.PortOffset); e != nil {
 		return p, e
+	}
+	if p.PortOffset == 0 {
+		p.ID = "primary"
 	}
 	if len(maxOffset) > 0 && p.PortOffset > maxOffset[0] {
 		return p, errors.New("tuner listener range is full; configure more private tuner ports")

@@ -3,6 +3,7 @@ package admin
 // Manual ingestion is asynchronous and isolated from playback. Source material
 // remains untrusted data; only normalised entries enter the shared catalogue.
 import (
+	"antennarr/internal/catalog"
 	"antennarr/internal/ingest"
 	"antennarr/internal/netguard"
 	"context"
@@ -69,10 +70,11 @@ func (a *API) importSources(w http.ResponseWriter, r *http.Request) {
 			slog.Warn("manual list import failed", "job_id", id, "pages", report.Pages, "reason", summary)
 		} else {
 			job.Stage("Saving queue entries and matching selected channels")
-			n, err = a.Store.Import(report.Entries, "Manual URL import")
+			var counts catalog.ImportCounts
+			n, counts, err = a.Store.ImportWithCounts(report.Entries, "Manual URL import")
 			if err == nil {
 				outcome = "imported"
-				b, _ := json.Marshal(map[string]any{"pages": report.Pages, "duplicates": report.Duplicates, "warnings": report.Warnings})
+				b, _ := json.Marshal(map[string]any{"accounts_added": counts.Added, "accounts_existing": counts.Existing, "pages": report.Pages, "duplicates": report.Duplicates, "warnings": report.Warnings})
 				summary = string(b)
 			} else {
 				job.Detail("import", "local_catalogue_error", 0)

@@ -1,5 +1,5 @@
 import { compactNumber } from './core.js';
-import { linkedText } from './navigation.js';
+import { linkedText, pageURL } from './navigation.js';
 import {
   $,
   el,
@@ -10,6 +10,30 @@ import {
 } from './core.js';
 let names = new Map(),
   ready = false;
+function setupGuide(db, profiles) {
+  const guide = $('#setup-guide');
+  const enabled = profiles.find(p => p.enabled);
+  const hasSources = Object.entries(db.queue).some(([key,value]) => key !== 'streams' && value > 0);
+  const visited = localStorage.getItem('setup-started') === 'yes';
+  guide.hidden = !db.collected || localStorage.getItem('setup-skipped') === 'yes' || (!visited && !!enabled && hasSources);
+  if(!guide.hidden && !visited) localStorage.setItem('setup-started','yes');
+  if (guide.hidden) return;
+  const steps = el('ol');
+  for (const [label, href, done] of [
+    ['Choose a tuner', profiles.length ? '#output' : pageURL('output', {add:1}), !!enabled],
+    ['Import a source list', '#input', hasSources],
+    ['Connect to Plex', enabled ? pageURL('output',{tuner:enabled.id,connect:1}) : '', false]
+  ]) {
+    const item = el('li');
+    if (href) { const a=el('a',label); a.href=href; item.append(a); }
+    else item.append(el('span',label+' · enable a tuner first'));
+    if(done) item.append(el('small','Complete'));
+    steps.append(item);
+  }
+  guide.replaceChildren(el('h3','Set up live TV'),steps,button(enabled && hasSources ? 'Finish setup' : 'Skip for now',()=>{
+    localStorage.setItem('setup-skipped','yes'); guide.hidden=true;
+  }));
+}
 export async function init() {
   if (ready) return;
   const cs = await api('/api/channels');
@@ -17,8 +41,9 @@ export async function init() {
   ready = true
 }
 const age = t => t ? date(t) : 'No saved result yet';
-const stat = (root, value, label, cls = '') => {
-  const box = el('article', undefined, 'status-metric ' + cls);
+const stat = (root, value, label, cls = '', group = '') => {
+  const box = el(group?'a':'article', undefined, 'status-metric ' + cls);
+  if(group) box.href=pageURL('output',{coverage:group});
   box.append(el('strong', value == null ? '…' : compactNumber(value)), el('span', label)); root.append(box)
 };
 function taskLabel(j, result=false) {
@@ -29,18 +54,19 @@ function taskLabel(j, result=false) {
  return text;
 }
 export async function refresh() {
-  const [snapshot, events] = await Promise.all([api('/api/monitor'), api('/api/events')]);
+  const [snapshot, events, profiles] = await Promise.all([api('/api/monitor'), api('/api/events'), api('/api/profiles')]);
   const { playback: status, live: liveData, work, checker, database: db } = snapshot;
   const live = liveData || [];
+  setupGuide(db,profiles);
   const c = db.coverage, q = db.queue, p = db.progress;
   for (const [id, name] of Object.entries(db.channels)) names.set(id, name);
   const need = c.vacancies ?? Math.max(0, c.target - c.verified);
   $('#status-hero').replaceChildren(el('span', status.viewers ? 'PLAYBACK NOW' : 'NO ACTIVE VIEWERS'), el('h3', `${status.viewers} / ${status.max_outgoing_streams} viewers · ${status.active_channels} channel${status.active_channels === 1 ? '' : 's'} streaming`));
   const coverage = $('#channel-coverage'); coverage.replaceChildren();
   const partial = Math.max(0, c.total - c.empty - c.full);
-  stat(coverage, db.collected ? c.empty : null, 'Roster empty', c.empty ? 'bad' : '');
-  stat(coverage, db.collected ? partial : null, 'Partial roster', partial ? 'warning' : '');
-  stat(coverage, db.collected ? c.full : null, 'Full roster', 'good');
+  stat(coverage, db.collected ? c.empty : null, 'Roster empty', c.empty ? 'bad' : '', 'empty');
+  stat(coverage, db.collected ? partial : null, 'Partial roster', partial ? 'warning' : '', 'partial');
+  stat(coverage, db.collected ? c.full : null, 'Full roster', 'good', 'full');
   const root = $('#live-streams'); root.replaceChildren();
   let unprotected = 0;
   for (const out of status.outgoing_streams || []) {

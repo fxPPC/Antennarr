@@ -1,3 +1,7 @@
+# v1.1.0-alpha.8
+
+The dashboard now links coverage to channel lists, groups editing under each tuner, and guides first-time setup. Sources opens with the import form. Channel details load on demand. Fresh installs start empty. Existing 1.1 installs retain their tuners, accounts, channels, and rosters.
+
 # v1.1.0-alpha.7
 
 - Output counts channels across all saved tuners in one query. Plex reads only the selected tuner’s enabled lineup.
