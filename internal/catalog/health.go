@@ -128,6 +128,14 @@ func (s *Store) record(id int64, r Result, channels map[string]bool) error {
 	if e != nil {
 		return e
 	}
+	if !r.Success {
+		if s.RosterEnabled() {
+			if e = evictFailedStream(tx, id); e != nil {
+				return e
+			}
+		}
+		return tx.Commit()
+	}
 	if e = tx.Commit(); e != nil {
 		return e
 	}
