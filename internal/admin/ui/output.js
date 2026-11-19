@@ -335,7 +335,7 @@ function renderPresets() {
     const id = preset.preset_id || preset.id;
     const added = profiles.find(profile => profile.preset_id === id);
     const row = el('article', undefined, 'preset-card');
-    row.append(el('h3', preset.name), el('p', preset.channel_count + ' editable channels'), el('p', preset.guide_location || '', 'muted'));
+    row.append(el('h3', preset.name), el('p', preset.channels + (preset.channels === 1 ? ' editable channel' : ' editable channels')), el('p', preset.guide_location || '', 'muted'));
     if (added) row.append(el('p', 'Already added · ' + (added.enabled ? 'enabled' : 'disabled'), 'muted'));
     else row.append(button('Add ' + preset.name, async () => {
       await api('/api/profiles', 'POST', {preset_id: id});
