@@ -1,6 +1,6 @@
 # Installation, upgrades, and manual recovery
 
-**This branch is v1.1.0-alpha.6.** The published-image instructions below install stable 1.0.4. To test the source preview with two tuners, use [multi-tuner setup](MULTI-TUNER.md) and separate disposable appdata. ARM64 preview images use explicit alpha tags.
+**This branch is v1.1.0-alpha.7.** The published-image instructions below install stable 1.0.4. To test the source preview with two tuners, use [multi-tuner setup](MULTI-TUNER.md) and separate disposable appdata. ARM64 preview images use explicit alpha tags.
 
 Use Linux Docker on ARM64 or amd64, with local writable appdata. The Wolfi Linux runtime, FFmpeg, and FFprobe are included in the image. Docker source builds also include the Go toolchain in their build stage; Go is needed on your host only for local development outside Docker. Store SQLite appdata locally, not on SMB/NFS.
 
