@@ -1,13 +1,13 @@
-# Two tuners, one Antennarr
+# Setting up Plex tuners
 
-This **v1.1.0-alpha.2 GitHub source preview** adds USA - New York City (150 channels) and UK - London (110 channels). It has not been published to Docker Hub. Stable 1.0 installations remain unchanged.
+One installation can serve several markets. The New York City preset contains 150 editable channels and the London preset contains 110. You choose which tuners to add.
 
 ## Try the preview
 
 Use a separate disposable appdata directory. Do not point two containers at the same directory, or let an alpha open your live 1.0 data. To test an upgrade, restore a **manually created** backup into the disposable directory first.
 
 ```sh
-git clone --branch v1.1.0-alpha.2 https://github.com/fxPPC/Antennarr.git
+git clone --branch v1.1.0-alpha.8 https://github.com/fxPPC/Antennarr.git
 cd Antennarr
 cp portable.env.example .env
 # Edit .env: a separate ANTENNARR_DATA_DIR and an address reachable from Plex.
@@ -22,7 +22,7 @@ Open administration on port 39192, sign in with `admin/admin` on a fresh install
 | --- | --- | --- |
 | Existing primary tuner | 9192 | `http://SERVER_LAN_IP:9192` |
 | Administration | 9193 (host 39192) | Browser/proxy only |
-| First additional tuner, initially London | 9200 | `http://SERVER_LAN_IP:9200` |
+| First additional tuner | 9200 | `http://SERVER_LAN_IP:9200` |
 | Further tuner slots | 9201–9207 | Same hostname, allocated port |
 
 `ANTENNARR_BASE_URL` supplies the hostname Plex can reach. `ANTENNARR_TUNER_PORTS=9200-9207` reserves eight additional private listeners; a range of 1–64 ports is supported. The supplied Compose files publish that range to `ANTENNARR_BIND`, which defaults to loopback. For Plex on another host, set that bind and the base URL to the Docker server’s LAN address. Keep each additional host port equal to its container port; arbitrary port remapping would make the advertised URL wrong.
