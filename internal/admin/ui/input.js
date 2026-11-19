@@ -21,6 +21,24 @@ let ready = false,
 export async function init() {
   if (ready) return;
   const [s, p] = await Promise.all([api('/api/settings'), api('/api/removal-policy')]);
+  const toggle = $('#scans-active');
+  const message = $('#scan-setting-status');
+  toggle.checked = !s.scans_paused;
+  toggle.disabled = false;
+  toggle.onchange = async () => {
+    const active = toggle.checked;
+    toggle.disabled = true;
+    try {
+      const saved = await patchSettings({scans_paused: !active});
+      toggle.checked = !saved.settings.scans_paused;
+      message.textContent = toggle.checked ? 'Background scans enabled.' : 'Background scans paused.';
+    } catch (err) {
+      toggle.checked = !active;
+      message.textContent = err.message;
+    } finally {
+      toggle.disabled = false;
+    }
+  };
   const f = $('#input-settings');
   f.replaceChildren();
   const keys = ['probe_seconds', 'check_api_seconds', 'check_global_seconds', 'check_stream_seconds', 'check_stream_global_seconds', 'catalogue_hours'];

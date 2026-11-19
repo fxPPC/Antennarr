@@ -19,6 +19,7 @@ func testServer(t *testing.T) *Server {
 	if e != nil {
 		t.Fatal(e)
 	}
+	c.Channels = []config.Channel{{ID: "test-1", Number: "901", Name: "Test 720p", Fixture: "720"}, {ID: "test-2", Number: "902", Name: "Test 480p", Fixture: "480"}, {ID: "test-3", Number: "903", Name: "Test MPEG-2", Fixture: "mpeg2"}}
 	m := stream.New(3, time.Millisecond, func(ctx context.Context, _ string, emit func([]byte)) error {
 		emit(make([]byte, 1316))
 		<-ctx.Done()

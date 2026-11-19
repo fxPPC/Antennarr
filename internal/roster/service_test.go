@@ -326,3 +326,13 @@ func TestGlobalProbeCooldownDoesNotCreateDeferredAuditions(t *testing.T) {
 		t.Fatal("cooldown needlessly deferred individual candidates")
 	}
 }
+
+func TestPausedScansSkipAllBackgroundWork(t *testing.T) {
+	// With no catalogue or gateway attached, reaching either would fail the test.
+	s := Service{Settings: func() config.Settings { return config.Settings{ScansPaused: true, ReplenishWhilePlaying: true} }, Live: func() bool { return true }}
+	s.step(context.Background())
+	if state := s.CheckerState().State; state != "scans_off" {
+		t.Fatal(state)
+	}
+	s.Prepare(context.Background(), "empty-channel")
+}

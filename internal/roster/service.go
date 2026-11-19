@@ -78,6 +78,9 @@ func (s *Service) RequestDiscovery(ch string) {
 	}
 }
 func (s *Service) Prepare(ctx context.Context, ch string) {
+	if s.settings().ScansPaused {
+		return
+	}
 	deadline := time.NewTimer(12 * time.Second)
 	defer deadline.Stop()
 	tick := time.NewTicker(250 * time.Millisecond)
@@ -255,6 +258,11 @@ func (s *Service) step(parent context.Context) {
 		s.state("paused", 0)
 		return
 	}
+	v := s.settings()
+	if v.ScansPaused {
+		s.state("scans_off", 0)
+		return
+	}
 	s.state("selecting", 0)
 	ctx, release, e := checkcpu.Enter(parent)
 	if e != nil {
@@ -265,7 +273,6 @@ func (s *Service) step(parent context.Context) {
 	defer s.pruneFailedAccounts()
 	s.flushFailures()
 	live := (s.Live != nil && s.Live()) || s.Budget.Snapshot().Live > 0
-	v := s.settings()
 	now := time.Now().Unix()
 	var active map[string]bool
 	if live && s.ActiveChannels != nil {

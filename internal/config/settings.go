@@ -9,6 +9,7 @@ import (
 )
 
 type Settings struct {
+	ScansPaused              bool   `json:"scans_paused"`
 	ReplenishWhilePlaying    bool   `json:"replenish_while_playing"`
 	LoggingLevel             string `json:"logging_level"`
 	AllowUHD                 bool   `json:"allow_uhd"`

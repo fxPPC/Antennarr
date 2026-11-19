@@ -82,7 +82,7 @@ export async function refresh() {
   const tasks = $('#current-work'); tasks.replaceChildren();
   const labels = { checks_waiting: 'Remaining roster checks are waiting for provider retry windows or connection slots.', paused: 'Checks paused for an administration operation.', playback_priority: 'Background media checks yield to playback.', probe_cooldown: 'Waiting for the global media-check interval.', rosters_full: 'Rosters full; recruitment paused.', waiting_candidates: 'Waiting for eligible candidates or provider cooldowns.', selecting: 'Selecting the next eligible task.', checking: 'Checking a stream.', discovering: 'Checking an account and its channel catalogue.' };
   for (const j of work.active || []) tasks.append(linkedText(taskLabel(j)));
-  tasks.append(el('p', status.viewers ? (checker.mode==='live_replenishment'?'Playing-channel replenishment enabled; routine checks remain paused.':labels.playback_priority) : labels[checker.state] || 'Checker starting.'));
+  tasks.append(el('p', checker.state==='scans_off' ? 'Background scans are off. Manage scans in Sources.' : status.viewers ? (checker.mode==='live_replenishment'?'Playing-channel replenishment enabled; routine checks remain paused.':labels.playback_priority) : labels[checker.state] || 'Checker starting.'));
   if (checker.next && !status.viewers) tasks.append(el('small', 'Next eligible check ' + countdown(checker.next)));
   tasks.append(el('small', 'Last saved media result: ' + age(p.last_check)), el('small', 'Last successful media result: ' + age(p.last_success)), el('small', 'Last channel discovery: ' + age(p.last_discovery)), el('small','Last account access check: '+age(p.last_access)));
   const recruitment = $('#recruitment'), queueExpanded = recruitment.querySelector('details')?.open || false; recruitment.replaceChildren();
@@ -107,7 +107,7 @@ export async function refresh() {
   const completedChecks=(work.recent||[]).filter(j=>['stream_check','account_check','account_discovery'].includes(j.kind)).map(j=>j.finished||0);
   const lastResult = Math.max(p.last_check, p.last_discovery,p.last_access||0,...completedChecks);
   if(checker.state==='checks_waiting' && pass.remaining)attention.append(el('p',`${compactNumber(pass.remaining)} pending checks are waiting for providers.${checker.next?' Earliest retry '+countdown(checker.next)+'.':''}`));
-  if (!status.viewers && (db.eligible_media || (need>0 && db.eligible_discovery>0)) && lastResult && snapshot.collected - lastResult > 3600 && checker.state !== 'paused') attention.append(el('p', 'Eligible work remains, but no media result or catalogue discovery has been saved for over an hour. The checker needs investigation.', 'warning-text'));
+  if (!status.viewers && (db.eligible_media || (need>0 && db.eligible_discovery>0)) && lastResult && snapshot.collected - lastResult > 3600 && !['paused','scans_off'].includes(checker.state)) attention.append(el('p', 'Eligible work remains, but no media result or catalogue discovery has been saved for over an hour. The checker needs investigation.', 'warning-text'));
   if (!attention.childNodes.length) attention.append(el('p', 'No additional operational warnings. This is not a guarantee that every source is working.'));
   $('#status-collected').textContent = 'Updated ' + date(snapshot.collected) + ' · catalogue snapshot ' + date(db.collected);
   const next = $('#upcoming'); next.replaceChildren();

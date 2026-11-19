@@ -103,7 +103,9 @@ func main() {
 	readChecks := func() config.Settings {
 		saved, e := config.Load(root)
 		if e != nil {
-			return c.Settings
+			fallback := c.Settings
+			fallback.ScansPaused = true
+			return fallback
 		}
 		return saved.Settings
 	}
@@ -201,7 +203,13 @@ func main() {
 	}, Activity: work, ReadSettings: func() (config.Settings, error) { v, e := config.Load(root); return v.Settings, e }, SaveSettings: func(v config.Settings) error {
 		copy := c
 		copy.Settings = v
-		e := config.Save(root, copy)
+		save := func() error { return config.Save(root, copy) }
+		var e error
+		if v.ScansPaused {
+			e = checks.WithPaused(save)
+		} else {
+			e = save()
+		}
 		if e == nil {
 			checks.Preempt()
 			if e = store.EnableRosters(catalog.RosterPolicy{Target: v.RosterTarget, Preference: v.SelectionPreference, Race: v.StartupRace}); e != nil {
