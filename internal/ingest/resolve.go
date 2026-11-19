@@ -4,6 +4,7 @@ import (
 	"antennarr/internal/netguard"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -22,13 +23,23 @@ type ImportReport struct {
 	Warnings   []string `json:"warnings"`
 }
 
+// ImportProblem messages are safe to show and log. Raw network errors can contain
+// the complete submitted URL, including query credentials.
+type ImportProblem string
+
+func (p ImportProblem) Error() string { return string(p) }
+
+// Match a labelled device address, including the arrow used in portal reports.
+// A standalone hexadecimal identifier is insufficient evidence of this format.
+var portalMAC = regexp.MustCompile(`(?i)\bmac(?:[ \t]+address)?[^\pL\pN\r\n]{1,20}(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b`)
+
 var markdownLink = regexp.MustCompile(`\[[^\]]*\]\((https?://[^\s]+)\)`)
 
 // ResolveLists accepts URLs (including encoded URLs) at the UI boundary. Flexible
 // account and playlist parsing is reserved for the fetched list content.
 func (r Resolver) ResolveLists(ctx context.Context, input string) (ImportReport, error) {
 	if len(input) > 2<<20 {
-		return ImportReport{}, errors.New("import exceeds 2 MiB")
+		return ImportReport{}, ImportProblem("import exceeds 2 MiB")
 	}
 	decoded := DecodeLines(input)
 	invalid := strings.Contains(decoded, "#EXTM3U") || len(urlToken.FindAllString(decoded, -1)) == 0
@@ -39,7 +50,7 @@ func (r Resolver) ResolveLists(ctx context.Context, input string) (ImportReport,
 		}
 	}
 	if invalid {
-		return ImportReport{}, errors.New("enter list URLs or Base64-encoded URLs, one per line")
+		return ImportReport{}, ImportProblem("enter list URLs or Base64-encoded URLs, one per line")
 	}
 	return r.resolve(ctx, input)
 }
@@ -51,7 +62,7 @@ func (r Resolver) resolve(ctx context.Context, input string) (ImportReport, erro
 	var walk func(string, int) error
 	add := func(e Entry) error {
 		if len(report.Entries) >= 20000 {
-			return errors.New("too many source records")
+			return ImportProblem("too many source records")
 		}
 		key := e.Kind + "\x00" + e.Endpoint + "\x00" + e.Username + "\x00" + e.Password + "\x00" + e.URL
 		if seenEntries[key] {
@@ -64,10 +75,10 @@ func (r Resolver) resolve(ctx context.Context, input string) (ImportReport, erro
 	}
 	walk = func(text string, depth int) error {
 		if depth > 5 {
-			return errors.New("nested source link limit reached")
+			return ImportProblem("nested source link limit reached")
 		}
 		if len(text) > 2<<20 {
-			return errors.New("source material exceeds 2 MiB")
+			return ImportProblem("source material exceeds 2 MiB")
 		}
 		text = DecodeText(strings.TrimSpace(text))
 		text = markdownLink.ReplaceAllString(text, "$1")
@@ -79,7 +90,7 @@ func (r Resolver) resolve(ctx context.Context, input string) (ImportReport, erro
 				raw = strings.TrimRight(raw, ")],;")
 				canonical, e := Canonical(raw)
 				if e != nil {
-					return e
+					return ImportProblem("Invalid list URL.")
 				}
 				rows = append(rows, Entry{Kind: "direct", URL: canonical, Name: "Unnamed stream"})
 			}
@@ -116,13 +127,15 @@ func (r Resolver) resolve(ctx context.Context, input string) (ImportReport, erro
 			}
 			seenPages[raw] = true
 			if report.Pages >= 12 {
-				report.Warnings = append(report.Warnings, "Source page limit reached; import further links separately.")
+				if len(report.Warnings) == 0 || report.Warnings[len(report.Warnings)-1] != "Source page limit reached; import further links separately." {
+					report.Warnings = append(report.Warnings, "Source page limit reached; import further links separately.")
+				}
 				continue
 			}
 			report.Pages++
 			u, e := url.Parse(raw)
 			if e != nil {
-				return errors.New("invalid source link")
+				return ImportProblem("invalid source link")
 			}
 			fragment := u.Fragment
 			u.Fragment = ""
@@ -132,23 +145,39 @@ func (r Resolver) resolve(ctx context.Context, input string) (ImportReport, erro
 			rawPage(u)
 			if paste {
 				if strings.Contains(id, "/") || !regexp.MustCompile(`^[A-Za-z0-9_-]{1,100}$`).MatchString(id) {
-					return errors.New("invalid paste.sh link")
+					return ImportProblem("invalid paste.sh link")
 				}
 				u.Path = "/" + id + ".txt"
 			}
 			resp, e := netguard.Request(ctx, r.Client, "GET", u.String())
 			if e != nil {
-				report.Warnings = append(report.Warnings, "A source page could not be fetched or its destination was blocked.")
+				message := "Connection failed or the destination was blocked."
+				if errors.Is(e, context.DeadlineExceeded) {
+					message = "The request timed out."
+				}
+				report.Warnings = append(report.Warnings, fmt.Sprintf("Page %d: %s", report.Pages, message))
+				continue
+			}
+			if resp.StatusCode != http.StatusOK {
+				resp.Body.Close()
+				report.Warnings = append(report.Warnings, fmt.Sprintf("Page %d returned HTTP %d.", report.Pages, resp.StatusCode))
 				continue
 			}
 			b, readErr := io.ReadAll(io.LimitReader(resp.Body, (2<<20)+1))
 			resp.Body.Close()
 			total += len(b)
-			if readErr != nil || len(b) > 2<<20 || total > 8<<20 {
-				return errors.New("source page response exceeds import limit")
+			if total > 8<<20 {
+				return ImportProblem("The batch exceeds the 8 MiB download limit.")
 			}
-			if resp.StatusCode != 200 {
-				report.Warnings = append(report.Warnings, "A source page returned an HTTP error.")
+			if readErr != nil || len(b) > 2<<20 {
+				message := "The download was interrupted."
+				if errors.Is(readErr, context.DeadlineExceeded) {
+					message = "The download timed out."
+				}
+				if len(b) > 2<<20 {
+					message = "The page exceeds the 2 MiB limit."
+				}
+				report.Warnings = append(report.Warnings, fmt.Sprintf("Page %d: %s", report.Pages, message))
 				continue
 			}
 			if paste {
@@ -159,20 +188,32 @@ func (r Resolver) resolve(ctx context.Context, input string) (ImportReport, erro
 				}
 			}
 			body := pageText(b, resp.Header.Get("Content-Type"))
-			if e := walk(body, depth+1); e != nil {
+			// Some reports parse as bare portal URLs, which yield no importable
+			// entries. Diagnose these after giving supported records a chance.
+			page, before, warnings := report.Pages, len(report.Entries)+report.Duplicates, len(report.Warnings)
+			walkErr := walk(body, depth+1)
+			if walkErr != nil && total > 8<<20 {
+				return walkErr
+			}
+			if before == len(report.Entries)+report.Duplicates && warnings == len(report.Warnings) && portalMAC.MatchString(body) {
+				report.Warnings = append(report.Warnings, fmt.Sprintf("Page %d contains MAC-based portal entries. Antennarr accepts Xtream accounts and M3U playlists.", page))
+			} else if walkErr != nil {
 				report.Warnings = append(report.Warnings, "A source page contained no complete accounts or used an unsupported format.")
 			}
 		}
 		return nil
 	}
 	if len(input) > 2<<20 {
-		return report, errors.New("import exceeds 2 MiB")
+		return report, ImportProblem("import exceeds 2 MiB")
 	}
 	if err := walk(DecodeLines(input), 0); err != nil {
 		return report, err
 	}
 	if len(report.Entries) == 0 {
-		return report, errors.New("no complete sources found; check that pages are available and paste links include their full fragment key")
+		if len(report.Warnings) > 0 {
+			return report, ImportProblem("No entries imported. " + strings.Join(report.Warnings, " "))
+		}
+		return report, ImportProblem("no complete sources found; check that pages are available and paste links include their full fragment key")
 	}
 	return report, nil
 }
