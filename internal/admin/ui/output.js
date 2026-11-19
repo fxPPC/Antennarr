@@ -235,6 +235,20 @@ async function renderProfiles() {
     const guide = el('p', guideLocation ? 'Plex guide location: ' + guideLocation + '. Set up this tuner separately in Plex and select a matching local guide.' : 'Choose the matching country, postal code, and guide in Plex.', 'muted');
     guide.classList.add('tuner-guide');
     tuner.append(guide);
+    const resolution = select(tuner, 'preferred_height', 'Preferred resolution', String(profile.preferred_height || 0),
+      [['0','Automatic'], ['720','Prefer 720p'], ['1080','Prefer 1080p']]);
+    resolution.onchange = async () => {
+      resolution.disabled = true;
+      try {
+        const height = Number(resolution.value);
+        await api('/api/profiles/' + encodeURIComponent(profile.id), 'POST', {preferred_height: height});
+        profile.preferred_height = height;
+        result.textContent = 'Resolution preference saved.';
+      } catch (error) {
+        resolution.value = String(profile.preferred_height || 0);
+        notice(error.message);
+      } finally { resolution.disabled = false; }
+    };
     if (profile.timezone) tuner.append(el('small', 'Programme time zone: ' + profile.timezone));
     const links = el('details');
     links.append(el('summary', 'Plex tuner links'));

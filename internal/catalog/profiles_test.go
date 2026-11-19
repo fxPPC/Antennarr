@@ -481,3 +481,25 @@ func TestLondonGuideIdentityRequiresNetworkAndMarket(t *testing.T) {
 		}
 	}
 }
+
+func TestProfileResolutionPreference(t *testing.T) {
+	s, e := Open(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer s.Close()
+	p := addTestProfile(t, s, "gb", "GB")
+	p.PreferredHeight = 720
+	got, e := s.SaveProfile(p)
+	if e != nil || got.PreferredHeight != 720 {
+		t.Fatal(got, e)
+	}
+	us, e := s.Profile("primary")
+	if e != nil || us.PreferredHeight != 0 {
+		t.Fatal(us, e)
+	}
+	p.PreferredHeight = 999
+	if _, e = s.SaveProfile(p); e == nil {
+		t.Fatal("invalid height accepted")
+	}
+}
