@@ -291,6 +291,25 @@ func (s *Store) ChannelsForProfile(profile string) ([]Channel, error) {
 	return s.channels(profile, false)
 }
 
+// TunerLineup reads only what Plex needs. Source counts and matching rules
+// belong to the editor and can cost far more to load than the lineup itself.
+func (s *Store) TunerLineup(profile string) ([]Channel, error) {
+	rows, err := s.DB.Query("SELECT id,number,name FROM channels WHERE profile_id=? AND enabled=1 ORDER BY CAST(number AS REAL),number", profile)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var lineup []Channel
+	for rows.Next() {
+		var c Channel
+		if err := rows.Scan(&c.ID, &c.Number, &c.Name); err != nil {
+			return nil, err
+		}
+		lineup = append(lineup, c)
+	}
+	return lineup, rows.Err()
+}
+
 func (s *Store) ActiveChannels() ([]Channel, error) { return s.channels("", true) }
 
 func (s *Store) channels(profile string, active bool) ([]Channel, error) {

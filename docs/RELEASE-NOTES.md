@@ -1,3 +1,10 @@
+# v1.1.0-alpha.7
+
+- Output counts channels across all saved tuners in one query. Plex reads only the selected tuner’s enabled lineup.
+- Zero, one, and multiple tuners are supported. Removing the final tuner keeps administration available after restart.
+- Bare Mac WebKit previews get a lightweight entry page, preserving the request allowance for the dashboard.
+- The 1.1 beta format baseline remains schema 9.
+
 # v1.1.0-alpha.6
 
 - Preserve playback failure strikes while history writes are busy.

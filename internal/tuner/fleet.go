@@ -3,6 +3,8 @@ package tuner
 import (
 	"antennarr/internal/catalog"
 	"antennarr/internal/config"
+	"database/sql"
+	"errors"
 	"net/http"
 	"strings"
 )
@@ -18,20 +20,13 @@ type Fleet struct {
 
 func (f *Fleet) Handler(offset int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		profiles, err := f.Store.Profiles()
-		if err != nil {
-			http.Error(w, "Tuner configuration unavailable", 503)
+		profile, err := f.Store.ProfileAtPort(offset)
+		if errors.Is(err, sql.ErrNoRows) {
+			http.NotFound(w, r)
 			return
 		}
-		var profile *catalog.Profile
-		for i := range profiles {
-			if profiles[i].PortOffset == offset {
-				profile = &profiles[i]
-				break
-			}
-		}
-		if profile == nil {
-			http.NotFound(w, r)
+		if err != nil {
+			http.Error(w, "Tuner configuration unavailable", 503)
 			return
 		}
 		if !profile.Enabled {
@@ -49,16 +44,14 @@ func (f *Fleet) Handler(offset int) http.Handler {
 		if profile.DeviceID != "" {
 			s.Config.DeviceID = profile.DeviceID
 		}
-		selected, err := f.Store.ChannelsForProfile(profile.ID)
+		selected, err := f.Store.TunerLineup(profile.ID)
 		if err != nil {
 			http.Error(w, "Tuner lineup unavailable", 503)
 			return
 		}
 		channels := make([]config.Channel, 0, len(selected))
 		for _, ch := range selected {
-			if ch.Enabled {
-				channels = append(channels, config.Channel{ID: ch.ID, Number: ch.Number, Name: ch.Name})
-			}
+			channels = append(channels, config.Channel{ID: ch.ID, Number: ch.Number, Name: ch.Name})
 		}
 		s.ChannelList = func() []config.Channel { return channels }
 		w.Header().Set("Cache-Control", "no-store")

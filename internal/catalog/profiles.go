@@ -95,6 +95,31 @@ func (s *Store) Profiles() ([]Profile, error) {
 	}
 	return out, rows.Err()
 }
+
+// ChannelCountsByProfile supplies the Output overview without loading channel
+// definitions or joining source mappings. A missing map key means an empty lineup.
+func (s *Store) ChannelCountsByProfile() (map[string]int, error) {
+	rows, err := s.DB.Query("SELECT profile_id,count(*) FROM channels GROUP BY profile_id")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	counts := make(map[string]int)
+	for rows.Next() {
+		var id string
+		var n int
+		if err := rows.Scan(&id, &n); err != nil {
+			return nil, err
+		}
+		counts[id] = n
+	}
+	return counts, rows.Err()
+}
+
+func (s *Store) ProfileAtPort(offset int) (Profile, error) {
+	return scanProfile(s.DB.QueryRow("SELECT "+profileReadColumns+" FROM output_profiles WHERE port_offset=?", offset))
+}
+
 func (s *Store) Profile(id string) (Profile, error) {
 	return scanProfile(s.DB.QueryRow("SELECT "+profileReadColumns+" FROM output_profiles WHERE id=?", id))
 }
