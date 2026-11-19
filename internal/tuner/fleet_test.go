@@ -175,3 +175,26 @@ func TestFleetSharesSameChannelButSeparatesMarketsAndGlobalLimit(t *testing.T) {
 		t.Fatal("disabled tuner interrupted existing viewer", err)
 	}
 }
+
+func TestFleetWithNoTunersKeepsAdministrationAvailable(t *testing.T) {
+	f, london := fleetFixture(t)
+	for _, id := range []string{"primary", london.ID} {
+		if err := f.Store.DeleteProfile(id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, offset := range []int{0, london.PortOffset} {
+		w := httptest.NewRecorder()
+		f.Handler(offset).ServeHTTP(w, httptest.NewRequest("GET", "/discover.json", nil))
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("removed listener %d returned %d", offset, w.Code)
+		}
+	}
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/status", nil)
+	req.SetBasicAuth("admin", f.Template.Password)
+	f.PrimaryHandler().ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("admin status returned %d", w.Code)
+	}
+}

@@ -37,6 +37,11 @@ func (a *API) profiles(w http.ResponseWriter, r *http.Request) {
 		failure(w, 500, "Tuners unavailable")
 		return
 	}
+	counts, err := a.Store.ChannelCountsByProfile()
+	if err != nil {
+		failure(w, 500, "Tuner channels unavailable")
+		return
+	}
 	views := make([]profileView, 0, len(profiles))
 	for _, p := range profiles {
 		v := profileView{Profile: p}
@@ -53,12 +58,7 @@ func (a *API) profiles(w http.ResponseWriter, r *http.Request) {
 		} else {
 			v.ListenPort, _ = a.ports().Port(p.PortOffset)
 		}
-		channels, e := a.Store.ChannelsForProfile(p.ID)
-		if e != nil {
-			failure(w, 500, "Tuner channels unavailable")
-			return
-		}
-		v.ChannelCount = len(channels)
+		v.ChannelCount = counts[p.ID]
 		views = append(views, v)
 	}
 	response(w, views)

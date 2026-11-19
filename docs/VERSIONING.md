@@ -46,3 +46,11 @@ These are release acceptance requirements. They are not implemented or proven me
 | `latest` | Explicitly promoted recommended stable release |
 
 Prereleases never change stable minor tags, `latest`, or the stable Docker Hub overview. A maintenance release cannot move `latest` behind a newer stable version. Publishing a release never updates a running installation.
+
+## 1.1 public beta format baseline
+
+Use the existing schema 9 catalogue as the beta baseline. An installation may have zero, one, or several saved tuners. Any subset may be enabled. Removing the last tuner is a persistent choice. Disabling it preserves its lineup and roster. A market preset is an optional template for a new tuner. Adding a country to the preset registry must work with the same database format and must leave existing installations' tuner selections, identities, listener slots, lineups, and roster assignments intact.
+
+Channel numbers are local to each tuner. Keep the same internal channel ID when editing a channel. Shared account and provider limits apply across all enabled markets. For scale testing, count enabled channels and their combined roster targets. For example, 500 channels with a target of 15 require 7,500 successful verifications for a full pass. Actual pass duration depends on pacing, response times, playback, and retries.
+
+Before promoting a beta to stable, exercise empty, single-market, and multiple-market installations, a direct 1.0 upgrade, and full backup and restore. Test opening the same data after adding a new market preset to the binary. Treat any proposed format change during beta as an explicit migration with a preservation test and a release note.
