@@ -9,6 +9,7 @@ import (
 )
 
 type Candidate struct {
+	Height      int
 	UHD         bool
 	StreamID    int64
 	AccountID   int64

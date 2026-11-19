@@ -475,12 +475,20 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 		if primary != nil {
 			preferredUHD = primary.candidate.UHD
 		}
+		targetHeight := 0
+		if policy, ok := e.Catalogue.(interface{ PreferredHeight(string) int }); ok {
+			targetHeight = policy.PreferredHeight(channel)
+		}
 		used := map[int64]bool{}
 		pendingPreferred := false
+		pendingHeight := false
 		for _, f := range feeds {
 			used[f.candidate.AccountID] = true
 			if f != primary && f != ghost && f.candidate.UHD == preferredUHD {
 				pendingPreferred = true
+				if f.candidate.Height == targetHeight {
+					pendingHeight = true
+				}
 			}
 		}
 		preferred, fallback := []catalog.Candidate{}, []catalog.Candidate{}
@@ -518,7 +526,13 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 				}
 			}
 		}
-		launchTier(preferred)
+		// Race verified streams at the requested height first. A ready ghost
+		// is always promoted immediately, irrespective of resolution.
+		exact, other := resolutionTiers(preferred, targetHeight)
+		launchTier(exact)
+		if launched == 0 && !pendingHeight {
+			launchTier(other)
+		}
 		// Do not race HD against still-starting UHD (or change an established HD
 		// session to UHD). Cross-class feeds are the last available fallback.
 		if launched == 0 && !pendingPreferred && ghost == nil {
@@ -762,4 +776,18 @@ func (e *Engine) FlushMetrics(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func resolutionTiers(pool []catalog.Candidate, height int) (exact, other []catalog.Candidate) {
+	if height == 0 {
+		return pool, nil
+	}
+	for _, c := range pool {
+		if c.Height == height {
+			exact = append(exact, c)
+		} else {
+			other = append(other, c)
+		}
+	}
+	return
 }

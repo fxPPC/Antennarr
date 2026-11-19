@@ -18,17 +18,18 @@ import (
 // Profiles are independently addressable outputs. Device identity and listener
 // slots are immutable; changing labels or switching off a tuner retains its data.
 type Profile struct {
-	ID            string `json:"id"`
-	Kind          string `json:"kind"`
-	Name          string `json:"name"`
-	Market        string `json:"market"`
-	Country       string `json:"country"`
-	Timezone      string `json:"timezone"`
-	GuideLocation string `json:"guide_location"`
-	Preset        string `json:"preset_id"`
-	Enabled       bool   `json:"enabled"`
-	DeviceID      string `json:"device_id"`
-	PortOffset    int    `json:"port_offset"`
+	ID              string `json:"id"`
+	Kind            string `json:"kind"`
+	Name            string `json:"name"`
+	Market          string `json:"market"`
+	Country         string `json:"country"`
+	Timezone        string `json:"timezone"`
+	GuideLocation   string `json:"guide_location"`
+	Preset          string `json:"preset_id"`
+	Enabled         bool   `json:"enabled"`
+	DeviceID        string `json:"device_id"`
+	PreferredHeight int    `json:"preferred_height"`
+	PortOffset      int    `json:"port_offset"`
 }
 
 //go:embed data/uk_london_channels.json
@@ -71,13 +72,15 @@ func presetChannels(id string) ([]Channel, error) {
 
 const profileColumns = `id,kind,name,market,country,timezone,guide_location,preset_id,enabled,device_id,port_offset`
 
+const profileReadColumns = profileColumns + `,coalesce(json_extract(extensions,'$.preferred_height'),0)`
+
 func scanProfile(row interface{ Scan(...any) error }) (Profile, error) {
 	var p Profile
-	e := row.Scan(&p.ID, &p.Kind, &p.Name, &p.Market, &p.Country, &p.Timezone, &p.GuideLocation, &p.Preset, &p.Enabled, &p.DeviceID, &p.PortOffset)
+	e := row.Scan(&p.ID, &p.Kind, &p.Name, &p.Market, &p.Country, &p.Timezone, &p.GuideLocation, &p.Preset, &p.Enabled, &p.DeviceID, &p.PortOffset, &p.PreferredHeight)
 	return p, e
 }
 func (s *Store) Profiles() ([]Profile, error) {
-	rows, e := s.DB.Query("SELECT " + profileColumns + " FROM output_profiles ORDER BY port_offset,id")
+	rows, e := s.DB.Query("SELECT " + profileReadColumns + " FROM output_profiles ORDER BY port_offset,id")
 	if e != nil {
 		return nil, e
 	}
@@ -93,7 +96,7 @@ func (s *Store) Profiles() ([]Profile, error) {
 	return out, rows.Err()
 }
 func (s *Store) Profile(id string) (Profile, error) {
-	return scanProfile(s.DB.QueryRow("SELECT "+profileColumns+" FROM output_profiles WHERE id=?", id))
+	return scanProfile(s.DB.QueryRow("SELECT "+profileReadColumns+" FROM output_profiles WHERE id=?", id))
 }
 
 func (s *Store) SaveProfile(p Profile) (Profile, error) {
@@ -102,6 +105,9 @@ func (s *Store) SaveProfile(p Profile) (Profile, error) {
 	p.Country = strings.ToUpper(strings.TrimSpace(p.Country))
 	if p.Name == "" || len(p.Name) > 100 || len(p.Market) > 100 || len(p.GuideLocation) > 160 || len(p.Country) > 3 {
 		return Profile{}, errors.New("invalid tuner metadata")
+	}
+	if p.PreferredHeight != 0 && p.PreferredHeight != 720 && p.PreferredHeight != 1080 {
+		return Profile{}, errors.New("preferred resolution must be automatic, 720p, or 1080p")
 	}
 	if p.Timezone != "" {
 		if _, e := time.LoadLocation(p.Timezone); e != nil {
@@ -113,12 +119,12 @@ func (s *Store) SaveProfile(p Profile) (Profile, error) {
 		return Profile{}, e
 	}
 	defer tx.Rollback()
-	old, e := scanProfile(tx.QueryRow("SELECT "+profileColumns+" FROM output_profiles WHERE id=?", p.ID))
+	old, e := scanProfile(tx.QueryRow("SELECT "+profileReadColumns+" FROM output_profiles WHERE id=?", p.ID))
 	if e != nil {
 		return Profile{}, e
 	}
 	// Names and guide recommendations may change without giving Plex a new device.
-	if _, e = tx.Exec("UPDATE output_profiles SET name=?,market=?,country=?,timezone=?,guide_location=?,enabled=? WHERE id=?", p.Name, p.Market, p.Country, p.Timezone, p.GuideLocation, p.Enabled, p.ID); e != nil {
+	if _, e = tx.Exec("UPDATE output_profiles SET name=?,market=?,country=?,timezone=?,guide_location=?,enabled=?,extensions=json_set(extensions,'$.preferred_height',?) WHERE id=?", p.Name, p.Market, p.Country, p.Timezone, p.GuideLocation, p.Enabled, p.PreferredHeight, p.ID); e != nil {
 		return Profile{}, e
 	}
 	if !old.Enabled && p.Enabled {
