@@ -108,8 +108,11 @@ func TestCompletedProviderErrorsDifferFromPacing(t *testing.T) {
 			r, _ := http.NewRequest("GET", "https://fixture.example/api", nil)
 			_, e = tr.RoundTrip(r)
 			var deferred DeferredError
-			if !errors.As(e, &deferred) || deferred.Failure != (code != 429) {
+			if !errors.As(e, &deferred) || deferred.Failure != (code == 403) {
 				t.Fatal(code, e, deferred)
+			}
+			if code == 503 && (deferred.Kind != "provider_unavailable" || !s.ProviderDeferred("fixture.example", time.Now().Add(30*time.Second).UnixMilli())) {
+				t.Fatal("missing provider cooldown", deferred)
 			}
 		})
 	}

@@ -112,7 +112,7 @@ func (s *Store) EnsureRosterPass(now int64) error {
 // NextRosterCheck deliberately allows accounts with stale full-slot metadata.
 // Their access/connection metadata must be refreshed once per pass before media.
 func (s *Store) NextRosterCheck(now int64) (Candidate, bool, error) {
-	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,s.last_success,instr(upper(s.name),'UHD')>0
+	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,s.last_success,instr(upper(s.name),'UHD')>0,s.height
  FROM roster_pass_work w JOIN streams s ON s.id=w.stream_id JOIN accounts a ON a.id=s.account_id
  WHERE w.status=0 AND s.enabled=1 AND s.state NOT IN('retired','manually_blocked') AND a.state NOT IN('retired','inactive','manually_blocked')
  AND EXISTS(SELECT 1 FROM roster r JOIN active_channels c ON c.id=r.channel_id AND c.enabled=1 WHERE r.stream_id=s.id)

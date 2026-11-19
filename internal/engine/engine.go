@@ -198,16 +198,14 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 	}
 	ctx, cancel := context.WithCancel(parent)
 	defer cancel()
-	updates := make(chan func(), 256)
+	updates := newHistoryQueue()
 	e.metrics.Add(1)
 	go func() {
 		defer e.metrics.Done()
-		for update := range updates {
-			update()
-		}
+		updates.run()
 	}()
 	// History writes finish independently: a database writer must not delay a retune.
-	defer close(updates)
+	defer updates.close()
 	droppedUpdates := 0
 	var failedWrites atomic.Int64
 	record := func(id int64, r catalog.Result) {
@@ -216,16 +214,19 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 				observer.Invalidate(id)
 			}
 		}
-		select {
-		case updates <- func() {
-			if err := e.Catalogue.Record(id, r); err != nil {
+		updates.add(true, func() {
+			write := func() error { return e.Catalogue.Record(id, r) }
+			var err error
+			if r.Success {
+				err = write()
+			} else {
+				err = saveStrike(write)
+			}
+			if err != nil {
 				failedWrites.Add(1)
 				slog.Warn("stream health result could not be saved", "stream_id", id, "error_type", fmt.Sprintf("%T", err))
 			}
-		}:
-		default:
-			droppedUpdates++
-		}
+		})
 	}
 	recordEvent := func(kind, channel string, id int64, reason string) {
 		j := e.Activity.Begin("stream_recovery", reason, 0, id)
@@ -240,9 +241,7 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 			outcome = "waiting"
 		}
 		j.Finish(outcome)
-		select {
-		case updates <- func() { e.Catalogue.Event(kind, channel, id, reason) }:
-		default:
+		if !updates.add(false, func() { e.Catalogue.Event(kind, channel, id, reason) }) {
 			droppedUpdates++
 		}
 	}
@@ -475,12 +474,20 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 		if primary != nil {
 			preferredUHD = primary.candidate.UHD
 		}
+		targetHeight := 0
+		if policy, ok := e.Catalogue.(interface{ PreferredHeight(string) int }); ok {
+			targetHeight = policy.PreferredHeight(channel)
+		}
 		used := map[int64]bool{}
 		pendingPreferred := false
+		pendingHeight := false
 		for _, f := range feeds {
 			used[f.candidate.AccountID] = true
 			if f != primary && f != ghost && f.candidate.UHD == preferredUHD {
 				pendingPreferred = true
+				if f.candidate.Height == targetHeight {
+					pendingHeight = true
+				}
 			}
 		}
 		preferred, fallback := []catalog.Candidate{}, []catalog.Candidate{}
@@ -518,7 +525,13 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 				}
 			}
 		}
-		launchTier(preferred)
+		// Race verified streams at the requested height first. A ready ghost
+		// is always promoted immediately, irrespective of resolution.
+		exact, other := resolutionTiers(preferred, targetHeight)
+		launchTier(exact)
+		if launched == 0 && !pendingHeight {
+			launchTier(other)
+		}
 		// Do not race HD against still-starting UHD (or change an established HD
 		// session to UHD). Cross-class feeds are the last available fallback.
 		if launched == 0 && !pendingPreferred && ghost == nil {
@@ -727,7 +740,7 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 			if now.Before(outputRetry) {
 				retrySeconds = int(outputRetry.Sub(now).Seconds()) + 1
 			}
-			status := Status{Recovery: recovery, LastIssue: lastIssue, OutputRestarts: outputRestarts, RetrySeconds: retrySeconds, PendingMetrics: len(updates), DroppedMetrics: droppedUpdates + int(failedWrites.Load()), Channel: channel, Candidates: len(feeds), Failovers: failovers, Standby: "recruiting"}
+			status := Status{Recovery: recovery, LastIssue: lastIssue, OutputRestarts: outputRestarts, RetrySeconds: retrySeconds, PendingMetrics: updates.size(), DroppedMetrics: droppedUpdates + int(failedWrites.Load()), Channel: channel, Candidates: len(feeds), Failovers: failovers, Standby: "recruiting"}
 			if primary != nil {
 				status.Primary = primary.candidate.AccountID
 				status.PrimaryProcess = int(primary.process.Load())
@@ -762,4 +775,18 @@ func (e *Engine) FlushMetrics(ctx context.Context) error {
 	case <-ctx.Done():
 		return ctx.Err()
 	}
+}
+
+func resolutionTiers(pool []catalog.Candidate, height int) (exact, other []catalog.Candidate) {
+	if height == 0 {
+		return pool, nil
+	}
+	for _, c := range pool {
+		if c.Height == height {
+			exact = append(exact, c)
+		} else {
+			other = append(other, c)
+		}
+	}
+	return
 }

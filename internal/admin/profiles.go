@@ -96,12 +96,13 @@ func (a *API) addProfile(w http.ResponseWriter, r *http.Request) {
 func (a *API) saveProfile(w http.ResponseWriter, r *http.Request) {
 	// Partial updates prevent an enable checkbox from clearing market metadata.
 	var v struct {
-		Name          *string `json:"name"`
-		Enabled       *bool   `json:"enabled"`
-		Country       *string `json:"country"`
-		Market        *string `json:"market"`
-		Timezone      *string `json:"timezone"`
-		GuideLocation *string `json:"guide_location"`
+		PreferredHeight *int    `json:"preferred_height"`
+		Name            *string `json:"name"`
+		Enabled         *bool   `json:"enabled"`
+		Country         *string `json:"country"`
+		Market          *string `json:"market"`
+		Timezone        *string `json:"timezone"`
+		GuideLocation   *string `json:"guide_location"`
 	}
 	if !decode(w, r, &v) {
 		return
@@ -110,6 +111,9 @@ func (a *API) saveProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		failure(w, 404, "Tuner not found")
 		return
+	}
+	if v.PreferredHeight != nil {
+		p.PreferredHeight = *v.PreferredHeight
 	}
 	if v.Name != nil {
 		p.Name = *v.Name

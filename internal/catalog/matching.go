@@ -356,12 +356,29 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		if ch.Count >= ch.Policy.Target {
 			continue
 		}
-		var saved, savedUHD int
-		if e = s.DB.QueryRow(`SELECT coalesce(sum(instr(upper(s.name),'UHD')=0),0),coalesce(sum(instr(upper(s.name),'UHD')>0),0) FROM mappings m JOIN streams s ON s.id=m.stream_id WHERE m.channel_id=? AND m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked')`, ch.ChannelID).Scan(&saved, &savedUHD); e != nil {
-			return nil, e
+		room[ch.ChannelID] = max(60, 3*ch.Policy.Target)
+		uhdRoom[ch.ChannelID] = room[ch.ChannelID]
+	}
+	if len(room) > 0 {
+		rows, err := s.DB.Query(`SELECT m.channel_id, sum(instr(upper(s.name),'UHD')=0),sum(instr(upper(s.name),'UHD')>0) FROM mappings m JOIN streams s ON s.id=m.stream_id WHERE m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked') GROUP BY m.channel_id`)
+		if err != nil {
+			return nil, err
 		}
-		room[ch.ChannelID] = max(0, max(60, 3*ch.Policy.Target)-saved)
-		uhdRoom[ch.ChannelID] = max(0, max(60, 3*ch.Policy.Target)-savedUHD)
+		defer rows.Close()
+		for rows.Next() {
+			var id string
+			var sd, uhd int
+			if err := rows.Scan(&id, &sd, &uhd); err != nil {
+				return nil, err
+			}
+			if limit, ok := room[id]; ok {
+				room[id] = max(0, limit-sd)
+				uhdRoom[id] = max(0, limit-uhd)
+			}
+		}
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
 	}
 	matchers := make([]channelMatcher, 0, len(channels))
 	for _, c := range channels {

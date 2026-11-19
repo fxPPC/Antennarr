@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"database/sql"
 	"time"
 )
 
@@ -112,16 +113,7 @@ func (s *Store) rosterObserved(id int64, success bool, allowed map[string]bool) 
 			return e
 		}
 		defer tx.Rollback()
-		if _, e = tx.Exec(`INSERT INTO events(happened,kind,channel_id,source_id,reason) SELECT ?,'roster_removed',channel_id,stream_id,'Media failed; replacement queued' FROM roster WHERE stream_id=?`, time.Now().Unix(), id); e != nil {
-			return e
-		}
-		if _, e = tx.Exec("UPDATE queue_positions SET position=random() & 9223372036854775807 WHERE kind='stream' AND source_id=?", id); e != nil {
-			return e
-		}
-		if _, e = tx.Exec("INSERT INTO work_leases(kind,resource,until) VALUES('quality_invalid',?,?) ON CONFLICT(kind,resource) DO UPDATE SET until=max(until,excluded.until)", id, time.Now().Unix()+3600); e != nil {
-			return e
-		}
-		if _, e = tx.Exec("DELETE FROM roster WHERE stream_id=?", id); e != nil {
+		if e = evictFailedStream(tx, id); e != nil {
 			return e
 		}
 		return tx.Commit()
@@ -202,4 +194,22 @@ func (s *Store) RosterEntries(channel string) ([]map[string]any, error) {
 		out = append(out, map[string]any{"stream_id": id, "account_id": aid, "provider": provider, "name": name, "state": state, "score": score, "verified": last, "due": due, "codec": codec, "height": height})
 	}
 	return out, rows.Err()
+}
+
+// evictFailedStream runs in the same transaction as a recorded failure strike.
+func evictFailedStream(tx *sql.Tx, id int64) error {
+	var e error
+	if _, e = tx.Exec(`INSERT INTO events(happened,kind,channel_id,source_id,reason) SELECT ?,'roster_removed',channel_id,stream_id,'Media failed; replacement queued' FROM roster WHERE stream_id=?`, time.Now().Unix(), id); e != nil {
+		return e
+	}
+	if _, e = tx.Exec("UPDATE queue_positions SET position=random() & 9223372036854775807 WHERE kind='stream' AND source_id=?", id); e != nil {
+		return e
+	}
+	if _, e = tx.Exec("INSERT INTO work_leases(kind,resource,until) VALUES('quality_invalid',?,?) ON CONFLICT(kind,resource) DO UPDATE SET until=max(until,excluded.until)", id, time.Now().Unix()+3600); e != nil {
+		return e
+	}
+	if _, e = tx.Exec("DELETE FROM roster WHERE stream_id=?", id); e != nil {
+		return e
+	}
+	return nil
 }

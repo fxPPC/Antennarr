@@ -122,7 +122,14 @@ func (x Xtream) Validate(ctx context.Context, a Entry) (AccountInfo, error) {
 	if e := x.request(ctx, a, "", &r); e != nil {
 		return AccountInfo{}, e
 	}
-	if r.User == nil {
+	// Only an explicit zero means the provider rejected the login. Missing
+	// or unsupported values follow the normal failed-check strike policy.
+	var authenticated bool
+	switch r.User["auth"] {
+	case float64(1), "1":
+		authenticated = true
+	case float64(0), "0":
+	default:
 		return AccountInfo{}, ProviderError{Kind: "malformed_response"}
 	}
 	limit := connectionCount(r.User["max_connections"])
@@ -133,11 +140,11 @@ func (x Xtream) Validate(ctx context.Context, a Entry) (AccountInfo, error) {
 		limit = 20
 	}
 	expires := numeric(r.User["exp_date"])
-	active := numeric(r.User["auth"]) == 1 && strings.EqualFold(fmtString(r.User["status"]), "Active") && (expires == 0 || expires > time.Now().Unix())
+	active := authenticated && strings.EqualFold(fmtString(r.User["status"]), "Active") && (expires == 0 || expires > time.Now().Unix())
 	reason := ""
 	if !active {
 		reason = "inactive_account"
-		if numeric(r.User["auth"]) != 1 {
+		if !authenticated {
 			reason = "invalid_credentials"
 		}
 		if (expires > 0 && expires <= time.Now().Unix()) || strings.EqualFold(fmtString(r.User["status"]), "Expired") {
