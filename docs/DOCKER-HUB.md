@@ -37,9 +37,9 @@ Open `http://YOUR_SERVER_LAN_IP:39192`. Fresh login: **admin / admin**; change i
 
 **Upgrading hardened containers:** if you previously used `--cap-drop ALL`, keep the old non-root mode with `--user 10001:10001`, or add `CHOWN`, `DAC_OVERRIDE`, `SETUID`, and `SETGID` for ownership setup. Existing channels and logins are preserved.
 
-Tags: `latest` or pinned `v1.0.8`. Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Runtime package sources](https://github.com/wolfi-dev/os).
+Tags: `1.0`, `latest`, or pinned `v1.0.8`. For opt-in 1.1 builds and their exact tags, see the [GitHub releases](https://github.com/fxPPC/Antennarr/releases). Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Runtime package sources](https://github.com/wolfi-dev/os).
 
-**Data compatibility:** The 1.0 series uses a stable data format. The planned 1.1 series will introduce a new data format that will remain stable within 1.1. Updates within each series preserve your settings, channels, accounts, login, and tuner identity. Backups are manual.
+**Data compatibility:** The 1.0 series uses a stable data format. The 1.1 beta upgrades the data format. Test with a separate data directory and keep a pre-upgrade backup to return to 1.0. Updates within each series preserve your settings, channels, accounts, login, and tuner identity. Backups are manual.
 
 Debug-level JSON logs go to Docker by default. Choose None, Normal (warnings/errors), or Debug under Admin. Saved settings take precedence over the bootstrap `ANTENNARR_LOG_LEVEL` environment variable. Enable Docker log rotation.
 
