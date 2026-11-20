@@ -223,9 +223,12 @@ jobs:
           set -euo pipefail
           flags=()
           if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          # The changelog keeps earlier releases. Publish only this version's entry.
+          awk -v heading="# $VERSION" '/^# / { if (selected) exit; selected = ($0 == heading); next } selected { print }' docs/RELEASE-NOTES.md > /tmp/release-notes.md
+          test -s /tmp/release-notes.md
           gh release create "$VERSION" --target "$GITHUB_SHA" --draft --title "Antennarr $VERSION" \
             "${flags[@]}" \
-            --notes-file docs/RELEASE-NOTES.md \
+            --notes-file /tmp/release-notes.md \
             release/antennarr-*-source.tar.gz release/sbom-*.spdx.json release/vulnerabilities-*.json release/SHA256SUMS release/IMAGE-DIGEST.txt
           # Attach every asset before publishing an immutable release.
           gh release edit "$VERSION" --draft=false --latest="$PROMOTE_LATEST"

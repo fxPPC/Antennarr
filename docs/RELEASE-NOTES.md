@@ -1,11 +1,14 @@
 # v1.1.0-beta.1
 
-Public beta for Linux amd64 and ARM64. Pull `antennarr/antennarr:v1.1.0-beta.1`. The stable 1.0 series remains the default.
+## What changes when you upgrade from 1.0
 
-- Recruitment checks the thinnest eligible rosters first, rotates ties, and favours accounts used across fewer existing roster entries. A busy account can still supply a channel when alternatives are scarce.
-- Mexico City, Mumbai, Berlin, and Amsterdam join New York City and London as optional presets. Fresh installs start empty. Adding a preset creates a disabled tuner with its own editable channel list.
-- Channel rules accept the former 5SELECT name for 5DRAMA and distinguish regional editions, delayed feeds, and conflicting guide IDs. In an offline check of 22 saved catalogues, the matcher found candidates for 12/15 Mexico City, 16/23 Mumbai, 31/34 Berlin, and 20/22 Amsterdam channels. Playback and Plex guide mapping need separate verification.
-- Use a separate data directory for testing. Back up before upgrading 1.0 data to schema 9. See [multi-tuner setup](MULTI-TUNER.md) for installation, guide locations, and outstanding real-Plex checks.
+- **Run several Plex tuners from one installation.** Each tuner has its own Plex address, channel lineup, and playback quality preference. Choose from New York City, London, Mexico City, Mumbai, Berlin, and Amsterdam. Your existing tuner keeps its identity, channel edits, and rosters.
+- **Give channels with the fewest feeds first pick.** Antennarr spreads working feeds across more source accounts and can still use an account that supplies other channels when alternatives are scarce. Channel matching distinguishes local editions and time-shifted feeds.
+- **Pause background scans while keeping TV available.** Turn off **Scans active** under **Sources** to keep playing channels from their existing rosters. The setting survives restarts.
+
+**Before upgrading**, make a manual backup of your 1.0 data and try the beta on a separate copy. The beta upgrades the database to schema 9. Returning to 1.0 requires the pre-upgrade backup. Multi-tuner guide mapping and recordings with overlapping channel numbers still need testing in Plex.
+
+Stable 1.0 remains the default. To try the beta on Linux amd64 or ARM64, pull `antennarr/antennarr:v1.1.0-beta.1`. [Multi-tuner setup](https://github.com/fxPPC/Antennarr/blob/v1.1.0-beta.1/docs/MULTI-TUNER.md)
 
 # v1.1.0-alpha.8
 
