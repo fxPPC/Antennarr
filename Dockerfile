@@ -15,7 +15,7 @@ ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Antennarr" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.licenses="GPL-3.0-or-later" org.opencontainers.image.source="https://github.com/fxPPC/Antennarr" org.opencontainers.image.revision="${REVISION}"
 RUN --mount=type=bind,from=runtime-snapshot,source=/wolfi-runtime.tar.gz,target=/tmp/wolfi-runtime.tar.gz \
     tar -xzpf /tmp/wolfi-runtime.tar.gz -C / && \
-    ffmpeg -version && ffprobe -version && taskset --version && setpriv --version
+    ffmpeg -version && ffprobe -version && setpriv --version
 WORKDIR /opt/antennarr
 COPY docs/licenses /usr/share/doc/antennarr/licenses
 COPY LICENSE /usr/share/doc/antennarr/LICENSE

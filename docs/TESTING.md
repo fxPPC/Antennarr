@@ -33,7 +33,7 @@ Long-duration playback and real Plex client recovery are separate acceptance che
 Source tests alone do not verify the FFmpeg packaged in a release. After creating
 synthetic fixtures, run `packaging/test-runtime-media.sh` with
 `ANTENNARR_TEST_IMAGE` and an absolute `ANTENNARR_TEST_FIXTURES` directory. This
-runs media, failover, multi-viewer, and CPU-affinity tests inside the finished
+runs media, failover, multi-viewer, and scanner tests inside the finished
 image, with a read-only filesystem and no external network. Native amd64 and
 ARM64 jobs are both required; the existing combined required check reports
 failure if either architecture fails.
