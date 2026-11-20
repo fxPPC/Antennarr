@@ -205,6 +205,14 @@ def copy_media(media, payload, folder, name):
     return Path(shutil.copy2(path, payload / folder / name))
 
 
+def release_version(tag):
+    match = re.fullmatch(r"v1\.1\.(0|[1-9][0-9]*)-beta\.([1-9][0-9]*)", tag)
+    if not match:
+        raise ValueError("expected a 1.1 beta release tag, for example v1.1.0-beta.1")
+    # Filenames and bundle metadata use the two release numbers in canonical form.
+    return f"v1.1.{int(match[1])}-beta.{int(match[2])}"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("version")
@@ -213,14 +221,18 @@ def main():
     parser.add_argument("--media-dir", type=Path, required=True,
                         help="verified target payload, or a directory containing a payload for each target")
     args = parser.parse_args()
-    if not re.fullmatch(r"v1\.1\.\d+-beta\.\d+", args.version):
-        parser.error("expected a beta release tag, for example v1.1.0-beta.1")
+    try:
+        version = release_version(args.version)
+    except ValueError as error:
+        parser.error(str(error))
     with release_directory(args.output) as output_fd:
-        for target in [args.target] if args.target else TARGETS:
+        for target in TARGETS:
+            if args.target and target != args.target:
+                continue
             media = args.media_dir / target
             if args.target and not media.is_dir():
                 media = args.media_dir
-            build(target, args.version, args.output, output_fd, media)
+            build(target, version, args.output, output_fd, media)
 
 
 if __name__ == "__main__":
