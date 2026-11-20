@@ -9,6 +9,7 @@ on:
     paths:
       - '.github/workflows/native-downloads.yml'
       - 'packaging/*native*'
+      - 'packaging/build-windows-installer.ps1'
       - 'packaging/native/**'
       - 'cmd/antennarr/desktop*'
       - 'internal/desktopstats/**'
@@ -91,21 +92,8 @@ jobs:
           ARCH: ${{ matrix.arch }}
         shell: pwsh
         run: |
-          $ErrorActionPreference = 'Stop'
-          $setup = Join-Path $env:RUNNER_TEMP 'innosetup-6.7.3.exe'
-          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile $setup
-          if ((Get-FileHash $setup -Algorithm SHA256).Hash -ne '9c73c3bae7ed48d44112a0f48e66742c00090bdb5bef71d9d3c056c66e97b732') { throw 'Unexpected Inno Setup compiler digest.' }
-          $toolsDir = Join-Path $env:RUNNER_TEMP 'InnoSetup'
-          $install = Start-Process -FilePath $setup -ArgumentList "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /DIR=`"$toolsDir`"" -Wait -PassThru
-          if ($install.ExitCode -ne 0) { throw "Compiler installation failed ($($install.ExitCode))." }
-          $compiler = Join-Path $toolsDir 'ISCC.exe'
-          $zip = Get-Item "downloads/antennarr-*-windows-$env:ARCH.zip"
-          $version = $zip.BaseName -replace '^antennarr-', '' -replace "-windows-$env:ARCH$", ''
-          $payload = Join-Path $env:RUNNER_TEMP 'payload'
-          Expand-Archive -LiteralPath $zip.FullName -DestinationPath $payload
-          $out = New-Item -ItemType Directory installers
-          & $compiler "/DAppVersion=$version" "/DAppArch=$env:ARCH" "/DPayloadDir=$payload" "/DOutputDir=$($out.FullName)" 'packaging/native/Antennarr.iss'
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $version = (Select-String -Path Dockerfile -Pattern '^ARG VERSION=(.+)$').Matches[0].Groups[1].Value
+          ./packaging/build-windows-installer.ps1 -Version $version -Arch $env:ARCH -PayloadZip "downloads/antennarr-$version-windows-$env:ARCH.zip" -OutputDir installers
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: native-windows-${{ matrix.arch }}

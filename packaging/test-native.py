@@ -322,6 +322,7 @@ def installed(archive, root):
             assert os.statvfs(mount).f_flag & os.ST_RDONLY
             assert (mount / "Applications").is_symlink() and os.readlink(mount / "Applications") == "/Applications"
             assert (mount / "Read Me.txt").is_file()
+            subprocess.run(["codesign", "--verify", "--deep", "--strict", mount / "Antennarr.app"], check=True)
             package.mkdir()
             subprocess.run(["ditto", mount / "Antennarr.app", package / "Antennarr.app"], check=True, timeout=90)
         finally:

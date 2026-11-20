@@ -1,0 +1,19 @@
+{
+  "release": "v1.1.0-beta.1",
+  "source_image": "docker.io/antennarr/antennarr:v1.0.8@sha256:2a7c974b6ee651b2f6477c39375e8682baad03b9ce9a89a5efcb0d0d7d3d68b4",
+  "source_run": 44809953784,
+  "packages": 150,
+  "inventory_sha256": "e948d303f1ab59b2723285f0663be56e6eeaf7eca35e18506b41f7eaf1719b64",
+  "platforms": {
+    "amd64": {
+      "manifest": "sha256:5e7469686c74fe545935ba09022b5a130f93050771234d7efd12b1b277213e4c",
+      "sha256": "19c18a61321b6e4fd915121abc9cb47ce74e7583c577750f44ff7b95cd645473",
+      "size": 86258906
+    },
+    "arm64": {
+      "manifest": "sha256:6d66d8d4260c38585bc55fe0d6acd1419182437a0d23d8a5c2f9b225e9c5b9d7",
+      "sha256": "9100abbefe7e8277785e29c5be10bb13b04ffd820bbd2dbdce542f015ce3dbd8",
+      "size": 83729346
+    }
+  }
+}

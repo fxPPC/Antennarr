@@ -45,7 +45,7 @@ Antennarr tests candidate feeds and keeps working ones in a channel’s roster. 
 
 - [Docker Hub tags](https://hub.docker.com/r/antennarr/antennarr/tags) and [GitHub releases](https://github.com/fxPPC/Antennarr/releases)
 - [Release notes](docs/RELEASE-NOTES.md), [data compatibility](docs/VERSIONING.md), and [1.1 acceptance tests](docs/V1.1-PLAN.md)
-- [Contributing](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md), [HTTP API](docs/API.md), and [testing](docs/TESTING.md)
+- [Build from source](docs/BUILD.md), [contributing](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md), [HTTP API](docs/API.md), and [testing](docs/TESTING.md)
 - [Setup questions](https://github.com/fxPPC/Antennarr/discussions), [bug reports](https://github.com/fxPPC/Antennarr/issues/new/choose), and [private security reports](https://github.com/fxPPC/Antennarr/security/advisories/new)
 
 Antennarr is licensed under [GPL-3.0-or-later](LICENSE). Images include [third-party notices](docs/licenses/README.md) and corresponding source at `/usr/share/doc/antennarr/source.tar.gz`.

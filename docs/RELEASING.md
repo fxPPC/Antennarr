@@ -1,5 +1,7 @@
 # Releases
 
+The [build guide](BUILD.md) gives the same Docker, Mac disk image, and Windows installer commands used in CI. Beta publication attaches the tested native installers, their SHA-256 checksums, and the locked Docker runtime inputs.
+
 Releases follow [the versioning and compatibility policy](VERSIONING.md). Stable releases use `vMAJOR.MINOR.PATCH`; opt-in test releases append `-alpha.N`, `-beta.N`, or `-rc.N`. Exact Git and Docker tags are immutable. Stable releases advance their minor Docker tag (`1.0`, `1.1`, etc.); only explicit promotion advances `latest` and GitHub's recommended release. Historical release source is available on GitHub. Check Docker Hub for available image tags.
 
 ## GitHub-only source previews

@@ -96,6 +96,15 @@ def build(target, version, output, media):
         if mac:
             (resources / "README.txt").write_text(readme, encoding="utf-8")
         final = output / f"antennarr-{version}-{target}.zip"
+        if mac:
+            # Seal the complete bundle, including the bundled helpers. Ad-hoc
+            # signing checks integrity without claiming a Developer ID identity.
+            for tool in (server, resources / "media/bin/ffmpeg", resources / "media/bin/ffprobe"):
+                subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(tool)], check=True)
+            app = contents.parent
+            subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(app)], check=True)
+            subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=True)
+
         # Write beside the destination so a failed build never leaves a partial release asset.
         with tempfile.NamedTemporaryFile(dir=output, prefix=".antennarr-", suffix=".zip", delete=False) as tmp:
             archive = Path(tmp.name)
