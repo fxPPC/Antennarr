@@ -110,6 +110,8 @@ jobs:
         include:
           - {target: macos-arm64, runner: macos-15}
           - {target: macos-amd64, runner: macos-15-intel}
+          - {target: macos-arm64, runner: macos-26}
+          - {target: macos-amd64, runner: macos-26-intel}
           - {target: windows-arm64, runner: windows-11-arm}
           - {target: windows-amd64, runner: windows-2025}
           - {target: windows-amd64, runner: windows-2022}

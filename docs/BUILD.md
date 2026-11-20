@@ -40,7 +40,7 @@ The release workflow records the manifest digest of each tested architecture, sc
 
 ## macOS disk image
 
-Use a Mac with Xcode Command Line Tools, make, curl, and xz-capable tar. Install NASM for Intel builds. CI uses macOS 15 on Apple silicon and Intel. Set the target to `macos-arm64` or `macos-amd64` to match the Mac running the test.
+Use a Mac with Xcode Command Line Tools, make, curl, and xz-capable tar. Install NASM for Intel builds. CI builds on macOS 15 and tests the installed app on macOS 15 and 26 on both Apple silicon and Intel. Set the target to `macos-arm64` or `macos-amd64` to match the Mac running the test.
 
 ```sh
 target=macos-arm64

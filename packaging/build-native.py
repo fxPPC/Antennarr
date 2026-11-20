@@ -120,6 +120,10 @@ def build(target, version, output, output_fd, media):
         shutil.copyfile(ROOT / "LICENSE", resources / "LICENSE")
         launcher = binaries / ("Antennarr" + ext)
         server = binaries / ("antennarr-server" + ext)
+        if mac:
+            helper = contents / "Helpers" / "Antennarr Server.app"
+            server = helper / "Contents/MacOS/antennarr-server"
+            server.parent.mkdir(parents=True)
         env = dict(os.environ, GOOS="darwin" if mac else "windows", GOARCH=arch, CGO_ENABLED="0")
         flags = ["go", "build", "-trimpath", "-ldflags=-s -w"]
         subprocess.run(flags + ["-o", str(server), "./cmd/antennarr"], cwd=ROOT, env=env, check=True)
@@ -135,6 +139,13 @@ def build(target, version, output, output_fd, media):
                     "NSLocalNetworkUsageDescription": "Antennarr connects to channel sources you add on your local network.",
                     "LSUIElement": True, "NSHighResolutionCapable": True}
             (contents / "Info.plist").write_bytes(plistlib.dumps(info))
+            helper_info = {key: info[key] for key in ("CFBundlePackageType", "CFBundleInfoDictionaryVersion",
+                           "CFBundleShortVersionString", "CFBundleVersion", "LSMinimumSystemVersion",
+                           "NSLocalNetworkUsageDescription")}
+            helper_info.update(CFBundleIdentifier="org.antennarr.desktop.beta.server",
+                               CFBundleExecutable="antennarr-server", CFBundleName="Antennarr Server",
+                               CFBundleDisplayName="Antennarr Server", LSBackgroundOnly=True)
+            (helper / "Contents/Info.plist").write_bytes(plistlib.dumps(helper_info))
             env.update(CGO_ENABLED="1", MACOSX_DEPLOYMENT_TARGET="13.0")
         else:
             shutil.copyfile(ASSETS / "Antennarr.ico", resources / "Antennarr.ico")
@@ -150,7 +161,7 @@ def build(target, version, output, output_fd, media):
             if mac else "Install Antennarr, then open it from Start. Its menu is in the\n"
             "Windows notification area (check hidden icons). This beta has no publisher signature."
         )).replace("@DATA@", "~/Library/Application Support/Antennarr Beta" if mac else r"%LOCALAPPDATA%\Antennarr Beta")
-        firewall = ("If macOS asks, allow incoming connections for Antennarr and its bundled antennarr-server so Plex can connect."
+        firewall = ("If macOS asks, allow incoming connections for Antennarr and Antennarr Server so Plex can connect."
                     if mac else "Choose the private-network firewall option in the installer for Plex on your LAN.")
         readme = readme.replace("@FIREWALL@", firewall)
         (stage / "README.txt").write_text(readme, encoding="utf-8")
@@ -160,7 +171,7 @@ def build(target, version, output, output_fd, media):
         if mac:
             # Seal the complete bundle, including the bundled helpers. Ad-hoc
             # signing checks integrity without claiming a Developer ID identity.
-            for tool in (server, resources / "media/bin/ffmpeg", resources / "media/bin/ffprobe"):
+            for tool in (helper, resources / "media/bin/ffmpeg", resources / "media/bin/ffprobe"):
                 subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(tool)], check=True)
             app = contents.parent
             subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(app)], check=True)

@@ -2,14 +2,16 @@ package main
 
 /*
 #cgo CFLAGS: -fobjc-arc
-#cgo LDFLAGS: -framework Cocoa
+#cgo LDFLAGS: -framework Cocoa -framework CoreServices
 #include <stdlib.h>
 int desktopMenu(const char *url, const char *settings, const char *folder, const char *scratch);
 void desktopAlert(const char *message);
+int registerServerBundle(const char *path);
 */
 import "C"
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +21,18 @@ import (
 )
 
 var windowSession *session
+
+func serverExecutable(dir string, register bool) (string, error) {
+	bundle := filepath.Join(dir, "..", "Helpers", "Antennarr Server.app")
+	if register {
+		path := C.CString(bundle)
+		defer C.free(unsafe.Pointer(path))
+		if status := C.registerServerBundle(path); status != 0 {
+			return "", fmt.Errorf("cannot register Antennarr Server with macOS (status %d)", status)
+		}
+	}
+	return filepath.Join(bundle, "Contents", "MacOS", "antennarr-server"), nil
+}
 
 //export desktopState
 func desktopState() C.int { n, _ := windowSession.status(); return C.int(n) }

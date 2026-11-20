@@ -152,7 +152,12 @@ func (s *session) start(headless bool) error {
 		return fmt.Errorf("cannot write the desktop log: %w", err)
 	}
 
-	server := exec.Command(filepath.Join(dir, "antennarr-server"+ext))
+	serverPath, err := serverExecutable(dir, !headless)
+	if err != nil {
+		log.Close()
+		return err
+	}
+	server := exec.Command(serverPath)
 	hideConsole(server)
 	server.Env = append(os.Environ(), "ANTENNARR_DESKTOP_CHILD=1")
 	server.Stderr = log

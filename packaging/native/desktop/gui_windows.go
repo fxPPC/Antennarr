@@ -25,6 +25,10 @@ var (
 const trayWindowClass = "AntennarrBetaNotificationArea"
 const openApplication = 0x8003 // WM_APP + 3
 
+func serverExecutable(dir string, _ bool) (string, error) {
+	return filepath.Join(dir, "antennarr-server.exe"), nil
+}
+
 func loginLaunch() bool { return len(os.Args) == 2 && os.Args[1] == "--login-item" }
 
 func wide(s string) *uint16 { p, _ := windows.UTF16PtrFromString(s); return p }

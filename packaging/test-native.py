@@ -25,6 +25,7 @@ from urllib.request import build_opener, ProxyHandler, Request
 import zipfile
 
 
+MAC_SERVER = Path("Contents/Helpers/Antennarr Server.app")
 HTTP = build_opener(ProxyHandler({}))
 AUTH = "Basic " + base64.b64encode(b"admin:admin").decode()
 
@@ -80,7 +81,17 @@ def stop(process):
 @contextlib.contextmanager
 def running(executable, env, base, logfile):
     with logfile.open("wb") as output:
-        process = subprocess.Popen([executable], cwd=executable.parent, env=env,
+        finder = platform.system() == "Darwin" and firewall_requested()
+        command = [executable]
+        if finder:
+            # Launch Services starts the normal menu app. Its login argument suppresses the browser.
+            command = ["/usr/bin/open", "-n", "-W", "-g", "-a", executable.parents[2],
+                       "--stdout", logfile, "--stderr", logfile]
+            for key, value in env.items():
+                if key == "PATH" or (key.startswith("ANTENNARR_") and key != "ANTENNARR_HEADLESS"):
+                    command.extend(["--env", key + "=" + value])
+            command.extend(["--env", "ANTENNARR_HEADLESS=0", "--args", "--login-item"])
+        process = subprocess.Popen(command, cwd=executable.parent, env=env,
                                    stdout=output, stderr=subprocess.STDOUT,
                                    start_new_session=os.name != "nt")
         try:
@@ -101,6 +112,17 @@ def running(executable, env, base, logfile):
             print(logfile.read_text(errors="replace")[-4000:])
             raise
         finally:
+            if finder:
+                # open -W waits for the app but signals sent to open do not reach it.
+                listing = subprocess.check_output(["/bin/ps", "-axww", "-o", "pid=,comm="], text=True)
+                for line in listing.splitlines():
+                    entry = line.strip().split(None, 1)
+                    if len(entry) == 2 and entry[1] == str(executable):
+                        os.kill(int(entry[0]), signal.SIGTERM)
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    pass
             stop(process)
 
 
@@ -286,9 +308,8 @@ def mac_firewall(app):
         yield
         return
     app = app.resolve()
-    # Give the installed bundle and its listening helper the same explicit rule
-    # a user can set in Firewall Options. Both paths live in this run's scratch directory.
-    targets = [str(app), str(app / "Contents/MacOS/antennarr-server")]
+    # These are the two apps a user can allow in Firewall Options.
+    targets = [str(app), str(app / MAC_SERVER)]
     assert not any(target in read("--listapps") for target in targets)
     restore_off = "disabled" in state.lower()
     block_all = read("--getblockall")
@@ -421,8 +442,9 @@ def installed(archive, root):
                 if hosted:
                     # Finder registers an app when it is dragged to Applications.
                     registrar = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-                    subprocess.run([registrar, "-f", app], check=True, timeout=30)
-                    cleanup.callback(subprocess.run, [registrar, "-u", app], check=True, timeout=30)
+                    for registered in (app / MAC_SERVER, app):
+                        subprocess.run([registrar, "-f", registered], check=True, timeout=30)
+                        cleanup.callback(subprocess.run, [registrar, "-u", registered], check=True, timeout=30)
                 with mac_firewall(app):
                     yield package
     else:
@@ -529,8 +551,10 @@ def smoke(archive, root):
 
 def exercise(package, root, os_name, arch):
     if os_name == "macos":
-        bindir = package / "Antennarr.app" / "Contents" / "MacOS"
-        launcher, server = bindir / "Antennarr", bindir / "antennarr-server"
+        app = package / "Antennarr.app"
+        bindir = app / "Contents/MacOS"
+        launcher = bindir / "Antennarr"
+        server = app / MAC_SERVER / "Contents/MacOS/antennarr-server"
         media = bindir.parent / "Resources" / "media" / "bin"
         ffmpeg, ffprobe = media / "ffmpeg", media / "ffprobe"
     else:

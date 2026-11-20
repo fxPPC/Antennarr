@@ -45,7 +45,8 @@ func ffmpegBinary() (string, error) {
 func bundledFFmpeg(server string) string {
 	dir := filepath.Dir(server)
 	if runtime.GOOS == "darwin" {
-		return filepath.Join(dir, "..", "Resources", "media", "bin", "ffmpeg")
+		// The server is the main executable of a helper app inside Contents/Helpers.
+		return filepath.Join(dir, "..", "..", "..", "..", "Resources", "media", "bin", "ffmpeg")
 	}
 	return filepath.Join(dir, "media", "bin", "ffmpeg.exe")
 }

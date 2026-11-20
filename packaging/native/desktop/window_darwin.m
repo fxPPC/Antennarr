@@ -1,10 +1,19 @@
 #import <AppKit/AppKit.h>
+#import <CoreServices/CoreServices.h>
 #include <stdlib.h>
 
 extern int desktopState(void);
 extern char *desktopDetail(void);
 extern char *desktopViewers(void);
 extern char *desktopCoverage(void);
+
+// The launcher's child is also an identifiable app in Firewall Options.
+int registerServerBundle(const char *path) {
+    @autoreleasepool {
+        NSURL *bundle = [NSURL fileURLWithPath:[NSString stringWithUTF8String:path] isDirectory:YES];
+        return LSRegisterURL((__bridge CFURLRef)bundle, false);
+    }
+}
 
 static NSString *take(char *s) {
     NSString *text = [NSString stringWithUTF8String:s]; free(s); return text;
