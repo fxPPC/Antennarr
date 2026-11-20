@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"database/sql"
-	_ "embed"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -11,15 +10,6 @@ import (
 
 const MaxSelectedChannels = 256
 
-//go:embed data/us_channels.json
-var defaultUSChannelData []byte
-
-// These are names and rules only: never accounts, credentials, or stream URLs.
-func DefaultUSChannels() ([]Channel, error) {
-	var channels []Channel
-	err := json.Unmarshal(defaultUSChannelData, &channels)
-	return channels, err
-}
 func (s *Store) seedInitialChannels() error {
 	tx, err := s.DB.Begin()
 	if err != nil {
@@ -37,7 +27,7 @@ func (s *Store) seedInitialChannels() error {
 	if preset != "US" {
 		return nil
 	}
-	channels, err := DefaultUSChannels()
+	channels, err := presetChannels("us-nyc")
 	if err != nil {
 		return err
 	}
@@ -65,7 +55,7 @@ type PresetMerge struct {
 // channels survive. Audited rules replace old rules on recognised US channels.
 func (s *Store) ApplyUSPreset() (PresetMerge, error) {
 	result := PresetMerge{}
-	preset, err := DefaultUSChannels()
+	preset, err := presetChannels("us-nyc")
 	if err != nil {
 		return result, err
 	}

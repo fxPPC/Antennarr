@@ -79,7 +79,7 @@ func (m channelMatcher) stationEvidence(key string) bool {
 		return true
 	}
 	for _, token := range strings.Fields(key) {
-		if strings.ReplaceAll(token, " ", "") == station {
+		if token == station {
 			return true
 		}
 	}
@@ -228,15 +228,14 @@ func guideConflict(channels []channelMatcher, target channelMatcher, label sourc
 }
 
 var referenceGuideMatchers = sync.OnceValue(func() []channelMatcher {
-	channels, err := DefaultUSChannels()
-	if err != nil {
-		panic("invalid bundled channel definitions: " + err.Error())
+	var channels []Channel
+	for _, preset := range tunerPresets {
+		records, err := preset.channels()
+		if err != nil {
+			panic("invalid embedded preset " + preset.profile.Preset + ": " + err.Error())
+		}
+		channels = append(channels, records...)
 	}
-	london, err := DefaultLondonChannels()
-	if err != nil {
-		panic("invalid bundled London definitions: " + err.Error())
-	}
-	channels = append(channels, london...)
 	var ukReferences []Channel
 	if err := json.Unmarshal(ukReferenceChannelData, &ukReferences); err != nil {
 		panic("invalid bundled UK reference identities: " + err.Error())

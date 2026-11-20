@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
-	_ "embed"
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -32,25 +32,33 @@ type Profile struct {
 	PortOffset      int    `json:"port_offset"`
 }
 
-//go:embed data/uk_london_channels.json
-var defaultLondonChannelData []byte
+//go:embed data/*_channels.json
+var presetFiles embed.FS
 
-func DefaultLondonChannels() ([]Channel, error) {
-	var out []Channel
-	err := json.Unmarshal(defaultLondonChannelData, &out)
-	return out, err
-}
-
-// One registry owns market metadata and its versioned channel definitions.
-// Future markets add one entry and matching fixtures, without changing routing.
+// Presets are templates. Reading fresh channel definitions keeps edits isolated
+// from other tuners and from later additions of the same preset.
 type presetDefinition struct {
 	profile  Profile
-	channels func() ([]Channel, error)
+	filename string
+}
+
+func (p presetDefinition) channels() ([]Channel, error) {
+	data, err := presetFiles.ReadFile("data/" + p.filename)
+	if err != nil {
+		return nil, err
+	}
+	var channels []Channel
+	err = json.Unmarshal(data, &channels)
+	return channels, err
 }
 
 var tunerPresets = []presetDefinition{
-	{Profile{Kind: "hdhomerun", Name: "USA - New York City", Market: "New York City", Country: "US", Timezone: "America/New_York", GuideLocation: "10001", Preset: "us-nyc"}, DefaultUSChannels},
-	{Profile{Kind: "hdhomerun", Name: "UK - London", Market: "London", Country: "GB", Timezone: "Europe/London", GuideLocation: "SW1A 1AA", Preset: "uk-london"}, DefaultLondonChannels},
+	{Profile{Kind: "hdhomerun", Name: "USA - New York City", Market: "New York City", Country: "US", Timezone: "America/New_York", GuideLocation: "10001", Preset: "us-nyc"}, "us_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "UK - London", Market: "London", Country: "GB", Timezone: "Europe/London", GuideLocation: "SW1A 1AA", Preset: "uk-london"}, "uk_london_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Mexico - Mexico City", Market: "Mexico City", Country: "MX", Timezone: "America/Mexico_City", GuideLocation: "06000", Preset: "mx-mexico-city"}, "mx_mexico_city_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "India - Mumbai", Market: "Mumbai", Country: "IN", Timezone: "Asia/Kolkata", GuideLocation: "400001", Preset: "in-mumbai"}, "in_mumbai_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Germany - Berlin", Market: "Berlin", Country: "DE", Timezone: "Europe/Berlin", GuideLocation: "10115", Preset: "de-berlin"}, "de_berlin_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Netherlands - Amsterdam", Market: "Amsterdam", Country: "NL", Timezone: "Europe/Amsterdam", GuideLocation: "1012 JS", Preset: "nl-amsterdam"}, "nl_amsterdam_channels.json"},
 }
 
 func presetProfile(id string) (Profile, error) {
@@ -394,7 +402,10 @@ func Presets() []Preset {
 	out := []Preset{}
 	for _, preset := range tunerPresets {
 		p := preset.profile
-		chs, _ := preset.channels()
+		chs, err := preset.channels()
+		if err != nil {
+			panic(fmt.Sprintf("invalid embedded preset %s: %v", p.Preset, err))
+		}
 		out = append(out, Preset{ID: p.Preset, Name: p.Name, Country: p.Country, Market: p.Market, Timezone: p.Timezone, GuideLocation: p.GuideLocation, Channels: len(chs), Version: 1})
 	}
 	return out

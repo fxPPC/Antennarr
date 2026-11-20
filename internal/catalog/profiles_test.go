@@ -442,7 +442,7 @@ func TestManualProfileMappingCannotCrossExplicitCountry(t *testing.T) {
 }
 
 func TestLondonReferencesStillVetoDeletedSisterChannel(t *testing.T) {
-	channels, err := DefaultLondonChannels()
+	channels, err := presetChannels("uk-london")
 	if err != nil {
 		t.Fatal(err)
 	}
