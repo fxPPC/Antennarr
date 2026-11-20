@@ -89,7 +89,7 @@ def build(target, version, output, media):
             if mac else "Install Antennarr, then open it from Start. Its menu is in the\n"
             "Windows notification area (check hidden icons). This beta has no publisher signature."
         )).replace("@DATA@", "~/Library/Application Support/Antennarr Beta" if mac else r"%LOCALAPPDATA%\Antennarr Beta")
-        firewall = ("If macOS asks, allow incoming connections to antennarr-server for Plex."
+        firewall = ("If macOS asks, allow incoming connections for Antennarr and its bundled antennarr-server so Plex can connect."
                     if mac else "Choose the private-network firewall option in the installer for Plex on your LAN.")
         readme = readme.replace("@FIREWALL@", firewall)
         (stage / "README.txt").write_text(readme, encoding="utf-8")

@@ -23,7 +23,7 @@ On first run, open **Status** in the web interface. Sign in with `admin` / `admi
 The web interface defaults to `http://127.0.0.1:39192` on the computer running Antennarr. Tuners use the computer’s private LAN address when available. Use the address shown for each tuner in Plex. If the computer has several network interfaces, set `ANTENNARR_LISTEN` and `ANTENNARR_BASE_URL` to the private address Plex can reach. Restart Antennarr after changing its network configuration.
 
 - **Windows Defender Firewall:** If Plex runs on another computer, select the private-network firewall option in the installer and approve the Windows prompt. It allows the server programme to receive TCP connections on ports 9192 and 9200–9207 from the local subnet on Private networks. Run the installer again to change this option. On a managed network, your administrator may need to apply the rule.
-- **Mac firewall:** Allow incoming connections for the bundled `antennarr-server` when prompted. To review it later, open **System Settings → Network → Firewall → Options**. The server is inside `/Applications/Antennarr.app/Contents/MacOS/`. Plex needs the tuner ports only. [Apple’s firewall settings](https://support.apple.com/guide/mac-help/change-firewall-settings-on-mac-mh34041/mac)
+- **Mac firewall:** Allow incoming connections for Antennarr and its bundled `antennarr-server` when prompted. To review it later, open **System Settings → Network → Firewall → Options**. The server is inside `/Applications/Antennarr.app/Contents/MacOS/`. Plex needs the tuner ports only. [Apple’s firewall settings](https://support.apple.com/guide/mac-help/change-firewall-settings-on-mac-mh34041/mac)
 
 ## Older systems and upgrades
 

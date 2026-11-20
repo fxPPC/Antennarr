@@ -114,11 +114,16 @@ begin
       ' protocol=TCP localport=9192,9200-9207'
   else
     Args := 'delete rule name="' + RuleName + '" program="' + ServerPath + '" dir=in';
-  { Only the system tool runs elevated. No executable or script in the user's writable
-    installation is launched with administrator privileges. }
-  Result := ShellExec('runas', ExpandConstant('{sys}\netsh.exe'),
-    'advfirewall firewall ' + Args, ExpandConstant('{sys}'), SW_HIDE,
-    ewWaitUntilTerminated, Code);
+  Args := 'advfirewall firewall ' + Args;
+  { A standard user elevates only the system tool. An already elevated
+    installation, including unattended Setup, needs no second elevation. }
+  if IsAdmin then
+    Result := Exec(ExpandConstant('{sys}\netsh.exe'), Args, ExpandConstant('{sys}'),
+      SW_HIDE, ewWaitUntilTerminated, Code)
+  else
+    Result := ShellExec('runas', ExpandConstant('{sys}\netsh.exe'), Args,
+      ExpandConstant('{sys}'), SW_HIDE, ewWaitUntilTerminated, Code);
+  Log(Format('Antennarr firewall: %s; netsh result %d', [Args, Code]));
   Result := Result and (Code = 0);
   if Result then begin
     if AddRule then
@@ -149,12 +154,16 @@ begin
   if CurStep = ssInstall then
     Upgrading := FileExists(ExpandConstant('{app}\Antennarr.exe'));
   if CurStep <> ssPostInstall then exit;
-  if Upgrading and WizardSilent and not ExplicitTasks then exit;
+  if Upgrading and WizardSilent and not ExplicitTasks then begin
+    Log('Antennarr firewall and login settings preserved for silent upgrade.');
+    exit;
+  end;
   if WizardIsTaskSelected('startlogin') then
     RegWriteStringValue(HKCU, RunKey, RunValue, '"' + ExpandConstant('{app}\Antennarr.exe') + '" --login-item')
   else if OwnsLoginEntry then
     RegDeleteValue(HKCU, RunKey, RunValue);
   if WizardIsTaskSelected('lanfirewall') then begin
+    Log('Antennarr firewall task selected.');
     if not OwnsFirewallRule then
       if not ApplyFirewallRule(True) then
         SuppressibleMsgBox('Windows did not add the private-network tuner rule. You can run Setup again to enable it.', mbError, MB_OK, IDOK);

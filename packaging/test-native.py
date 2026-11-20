@@ -229,17 +229,22 @@ def check_native_files(package, executables, arch):
                     f"{binary.name}: external dependency {dep}")
 
 
-def firewall_state(server):
-    # Only enumerate the optional rule for this unique, disposable installation path.
+def firewall_state():
     script = """
+        $ErrorActionPreference = 'Stop'
         $p = New-Object -ComObject HNetCfg.FwPolicy2
-        $rules = @($p.Rules | Where-Object {
-            $_.Name -eq 'Antennarr Beta LAN tuner' -and $_.ApplicationName -eq $env:TEST_TUNER_PROGRAM
-        } | Select-Object Enabled,Direction,Action,Profiles,Protocol,LocalPorts,RemoteAddresses)
-        @{privateEnabled=$p.FirewallEnabled(2); activeProfiles=$p.CurrentProfileTypes; rules=$rules} | ConvertTo-Json -Compress -Depth 3
+        $rule = $null
+        try {
+            $rule = $p.Rules.Item('Antennarr Beta LAN tuner') |
+                Select-Object ApplicationName,Enabled,Direction,Action,Profiles,Protocol,LocalPorts,RemoteAddresses
+        } catch {
+            # INetFwRules::Item returns HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND) for an absent rule.
+            if ($_.Exception.GetBaseException().HResult -ne -2147024894) { throw }
+        }
+        @{privateEnabled=$p.FirewallEnabled(2); activeProfiles=$p.CurrentProfileTypes; rule=$rule} | ConvertTo-Json -Compress -Depth 3
     """
     out = subprocess.check_output(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
-                                  env={**os.environ, "TEST_TUNER_PROGRAM": str(server)}, text=True, timeout=30)
+                                  text=True, timeout=60)
     return json.loads(out)
 
 
@@ -251,7 +256,7 @@ def firewall_requested():
 
 
 @contextlib.contextmanager
-def mac_firewall(server):
+def mac_firewall(app):
     tool = "/usr/libexec/ApplicationFirewall/socketfilterfw"
     def read(*args):
         return subprocess.check_output([tool, *args], text=True, timeout=15).strip()
@@ -262,26 +267,58 @@ def mac_firewall(server):
     if not firewall_requested():
         yield
         return
-    server = str(server.resolve())
-    assert server not in read("--listapps")
+    app = app.resolve()
+    # Give the installed bundle and its listening helper the same explicit rule
+    # a user can set in Firewall Options. Both paths live in this run's scratch directory.
+    targets = [str(app), str(app / "Contents/MacOS/antennarr-server")]
+    assert not any(target in read("--listapps") for target in targets)
     restore_off = "disabled" in state.lower()
+    block_all = read("--getblockall")
+    restore_block_all = "enabled" in block_all.lower()
+    added = []
     try:
         configure("--setglobalstate", "on")
         assert "enabled" in read("--getglobalstate").lower()
-        configure("--add", server)
-        configure("--unblockapp", server)
-        assert server in read("--listapps")
-        allowed = read("--getappblocked", server)
-        assert re.search(r"permit|allow|not blocked|unblocked", allowed, re.I), allowed
+        # Block-all overrides individual application rules.
+        if restore_block_all:
+            configure("--setblockall", "off")
+        assert "disabled" in read("--getblockall").lower()
+        for target in targets:
+            configure("--add", target)
+            added.append(target)
+            configure("--unblockapp", target)
+            allowed = read("--getappblocked", target)
+            assert re.search(r"permit|allow|not blocked|unblocked", allowed, re.I), allowed
+            print(f"macOS firewall rule for {target}: {allowed}", flush=True)
         yield
     finally:
         try:
-            if server in read("--listapps"):
-                configure("--remove", server)
-            assert server not in read("--listapps")
+            for target in reversed(added):
+                if target in read("--listapps"):
+                    configure("--remove", target)
+            assert not any(target in read("--listapps") for target in added)
         finally:
+            if restore_block_all:
+                configure("--setblockall", "on")
             if restore_off:
                 configure("--setglobalstate", "off")
+
+
+def wait_for_mac_tuner(base):
+    # ALF reloads its policy asynchronously when the CI runner enables the
+    # firewall. Require an actual tuner response before testing its routes.
+    deadline = time.monotonic() + 25
+    while True:
+        try:
+            return api(base, "/discover.json")
+        except (URLError, TimeoutError, ConnectionError) as exc:
+            if time.monotonic() >= deadline:
+                port = urlparse(base).port
+                listeners = subprocess.run(["/usr/sbin/lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"],
+                                           capture_output=True, text=True, timeout=5)
+                raise RuntimeError(f"macOS firewall test could not reach {base}; "
+                                   f"local listeners: {listeners.stdout.strip()}") from exc
+            time.sleep(0.4)
 
 
 def set_private_firewall(enabled):
@@ -291,9 +328,11 @@ def set_private_firewall(enabled):
 
 
 def verify_windows_rule(server):
-    state = firewall_state(server)
+    state = firewall_state()
     assert state["privateEnabled"]
-    [rule] = state["rules"]
+    rule = state["rule"]
+    assert rule, "Setup completed with lanfirewall selected, but its named rule is missing"
+    assert Path(os.path.expandvars(rule["ApplicationName"])).samefile(server), rule
     assert rule["Enabled"] and rule["Profiles"] == 2 and rule["Direction"] == 1 and rule["Action"] == 1
     assert rule["Protocol"] == 6 and set(rule["LocalPorts"].split(",")) == {"9192", "9200-9207"}
     scopes = {x.casefold() for x in rule["RemoteAddresses"].split(",")}
@@ -327,7 +366,7 @@ def installed(archive, root):
             subprocess.run(["ditto", mount / "Antennarr.app", package / "Antennarr.app"], check=True, timeout=90)
         finally:
             subprocess.run(["hdiutil", "detach", "-quiet", mount], check=True, timeout=60)
-        with mac_firewall(package / "Antennarr.app" / "Contents" / "MacOS" / "antennarr-server"):
+        with mac_firewall(package / "Antennarr.app"):
             yield package
     else:
         import ctypes
@@ -340,31 +379,41 @@ def installed(archive, root):
         else:
             previous.Close()
             raise RuntimeError("Test the installer on a clean Windows user profile; an Antennarr Beta installation exists.")
+        package = package.resolve()
         flags = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
         server = package / "antennarr-server.exe"
-        state = firewall_state(server)
+        state = firewall_state()
         print("Windows private firewall enabled:", state["privateEnabled"], "active profile mask:", state["activeProfiles"])
-        assert not state["rules"]
+        assert state["rule"] is None, f"An existing Antennarr firewall rule is present: {state['rule']}"
         uninstaller = package / "unins000.exe"
         active_firewall_test = firewall_requested()
         if active_firewall_test and not ctypes.windll.shell32.IsUserAnAdmin():
             raise RuntimeError("Testing the private firewall rule requires an elevated disposable runner.")
         try:
-            subprocess.run([archive, *flags, "/TASKS=", "/DIR=" + str(package)], check=True, timeout=120)
-            assert uninstaller.is_file() and not firewall_state(server)["rules"]
+            subprocess.run([archive, *flags, "/LOG=" + str(root / "install.log"), "/TASKS=", "/DIR=" + str(package)],
+                           check=True, timeout=120)
+            assert uninstaller.is_file() and firewall_state()["rule"] is None
             if active_firewall_test:
                 if not state["privateEnabled"]:
                     set_private_firewall(True)
-                subprocess.run([archive, *flags, "/TASKS=lanfirewall", "/DIR=" + str(package)],
+                subprocess.run([archive, *flags, "/LOG=" + str(root / "lanfirewall.log"), "/TASKS=lanfirewall", "/DIR=" + str(package)],
                                check=True, timeout=120)
                 verify_windows_rule(server)
             yield package
         finally:
             try:
                 if uninstaller.exists():
-                    subprocess.run([uninstaller, *flags], check=True, timeout=100)
-                assert not server.exists() and not uninstaller.exists()
-                if active_firewall_test and firewall_state(server)["rules"]:
+                    subprocess.run([uninstaller, *flags, "/LOG=" + str(root / "uninstall.log")],
+                                   check=True, timeout=100)
+                    # Inno finishes deleting its own executable after the first process exits.
+                    deadline = time.monotonic() + 30
+                    while time.monotonic() < deadline and (server.exists() or uninstaller.exists()):
+                        time.sleep(0.25)
+                    remaining = [str(p) for p in (server, uninstaller) if p.exists()]
+                    assert not remaining, f"Uninstall left files behind: {remaining}"
+                rule = firewall_state()["rule"] if active_firewall_test else None
+                if rule:
+                    assert Path(os.path.expandvars(rule["ApplicationName"])).resolve() == server, rule
                     subprocess.run(["netsh.exe", "advfirewall", "firewall", "delete", "rule",
                                     "name=Antennarr Beta LAN tuner", "program=" + str(server), "dir=in"],
                                    check=True, timeout=20)
@@ -372,6 +421,13 @@ def installed(archive, root):
             finally:
                 if active_firewall_test and not state["privateEnabled"]:
                     set_private_firewall(False)
+                for log in (root / "install.log", root / "lanfirewall.log", root / "uninstall.log"):
+                    if log.exists():
+                        raw = log.read_bytes()
+                        encoding = "utf-16" if raw.startswith(b"\xff\xfe") else "utf-8-sig"
+                        for line in raw.decode(encoding, errors="replace").splitlines():
+                            if "Antennarr firewall" in line or "error" in line.lower():
+                                print(log.name, line)
         config = root / "Application Data" / "config" / "config.json"
         assert json.loads(config.read_text())["settings"]["scans_paused"] is True
         database = root / "Application Data" / "database" / "antennarr.db"
@@ -465,8 +521,12 @@ def exercise(package, root, os_name, arch):
         assert {p["tuner_url"] for p in profiles} == {base, f"http://{tuner_host}:{extra}"}
         for p in profiles:
             url = p["tuner_url"]
+            if os_name == "macos" and firewall_requested():
+                discovery = wait_for_mac_tuner(url)
+            else:
+                discovery = api(url, "/discover.json")
+            assert discovery["FriendlyName"] == p["name"]
             tuner_only(url)
-            assert api(url, "/discover.json")["FriendlyName"] == p["name"]
             assert len(api(url, "/lineup.json")) == p["channel_count"]
         channel["profile_id"], tuner = saved["id"], saved["tuner_url"]
         assert urlparse(tuner).hostname == tuner_host
