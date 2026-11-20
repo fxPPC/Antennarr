@@ -10,6 +10,8 @@ import {
 import * as input from './ui/input.js';
 import * as output from './ui/output.js';
 import * as status from './ui/status.js';
+import * as setup from './ui/setup.js';
+import {bindImport} from './ui/source-import.js';
 const staticHelp = [
   ['#import-form textarea', 'Enter list-page URLs, or Base64-encoded URLs, one per line. Antennarr reads them only when you import; it does not scan them automatically. Keep the full #key on encrypted paste links.', 'List URLs'],
   ['#channel-form [name=number]', 'The channel number within this tuner. Different tuners may use the same number. Keep it stable to avoid disturbing existing Plex guide mappings.', 'Channel number'],
@@ -29,6 +31,8 @@ for (const [selector, text, name] of staticHelp) {
 help($('#live-streams').previousElementSibling, 'Outgoing viewers share one channel pipeline when they watch the same channel. Each active channel maintains a primary feed and a continuously receiving hot backup when sources are available.', 'Outgoing streams');
 help($('#current-work').previousElementSibling, 'Live startup, backup replacement, imports, and background checks appear here while running. Background checks yield to playback.', 'Working on');
 help($('#upcoming-title'), 'The next work depends on roster vacancies, continuous check passes, and provider pacing. Routine checks pause during playback; optional replenishment serves playing channels only.', 'Up next');
+bindImport();
+setup.bind(output.invalidateProfiles);
 let adminLoaded = false;
 const admin = {
   init: async () => {
@@ -82,6 +86,7 @@ async function navigate() {
   key = aliases[key] || key;
   if (!pages[key]) key = 'status';
   current = key;
+  setup.visit(key);
   for (const name of Object.keys(pages)) $('#' + name).hidden = name !== key;
   for (const a of document.querySelectorAll('nav a')) a.setAttribute('aria-current', a.hash === '#' + key ? 'page' : 'false');
   try {
@@ -98,7 +103,9 @@ async function navigate() {
 window.addEventListener('hashchange', navigate);
 navigate();
 setInterval(async () => {
-  if (busy || document.hidden || !current) return;
+  if (document.hidden || !current) return;
+  void setup.poll();
+  if (busy) return;
   busy = true;
   const key = current;
   try {

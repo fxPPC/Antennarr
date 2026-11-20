@@ -60,6 +60,36 @@ func TestExistingEmptyCatalogueNotSeeded(t *testing.T) {
 	if len(ch) != 0 {
 		t.Fatal("existing setup changed")
 	}
+	if p, err := s.SetupProgress(); err != nil || p.State != "dismissed" {
+		t.Fatal("existing empty catalogue prompted for setup", p, err)
+	}
+}
+
+func TestSetupRecognisesIndependentlyConfiguredInstall(t *testing.T) {
+	s, err := OpenWithDefaults(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	addTestPresets(t, s, "de-berlin")
+	if _, err = s.DB.Exec(`INSERT INTO accounts(identity,provider,kind,secret,state,created) VALUES('test','example.test','direct','{}','healthy',1)`); err != nil {
+		t.Fatal(err)
+	}
+	if p, err := s.SetupProgress(); err != nil || p.State != "pending" || p.HasTuner || !p.HasSources {
+		t.Fatal("disabled tuner counted as configured", p, err)
+	}
+	if _, err = s.DB.Exec("UPDATE output_profiles SET enabled=1"); err != nil {
+		t.Fatal(err)
+	}
+	if p, err := s.SetupProgress(); err != nil || p.State != "complete" || !p.HasTuner || !p.HasSources {
+		t.Fatal("configured install prompted for setup", p, err)
+	}
+	if _, err = s.DB.Exec("DELETE FROM accounts"); err != nil {
+		t.Fatal(err)
+	}
+	if p, err := s.SetupProgress(); err != nil || p.State != "complete" || p.HasSources {
+		t.Fatal("clearing accounts restarted setup", p, err)
+	}
 }
 
 func TestApplyUSPresetAlignsGuideAndPreservesIDs(t *testing.T) {

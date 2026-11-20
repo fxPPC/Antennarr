@@ -114,7 +114,7 @@ func open(root string, defaults bool) (*Store, error) {
 		}
 		if _, err = tx.Exec(schema); err == nil && defaults {
 			// Only the new schema contains this placeholder. Setup creates the first real tuner.
-			_, err = tx.Exec("DELETE FROM output_profiles; INSERT INTO settings(name,value) VALUES('multi_tuner_presets_seeded','1')")
+			_, err = tx.Exec("DELETE FROM output_profiles; INSERT INTO settings(name,value) VALUES('multi_tuner_presets_seeded','1'),('setup_state','pending')")
 		}
 		if err == nil && defaults {
 			// Seed once in the new-database transaction. Existing policies, including

@@ -26,6 +26,7 @@ A disabled tuner returns 503; an unused listener slot returns 404. Each device a
 | GET `/api/connection` | Addresses Plex can use |
 | GET `/api/system` | Host, resource, and background/streaming load information |
 | GET, POST `/api/login` | Current username/change login; current password required |
+| GET, POST `/api/setup` | Read first-run progress and whether an enabled tuner and source account exist. Save wizard progress with `state` (`active`, `dismissed`, or `complete`). |
 | GET, POST `/api/settings` | Settings; immediate changes and restart requirements are reported by the save response |
 | GET, POST `/api/removal-policy` | `{account_failures,stream_failures}`, 0–100; zero disables that automatic retirement threshold |
 | POST `/api/import` | `{text,authorised:true}`; list URLs, optionally Base64 encoded; starts asynchronous import |

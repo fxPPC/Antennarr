@@ -19,6 +19,9 @@ let ready = false, profiles = [], presets = [], channels = [], selectedProfile =
 const channelCards = new Map(), profileCards = new Map();
 let loadingProfiles, viewKey = '', editReturn = '';
 let rosterByChannel = new Map();
+export function invalidateProfiles() {
+  viewKey = '';
+}
 function view() {
   const params = routeParams();
   return {tuner: params.get('tuner') || '', coverage: params.get('coverage') || '', searching: !!params.get('q')};

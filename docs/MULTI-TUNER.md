@@ -28,7 +28,7 @@ ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.1 docker compose -f compose.port
 
 These commands pull the published image for Linux amd64 or ARM64. If stable and beta run on the same host, give them separate Compose projects, data directories, and non-overlapping listener and host ports (or run the preview on a separate host).
 
-Open administration on port 39192, sign in with `admin/admin` on a fresh install, and change the login. In first-time setup, choose the tuners you want and enable them, import authorised sources, and wait for suitable streams to fill their rosters. An upgraded primary tuner retains its previous enabled state and channels; the new London tuner starts disabled.
+Open administration on port 39192, sign in with `admin/admin` on a fresh install, and change the login. On a fresh install, the setup wizard opens in **Status**. Choose a city, enable its tuner, and import an authorised source list. Use the tuner address shown in the last step to add it in Plex. You can skip the wizard and reopen it from **Admin**. Add further cities under **Tuners**. An upgraded primary tuner retains its previous enabled state and channels; the new London tuner starts disabled.
 
 ## Private ports
 

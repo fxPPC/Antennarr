@@ -10,30 +10,6 @@ import {
 } from './core.js';
 let names = new Map(),
   ready = false;
-function setupGuide(db, profiles) {
-  const guide = $('#setup-guide');
-  const enabled = profiles.find(p => p.enabled);
-  const hasSources = Object.entries(db.queue).some(([key,value]) => key !== 'streams' && value > 0);
-  const visited = localStorage.getItem('setup-started') === 'yes';
-  guide.hidden = !db.collected || localStorage.getItem('setup-skipped') === 'yes' || (!visited && !!enabled && hasSources);
-  if(!guide.hidden && !visited) localStorage.setItem('setup-started','yes');
-  if (guide.hidden) return;
-  const steps = el('ol');
-  for (const [label, href, done] of [
-    ['Choose a tuner', profiles.length ? '#output' : pageURL('output', {add:1}), !!enabled],
-    ['Import a source list', '#input', hasSources],
-    ['Connect to Plex', enabled ? pageURL('output',{tuner:enabled.id,connect:1}) : '', false]
-  ]) {
-    const item = el('li');
-    if (href) { const a=el('a',label); a.href=href; item.append(a); }
-    else item.append(el('span',label+' · enable a tuner first'));
-    if(done) item.append(el('small','Complete'));
-    steps.append(item);
-  }
-  guide.replaceChildren(el('h3','Set up live TV'),steps,button(enabled && hasSources ? 'Finish setup' : 'Skip for now',()=>{
-    localStorage.setItem('setup-skipped','yes'); guide.hidden=true;
-  }));
-}
 export async function init() {
   if (ready) return;
   const cs = await api('/api/channels');
@@ -54,10 +30,9 @@ function taskLabel(j, result=false) {
  return text;
 }
 export async function refresh() {
-  const [snapshot, events, profiles] = await Promise.all([api('/api/monitor'), api('/api/events'), api('/api/profiles')]);
+  const [snapshot, events] = await Promise.all([api('/api/monitor'), api('/api/events')]);
   const { playback: status, live: liveData, work, checker, database: db } = snapshot;
   const live = liveData || [];
-  setupGuide(db,profiles);
   const c = db.coverage, q = db.queue, p = db.progress;
   for (const [id, name] of Object.entries(db.channels)) names.set(id, name);
   const need = c.vacancies ?? Math.max(0, c.target - c.verified);
@@ -97,7 +72,7 @@ export async function refresh() {
   if (need && !queued && !db.eligible_media && !db.eligible_discovery) attention.append(el('p','New account lists are needed: channel rosters have vacancies and no accounts are waiting in the input queue.','warning-text'));
   else if (need && queued<10) attention.append(el('p',`Input queue is low: ${queued} accounts remain for ${compactNumber(need)} roster vacancies. Consider importing more authorised lists.`,'warning-text'));
   else if (c.empty && !db.eligible_media && !db.eligible_discovery && !q.resting) attention.append(el('p','No eligible sources currently match the empty channels. Import more accounts or review channel aliases, exclusions, country, and UHD settings.','warning-text'));
-  if (db.collected && !c.total) attention.append(el('p','No enabled channels. Add channels under Output, or use Bulk operations to restore the default US selection.','warning-text'));
+  if (db.collected && !c.total) attention.append(el('p','No enabled channels. In Tuners, enable a tuner and its channels, or add a city preset.','warning-text'));
   if (q.resting && need) attention.append(el('p',`${compactNumber(q.resting)} accounts are waiting for provider pacing or access retry limits. Stream requeueing itself has no cooldown.`));
   const pass=db.check_pass || {};
   if (pass.generation && c.total) recruitment.append(el('p',`Check pass ${compactNumber(pass.generation)}: ${compactNumber(pass.checked)} / ${compactNumber(pass.total)} unique streams checked · ${compactNumber(pass.remaining)} pending · ${compactNumber(pass.deferred||0)} temporarily deferred · ${compactNumber(pass.released)} released for replacement.`));
@@ -113,7 +88,7 @@ export async function refresh() {
   const next = $('#upcoming'); next.replaceChildren();
   if (need) next.append(el('article', `${compactNumber(need)} roster vacancies. ${compactNumber(db.eligible_discovery)} accounts eligible for initial discovery now. Media auditions retain global and provider pacing.`, 'schedule-card'));
   if (db.next_discovery / 1000 > snapshot.collected) next.append(el('article', 'Earliest initial-discovery provider slot ' + countdown(db.next_discovery / 1000), 'schedule-card'));
-  if (!next.childNodes.length) next.append(el('p', !db.collected ? 'Loading catalogue statistics…' : c.total ? 'Rosters are full; continuous check passes continue.' : 'Add channels under Output to begin recruitment.'));
+  if (!next.childNodes.length) next.append(el('p', !db.collected ? 'Loading catalogue statistics…' : c.total ? 'Rosters are full; continuous check passes continue.' : 'Enable a tuner with channels in Tuners to begin recruitment.'));
   const recent = $('#recent-events'); recent.replaceChildren();
   const records = [...(work.recent || []).filter(j => (!['deferred', 'paused'].includes(j.outcome)||['rate_limited','oversized_catalogue','oversized_response'].includes(j.failure_kind))).map(j => ({time: j.finished, text: taskLabel(j,true)})), ...events.map(e => ({time: e.happened, text: [names.get(e.channel_id),e.kind.replaceAll('_',' '),e.reason,e.stream_id?'stream #'+e.stream_id:''].filter(Boolean).join(' · ')}))].sort((a,b) => b.time-a.time);
   const seen = new Set();

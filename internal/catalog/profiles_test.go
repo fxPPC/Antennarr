@@ -244,6 +244,9 @@ func TestSchema8ProfileMigrationPreservesCustomData(t *testing.T) {
 	if e != nil || !p.Enabled || p.Country != "" || p.Name != "Existing tuner" {
 		t.Fatal("migration guessed market", p, e)
 	}
+	if setup, err := s.SetupProgress(); err != nil || setup.State != "dismissed" || !setup.HasTuner || !setup.HasSources {
+		t.Fatal("schema 8 upgrade prompted for setup", setup, err)
+	}
 	roster, e := s.RosterEntries("custom")
 	if e != nil || len(roster) != 1 {
 		t.Fatal("migration lost roster", roster, e)

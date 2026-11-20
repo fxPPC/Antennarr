@@ -1,3 +1,4 @@
+import {showImport} from './source-import.js';
 import { compactNumber } from './core.js';
 import { routeParams, pageURL, idLink } from './navigation.js';
 import { confirmAction } from './core.js';
@@ -58,24 +59,6 @@ export async function init() {
   field(r, 'stream_failures', 'Stream failures before deletion', p.stream_failures, 0, 100);
   r.append(el('p', 'Full accounts return to the input queue and release their roster places without gaining a failure.'));
   autosave(r, () => api('/api/removal-policy', 'POST', numeric(r, ['account_failures', 'stream_failures'])));
-  $('#import-form').onsubmit = async e => {
-    e.preventDefault();
-    const f = e.currentTarget,
-      b = f.querySelector('button:not(.help-button)');
-    b.disabled = true;
-    try {
-      await api('/api/import', 'POST', {
-        text: f.elements.text.value,
-        authorised: f.elements.authorised.checked
-      });
-      f.elements.text.value = '';
-      await refresh()
-    } catch (e) {
-      notice(e.message)
-    } finally {
-      b.disabled = false
-    }
-  };
   $('#clear-import-queue').onclick = async () => {
     if (!await confirmAction('Clear the import queue? Unassigned accounts and streams will be removed, including queued entries referenced by saved UHD rosters. Current rosters and in-use accounts are kept. No backup is created; make a manual backup first if you may need these entries.')) return;
     const b = $('#clear-import-queue');
@@ -151,14 +134,7 @@ export async function refresh() {
     if(label.includes('retired'))help(box,'Automatically removed accounts, including accounts without remaining matches. Counts cover the last 24 hours.','Accounts retired');
   }
   if(s.retired_details_missing_24h)root.append(el('p', `${s.retired_details_24h} retained deletion notices; ${s.retired_details_missing_24h} deletions lack retained detail. Totals include all automatic deletions in the time window.`, 'muted status-explanation'));
-  let text = j.state === 'running' ? 'Reading your list in the background…' : j.state === 'imported' ? `Import complete · ${j.processed} entries processed.` : j.state === 'idle' ? '' : j.summary;
-  try {
-    const v = JSON.parse(j.summary);
-    if (Number.isInteger(v.accounts_added)) text = 'Import complete · '+v.accounts_added+' new accounts · '+v.accounts_existing+' already saved.';
-    if (j.state === 'imported' && Number.isInteger(v.duplicates)) text += ' ' + v.duplicates + ' duplicate entries in the submitted lists.';
-    if (v.warnings?.length) text += ' ' + v.warnings.join(' ')
-  } catch {}
-  $('#import-result').textContent = text;
+  showImport(j);
   const version = String(j.job_id) + ':' + j.state;
   if (lastImport !== version && j.state === 'imported') {
     offset = 0;
