@@ -11,7 +11,6 @@ import (
 )
 
 var words = regexp.MustCompile(`[\p{L}\p{M}\p{N}]+`)
-var originalWords = words
 
 // 5USA is a UK service name, including its spaced Five USA variant. Preserve
 // that identity before interpreting USA as a provider country tag.
@@ -146,22 +145,20 @@ func channelKey(name, region string) (string, string) {
 			rawFiltered = append(rawFiltered, original[i])
 		}
 	}
-	ts, original, initialCountry := splitCountry(filtered, rawFiltered, false)
-	out := []string{}
-	rawOut := []string{}
-	country := initialCountry
-	for i, t := range ts {
-		out = append(out, t)
-		rawOut = append(rawOut, original[i])
-	}
-	out, _, detected := splitCountry(out, rawOut, false)
+	ts, _, country := splitCountry(filtered, rawFiltered, false)
+	explicit := regionCountry(region)
 	if country == "" {
-		country = detected
+		country = explicit
+	} else if explicit != "" && country != explicit {
+		country = "conflict"
 	}
-	if country == "" {
-		country = regionCountry(region)
+	key := strings.Join(ts, " ")
+	// Freeview renamed 5SELECT to 5DRAMA. Normalise the exact service
+	// name on existing lineups as well as new presets.
+	switch key {
+	case "5select", "5 select", "five select":
+		key = "5drama"
 	}
-	key := strings.Join(out, " ")
 	// Canonical brand aliases preserve other words (regional variants,
 	// spin-offs, and timeshifts), instead of swallowing those distinctions.
 	for _, pair := range [][2]string{{"fox news channel", "fox news"}, {"foxnewschannel", "fox news"}, {"foxnews", "fox news"}, {"discovery channel", "discovery"}, {"discoverychannel", "discovery"}, {"the learning channel", "tlc"}, {"animalplanet", "animal planet"}, {"ms now", "msnow"}, {"msnbc", "msnow"}, {"mtv 1", "mtv"}, {"mtv1", "mtv"}, {"vh 1", "vh1"}} {
@@ -316,19 +313,25 @@ func readLearnedChannelIDs(q interface {
 // a contradictory recognised name, a country boundary, or an exclusion. An ID
 // manually associated with several channels is not safe to reuse automatically.
 func resolveChannel(channels []channelMatcher, label sourceLabel, tvg string, known learnedChannelIDs) *channelMatcher {
-	learned := map[string]bool{}
-	for _, c := range channels {
-		if known["tvg:"+strings.ToLower(tvg)][c.channel.ID] {
-			learned[c.channel.ID] = true
+	// Learned IDs can be shared across profiles. An ID must identify a single
+	// channel within this profile before it can stand in for a display name.
+	var learned string
+	if ids := known["tvg:"+strings.ToLower(tvg)]; tvg != "" && len(ids) > 0 {
+		for _, c := range channels {
+			if !ids[c.channel.ID] {
+				continue
+			}
+			if learned != "" {
+				learned = ""
+				break
+			}
+			learned = c.channel.ID
 		}
-	}
-	if tvg == "" || len(learned) != 1 {
-		learned = nil
 	}
 	var selected *channelMatcher
 	for i := range channels {
 		c := &channels[i]
-		if !c.matches(label) && !(learned[c.channel.ID] && !c.excludes(label) && c.compatible(label) && c.stationMatches(label)) {
+		if !c.matches(label) && !(learned != "" && learned == c.channel.ID && !c.excludes(label) && c.compatible(label) && c.stationMatches(label)) {
 			continue
 		}
 		if guideConflict(channels, *c, label) {

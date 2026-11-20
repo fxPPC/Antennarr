@@ -48,7 +48,7 @@ func splitCountry(ts, original []string, explicit bool) ([]string, []string, str
 	// CW is also a network name; only [CW] or an explicit region means Curaçao.
 	ambiguous := " al am as at be by cw do in is it me my no so to tv ms id fi geo btn and "
 	country := ""
-	for pass := 0; pass < 2; pass++ {
+	for len(ts) > 0 {
 		found := false
 		for n := min(countryAliasMax, len(ts)); n > 0 && !found; n-- {
 			if !explicit && n == len(ts) {
@@ -98,7 +98,10 @@ func splitCountry(ts, original []string, explicit bool) ([]string, []string, str
 	return ts, original, country
 }
 func regionCountry(region string) string {
-	raw := originalWords.FindAllString(normaliseName(region), -1)
+	if region == "" {
+		return ""
+	}
+	raw := words.FindAllString(normaliseName(region), -1)
 	ts := make([]string, len(raw))
 	for i, t := range raw {
 		ts[i] = strings.ToLower(t)
