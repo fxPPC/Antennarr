@@ -28,47 +28,47 @@ type RosterSummary struct {
 
 // RosterState reports only work that enabled outputs can perform.
 func (s *Store) RosterState() (RosterSummary, error) {
-	chs, e := s.ActiveChannels()
-	if e != nil {
-		return RosterSummary{}, e
-	}
-	return s.rosterState(chs, true)
+	return s.rosterState("", true)
 }
 
-// RosterStateForProfile is an administrative saved-data view. Disabled tuners
-// and channels retain their counts and overrides without creating checker work.
+// RosterStateForProfile also includes disabled channels and tuners for the editor.
 func (s *Store) RosterStateForProfile(profile string) (RosterSummary, error) {
-	chs, e := s.ChannelsForProfile(profile)
-	if e != nil {
-		return RosterSummary{}, e
-	}
-	return s.rosterState(chs, false)
+	return s.rosterState(profile, false)
 }
-func (s *Store) rosterState(chs []Channel, activeOnly bool) (RosterSummary, error) {
-	out := RosterSummary{Channels: []ChannelRoster{}}
 
-	for _, ch := range chs {
-		if activeOnly && !ch.Enabled {
-			continue
+func (s *Store) rosterState(profile string, activeOnly bool) (RosterSummary, error) {
+	out := RosterSummary{Channels: []ChannelRoster{}}
+	// Read counts and overrides in one snapshot. The scheduler does not need
+	// the editor's stream mappings or the channel matching rules.
+	rows, err := s.DB.Query(`SELECT c.id,c.name,
+ coalesce(p.target,0),coalesce(p.preference,''),coalesce(p.race,0),
+ count(r.stream_id),count(DISTINCT a.rate_key),coalesce(max(r.verified),0)
+ FROM channels c JOIN output_profiles t ON t.id=c.profile_id
+ LEFT JOIN channel_policies p ON p.channel_id=c.id
+ LEFT JOIN roster r ON r.channel_id=c.id LEFT JOIN accounts a ON a.id=r.account_id
+ WHERE (?='' OR c.profile_id=?) AND (?=0 OR (t.enabled=1 AND c.enabled=1))
+ GROUP BY c.id ORDER BY c.profile_id,CAST(c.number AS REAL),c.id`, profile, profile, activeOnly)
+	if err != nil {
+		return out, err
+	}
+	defer rows.Close()
+	base := s.rosterPolicy.Load()
+	for rows.Next() {
+		var r ChannelRoster
+		o := &r.Override
+		if err := rows.Scan(&r.ChannelID, &r.Name, &o.Target, &o.Preference, &o.Race, &r.Count, &r.Providers, &r.LastVerified); err != nil {
+			return out, err
 		}
-		p, e := s.EffectivePolicy(ch.ID)
-		if e != nil {
-			return out, e
-		}
-		o, e := s.ChannelPolicy(ch.ID)
-		if e != nil {
-			return out, e
-		}
-		r := ChannelRoster{ChannelID: ch.ID, Name: ch.Name, Policy: p, Override: o}
-		e = s.DB.QueryRow(`SELECT count(*),count(DISTINCT a.rate_key),coalesce(max(r.verified),0) FROM roster r JOIN accounts a ON a.id=r.account_id WHERE r.channel_id=?`, ch.ID).Scan(&r.Count, &r.Providers, &r.LastVerified)
-		if e != nil {
-			return out, e
+		if base == nil {
+			r.Policy = RosterPolicy{30, "stability", 5}
+		} else {
+			r.Policy = base.withOverride(r.Override)
 		}
 		out.Ready += r.Count
-		out.Deficit += max(0, p.Target-r.Count)
+		out.Deficit += max(0, r.Policy.Target-r.Count)
 		out.Channels = append(out.Channels, r)
 	}
-	return out, nil
+	return out, rows.Err()
 }
 
 // Queue totals are for the Input page, not the serial worker's hot path.

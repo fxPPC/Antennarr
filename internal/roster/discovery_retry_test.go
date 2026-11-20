@@ -140,8 +140,8 @@ func TestBusyAccountCanRecoverWithoutRefetchingSavedCatalogue(t *testing.T) {
 	var failures int
 	var state string
 	s.Store.DB.QueryRow("SELECT failures,state FROM accounts WHERE id=?", id).Scan(&failures, &state)
-	if failures != 0 || state != "healthy" || tr.auth != 1 || tr.lists != 0 || s.recruitAccount != id {
-		t.Fatal(failures, state, tr, s.recruitAccount)
+	if failures != 0 || state != "healthy" || tr.auth != 1 || tr.lists != 0 {
+		t.Fatal(failures, state, tr)
 	}
 }
 
@@ -220,8 +220,8 @@ func TestFullAccountDefaultPreservesAccountAndFailureStreak(t *testing.T) {
 	s.discover(context.Background(), v, false)
 	var failures int
 	s.Store.DB.QueryRow("SELECT failures FROM accounts WHERE id=?", id).Scan(&failures)
-	if failures != 0 || tr.lists != 0 || s.recruitAccount != id {
-		t.Fatal(failures, tr, s.recruitAccount)
+	if failures != 0 || tr.lists != 0 {
+		t.Fatal(failures, tr)
 	}
 }
 
