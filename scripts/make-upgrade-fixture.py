@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create synthetic upgrade-test appdata with a published image.
+"""Create synthetic upgrade-test appdata from pinned release source.
 
 Usage: python3 scripts/make-upgrade-fixture.py /tmp/antennarr-upgrade-fixture
 Requires Docker. Refuses an existing output directory. Never reads live appdata.
@@ -15,12 +15,8 @@ import time
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('output', type=Path)
 parser.add_argument('--baseline', choices=['v1.0.0', 'v1.0.4'], default='v1.0.0')
-parser.add_argument('--image', help='Override the pinned image for the selected baseline')
+parser.add_argument('--image', help='Use an existing image built from the selected baseline')
 args = parser.parse_args()
-images = {
-    'v1.0.0': 'antennarr/antennarr@sha256:6387c9ad3ddad3653d67e98d0eaa4e7be595cd94f9617dd40eb6515ddb196695',
-    'v1.0.4': 'antennarr/antennarr@sha256:41c81d60454aa854fa93bf5335b1e8818985061a4edac2c07223a1a24091061b',
-}
 root = args.output.resolve()
 if root.exists():
     parser.error('Output already exists; choose a new disposable directory')
@@ -38,9 +34,18 @@ def docker(*parts):
 
 
 try:
+    image = args.image
+    if not image:
+        revision = {
+            'v1.0.0': '4f948cca0f4395bbe8aad109558e1fe151775827',
+            'v1.0.4': 'e1fdf4bc738e0a39c1b83a9f1f3c8148bb6758f4',
+        }[args.baseline]
+        image = f'antennarr-fixture:{revision}'
+        subprocess.run(['docker', 'build', '--tag', image,
+                        f'https://github.com/fxPPC/Antennarr.git#{revision}'], check=True)
     docker('run', '-d', '--name', name, '--network', 'none', '--user', f'{uid}:{gid}',
            '--mount', f'type=bind,src={data},dst=/data',
-           '-e', 'ANTENNARR_ADMIN_LISTEN=:9193', '-e', 'ANTENNARR_BASE_URL=http://fixture:9192', args.image or images[args.baseline])
+           '-e', 'ANTENNARR_ADMIN_LISTEN=:9193', '-e', 'ANTENNARR_BASE_URL=http://fixture:9192', image)
 
     def get(path, admin=True):
         auth = ['-u', 'admin:admin'] if admin else []
@@ -54,7 +59,7 @@ try:
         except subprocess.CalledProcessError:
             time.sleep(0.2)
     else:
-        raise RuntimeError('Published image failed to initialise')
+        raise RuntimeError('Baseline image failed to initialise')
     channels = json.loads(get('/api/channels'))
     channel = next(c['id'] for c in channels if c['name'] == 'CNN')
     if args.baseline == 'v1.0.4':

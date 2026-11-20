@@ -8,15 +8,15 @@ Ambiguous matches are left unassigned and are not automatically imported from pr
 
 Provider `VIP` and `[BK]` decorations are ignored for name identity; the UHD eligibility setting still applies independently. Catalogue headings such as `##### TENNIS #####` are not treated as television feeds.
 
-Fresh installations include 150 editable US channels. Tests and preset fixtures live beside the catalogue code; the runtime preset is authoritative. Existing installations retain their own channels.
+Stable 1.0 starts with 150 editable US channels. In 1.1, fresh installations start empty and users can add the New York City or London preset. Tests and preset fixtures live beside the catalogue code; the runtime preset is authoritative. Existing installations retain their own channels.
 
 The US preset includes CBS (002/WCBS), NBC (004/WNBC), FOX (005/WNYW), ABC (007/WABC), MyNetworkTV (009/WWOR), The CW (011/WPIX), and PBS (013/WNET). Each requires its New York station ID. A generic network or “New York” label alone is insufficient. A name identifying WNBC with a guide ID identifying KNBC is rejected. For example `US NBC HD` with guide ID `nbcwnbc.us` qualifies, but the same name with no ID, `cnbc.us`, or a different affiliate does not. Related news, sports, children's services, and explicitly labelled western feeds are excluded.
 
-**Output → Add or edit a channel → Required station ID** is optional and works with any lineup. It requires the station in the source name or guide ID. Names use complete tokens; guide IDs also recognise a combined network/station label. Exclusions and country rules still apply. Primary and standby feeds come from the same constrained roster. Tightening a rule removes incompatible memberships without adding failure strikes; accounts are retained. The field is included in channel exports and manual full backups, as persistent channel metadata.
+The **Required station ID** field in the channel editor is optional and works with any lineup. It requires the station in the source name or guide ID. Names use complete tokens; guide IDs also recognise a combined network/station label. Exclusions and country rules still apply. Primary and standby feeds come from the same constrained roster. Tightening a rule removes incompatible memberships without adding failure strikes; accounts are retained. The field is included in channel exports and manual full backups, as persistent channel metadata.
 
 Provider labels can be false. These checks do not inspect programme content or recognise holding screens. Verify the picture and local guide mapping before relying on a channel for recordings. A strict roster may be empty when none of the available feeds identifies the required station.
 
-Updating Antennarr does not add these channels to a saved lineup. Add missing channels individually under Output, or deliberately use **Bulk operations → Reset to default US channels** to replace the entire lineup and rebuild its rosters. That reset removes custom channels and rules.
+Updating Antennarr does not add these channels to a saved lineup. In 1.1, open the tuner to add missing channels individually. **Reset this tuner to its preset** replaces its lineup, removes custom channels and rules, and rebuilds its rosters.
 
 ## Multiple markets
 

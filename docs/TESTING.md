@@ -4,16 +4,16 @@ Run `go vet ./...` and `go test -race -p 1 -timeout 15m ./...`. Generate control
 
 ## Published-version upgrade and manual restore
 
-Create a disposable fixture with the published v1.0.0 image:
+Create a disposable fixture from the original v1.0.0 release commit:
 
 ```
 python3 scripts/make-upgrade-fixture.py /tmp/antennarr-upgrade-fixture
 ANTENNARR_UPGRADE_FIXTURE=/tmp/antennarr-upgrade-fixture go test ./internal/recovery -run TestPublishedV1UpgradeAndManualRestore -count=1 -v
 ```
 
-The generator refuses an existing output directory, runs with networking disabled, and seeds only reserved `.invalid` provider addresses. The test copies the synthetic data, opens it with current code, verifies settings and the schema-8 → schema-9 migration, lowers the roster threshold without dropping entries, and performs a manual backup/restore. It compares the exact HDHomeRun discovery, lineup, and device XML with the published version, along with accounts, rosters, login, random queue positions, and saved check-pass state. The existing primary lineup is compared separately from the new disabled London preset; backup/restore must preserve both device identities.
+Docker builds the historical Dockerfile at its pinned Git commit. To reuse an image built from that commit, pass its name with `--image`. The generator refuses an existing output directory, runs with networking disabled, and seeds only reserved `.invalid` provider addresses. The test copies the synthetic data, opens it with current code, verifies settings and the schema-8 → schema-9 migration, lowers the roster threshold without dropping entries, and performs a manual backup/restore. It compares the exact HDHomeRun discovery, lineup, and device XML with the published version, along with accounts, rosters, login, random queue positions, and saved check-pass state. The existing primary lineup is compared separately from the new disabled London preset; backup/restore must preserve both device identities.
 
-The v1.1 development line also checks upgrades from the published v1.0.4 image, pinned by digest:
+The v1.1 development line also checks upgrades from the original v1.0.4 release commit:
 
 ```sh
 python3 scripts/make-upgrade-fixture.py --baseline v1.0.4 /tmp/antennarr-v104-upgrade-fixture

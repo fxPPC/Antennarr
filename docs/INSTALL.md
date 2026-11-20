@@ -1,6 +1,6 @@
 # Installation, upgrades, and manual recovery
 
-**This branch is v1.1.0-alpha.8.** The published-image instructions below install stable 1.0.4. To test the source preview with two tuners, use [multi-tuner setup](MULTI-TUNER.md) and separate disposable appdata. ARM64 preview images use explicit alpha tags.
+Stable **v1.0.7** runs on Linux amd64 and ARM64. The commands below install stable 1.0. For the ARM64 **v1.1.0-alpha.8** image or an alpha source build, follow [multi-tuner setup](MULTI-TUNER.md).
 
 Use Linux Docker on ARM64 or amd64, with local writable appdata. The Wolfi Linux runtime, FFmpeg, and FFprobe are included in the image. Docker source builds also include the Go toolchain in their build stage; Go is needed on your host only for local development outside Docker. Store SQLite appdata locally, not on SMB/NFS.
 
@@ -15,7 +15,7 @@ docker run -d --name antennarr --restart unless-stopped \
   -e ANTENNARR_BASE_URL=http://YOUR_SERVER_LAN_IP:9192 \
   --log-driver json-file --log-opt max-size=5m --log-opt max-file=2 \
   -v /YOUR/APPDATA/antennarr:/data \
-  antennarr/antennarr:v1.0.4
+  antennarr/antennarr:1.0
 ```
 
 Open `http://YOUR_SERVER_LAN_IP:39192`. Initial login is **admin/admin**; change it under **Admin → Change login** before remote exposure. Import authorised account-list URLs under Input and choose channels under Output. Working sources must fill the channel rosters before playback is available.
@@ -37,15 +37,17 @@ The examples set `ANTENNARR_ADMIN_LISTEN=:9193` to enable the separate administr
 
 ## Compose and source builds
 
-Clone the repository, then run from its root:
+For stable Compose settings, clone the matching release, then copy its environment file:
 
 ```sh
+git clone --branch v1.0.7 https://github.com/fxPPC/Antennarr.git
+cd Antennarr
 cp portable.env.example .env
 ```
 
 Edit `.env`: set `ANTENNARR_BIND` to your server's LAN address, `ANTENNARR_BASE_URL` to the tuner address Plex can reach, and `ANTENNARR_DATA_DIR` to your dedicated appdata directory. Defaults bind to loopback for local development.
 
-For the published image, set `ANTENNARR_IMAGE=antennarr/antennarr:v1.0.4`, then:
+For the published image, set `ANTENNARR_IMAGE=antennarr/antennarr:1.0`, then:
 
 ```sh
 docker compose -f compose.portable.yaml pull
@@ -103,7 +105,7 @@ Include the network overlay in both commands if you use it. A `docker run` insta
 
 Stop viewing before uploading a backup. Restore accepts a ZIP up to **1 GiB**, with at most **2 GiB** of expanded files. It replaces application state and restarts the service. Keep the original tuner URL and Plex server to retain Plex's own Live TV setup. The application backup does not recreate Docker mounts, networking, environment variables, or the reverse proxy; keep your deployment configuration separately.
 
-**Output → Channel lineup export & import** shares definitions without accounts, passwords, source streams, or rosters. In 1.1, imports replace only the selected tuner’s channels and rebuild its rosters; other tuners are retained. Use a full manual backup when source state must also be retained.
+**Channel lineup export & import** (under **Output** in stable 1.0 or the selected tuner in 1.1) shares definitions without accounts, passwords, source streams, or rosters. In 1.1, imports replace only the selected tuner’s channels and rebuild its rosters; other tuners are retained. Use a full manual backup when source state must also be retained.
 
 ## Troubleshooting and logs
 
