@@ -82,6 +82,7 @@ def build(target, version, output, media):
                     "CFBundleDisplayName": "Antennarr", "CFBundleIconFile": "Antennarr.icns",
                     "CFBundleInfoDictionaryVersion": "6.0", "CFBundleShortVersionString": number,
                     "CFBundleVersion": number + "b" + beta, "LSMinimumSystemVersion": "13.0",
+                    "NSLocalNetworkUsageDescription": "Antennarr connects to channel sources you add on your local network.",
                     "LSUIElement": True, "NSHighResolutionCapable": True}
             (contents / "Info.plist").write_bytes(plistlib.dumps(info))
             env.update(CGO_ENABLED="1", MACOSX_DEPLOYMENT_TARGET="13.0")
