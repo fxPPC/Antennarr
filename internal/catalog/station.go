@@ -257,6 +257,9 @@ var referenceGuideMatchers = sync.OnceValue(func() []channelMatcher {
 		{Name: "STARZ ENCORE Español", Region: "US", Aliases: []string{"STARZ ENCORE Espanol"}},
 		{Name: "Saigon Broadcasting Network", Region: "US"},
 		{Name: "Racer Network", Region: "US"},
+		{Name: "Deluxe Music", Region: "DE"},
+		{Name: "NPO Nieuws", Region: "NL"},
+		{Name: "100% NL TV", Region: "NL", Aliases: []string{"100nltv"}},
 	} {
 		channels = append(channels, c)
 	}
