@@ -9,6 +9,7 @@ import mmap
 import os
 from pathlib import Path
 import platform
+import random
 import re
 import shutil
 import signal
@@ -41,16 +42,15 @@ def api(base, route, body=None):
 
 
 def free_port_range():
+    # Keep the test listeners out of the OS pool used for outgoing connections.
     for _ in range(100):
         with contextlib.ExitStack() as stack:
-            first = stack.enter_context(socket.socket())
-            first.bind(("", 0))
-            base = first.getsockname()[1]
-            if base > 65529 or base == 39192:
-                continue
+            base = random.randrange(20000, 39000 - 6)
             try:
-                for port in range(base + 1, base + 7):
-                    stack.enter_context(socket.socket()).bind(("", port))
+                for port in range(base, base + 7):
+                    listener = stack.enter_context(socket.socket())
+                    listener.bind(("", port))
+                    listener.listen()
             except OSError:
                 continue
             return base

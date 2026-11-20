@@ -280,7 +280,7 @@ func run(parent context.Context) bool {
 	for port := ports.First; port <= ports.Last; port++ {
 		listener, e := net.Listen("tcp", net.JoinHostPort(bindHost, strconv.Itoa(port)))
 		if e != nil {
-			slog.Error("additional tuner listener unavailable", "port", port)
+			slog.Error("additional tuner listener unavailable", "port", port, "error", e)
 			os.Exit(1)
 		}
 		extra = append(extra, deviceListener{&http.Server{Handler: fleet.Handler(port - ports.First + 1), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}, listener})
@@ -290,7 +290,7 @@ func run(parent context.Context) bool {
 	if addr := listeners.Admin; addr != "" {
 		adminListener, err = net.Listen("tcp", addr)
 		if err != nil {
-			slog.Error("administration listener unavailable")
+			slog.Error("administration listener unavailable", "error", err)
 			os.Exit(1)
 		}
 		adminServer = &http.Server{Handler: s.AdminHandler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 2 * time.Minute, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
@@ -300,14 +300,14 @@ func run(parent context.Context) bool {
 	if addr := listeners.Compat; addr != "" {
 		compatListener, err = net.Listen("tcp", addr)
 		if err != nil {
-			slog.Error("compatibility listener unavailable")
+			slog.Error("compatibility listener unavailable", "error", err)
 			os.Exit(1)
 		}
 		compat = &http.Server{Handler: fleet.FallbackHandler(), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
 	}
 	primaryListener, err := net.Listen("tcp", srv.Addr)
 	if err != nil {
-		slog.Error("primary tuner listener unavailable")
+		slog.Error("primary tuner listener unavailable", "error", err)
 		os.Exit(1)
 	}
 	if desktopChild {
