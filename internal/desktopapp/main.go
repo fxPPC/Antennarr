@@ -98,11 +98,16 @@ func (s *session) start(headless bool, serve Server) error {
 	}
 	probe := filepath.Join(filepath.Dir(ffmpeg), "ffprobe"+ext)
 	for _, tool := range []string{ffmpeg, probe} {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		// First launch can involve macOS code verification or Rosetta translation.
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		cmd := exec.CommandContext(ctx, tool, "-version")
 		hideConsole(cmd)
 		err := cmd.Run()
+		timedOut := ctx.Err() == context.DeadlineExceeded
 		cancel()
+		if timedOut {
+			return fmt.Errorf("%s did not start within 45 seconds", filepath.Base(tool))
+		}
 		if err != nil {
 			return fmt.Errorf("%s could not start. Extract the complete download, including its media tools and libraries: %w", filepath.Base(tool), err)
 		}

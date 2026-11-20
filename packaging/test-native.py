@@ -114,7 +114,8 @@ def running(executable, env, base, logfile, foreground=False):
                                    stdout=output, stderr=subprocess.STDOUT,
                                    start_new_session=os.name != "nt")
         try:
-            deadline = time.monotonic() + 30
+            # The desktop allows 45 seconds for each bundled tool on a cold launch.
+            deadline = time.monotonic() + 150
             while time.monotonic() < deadline:
                 if process.poll() is not None:
                     raise RuntimeError(f"Launcher exited with status {process.returncode}")
@@ -171,7 +172,7 @@ def desktop_menu(launcher, env, admin_base, root):
                                    stdout=log, stderr=subprocess.STDOUT,
                                    start_new_session=os.name != "nt")
         try:
-            result = process.wait(timeout=45)
+            result = process.wait(timeout=150)
         finally:
             stop(process)
         log.seek(0)
@@ -634,8 +635,6 @@ def exercise(package, root, os_name, arch):
         env = {k: v for k, v in env.items() if not k.startswith("DYLD_")}
     for name in ["ffmpeg", "ffprobe"]:
         assert not shutil.which(name, path=env["PATH"]), f"{name} found on isolated test PATH"
-    for tool in [ffmpeg, ffprobe]:
-        subprocess.run([tool, "-version"], stdout=subprocess.DEVNULL, check=True, timeout=10, env=env)
     env.update(ANTENNARR_HEADLESS="1", ANTENNARR_DATA=str(data), ANTENNARR_FIXTURES=str(root))
     verify_dependency_error(launcher, env, root)
     with running(launcher, env, admin_base, root / "first-run.log") as pid:
@@ -692,6 +691,9 @@ def exercise(package, root, os_name, arch):
         device = api(tuner, "/discover.json")["DeviceID"]
         assert re.fullmatch(r"[0-9A-F]{8}", device)
         fixture_stream(admin_base, tuner, ffmpeg, ffprobe, root, env)
+    # The application gets the first cold launch of both installed tools.
+    for tool in (ffmpeg, ffprobe):
+        subprocess.run([tool, "-version"], stdout=subprocess.DEVNULL, check=True, timeout=45, env=env)
     with running(launcher, env, admin_base, root / "restart.log") as pid:
         if os_name == "macos":
             assert_mac_listeners(pid, admin_base, expected)
