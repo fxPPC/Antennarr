@@ -84,7 +84,7 @@ jobs:
           sudo apt-get install -y skopeo
           skopeo copy oci-archive:/tmp/candidate.tar docker-daemon:antennarr:candidate
           ANTENNARR_TEST_IMAGE=antennarr:candidate python3 packaging/test-permissions.py
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: '1.27.4'
       - run: |
