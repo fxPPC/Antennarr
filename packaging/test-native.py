@@ -332,12 +332,9 @@ def mac_firewall(app):
     app = app.resolve()
     target = str(app)
     assert target not in read("--listapps")
-    restore_off = "disabled" in state.lower()
-    # Block-all intentionally overrides all application rules. Keep its setting.
+    assert "enabled" in state.lower(), "Enable the hosted Mac firewall before installation"
     assert "disabled" in read("--getblockall").lower(), "Runner blocks all inbound applications"
     try:
-        configure("--setglobalstate", "on")
-        assert "enabled" in read("--getglobalstate").lower()
         configure("--add", target)
         configure("--unblockapp", target)
         allowed = read("--getappblocked", target)
@@ -345,13 +342,9 @@ def mac_firewall(app):
         print(f"macOS firewall rule for {target}: {allowed}", flush=True)
         yield
     finally:
-        try:
-            if target in read("--listapps"):
-                configure("--remove", target)
-            assert target not in read("--listapps")
-        finally:
-            if restore_off:
-                configure("--setglobalstate", "off")
+        if target in read("--listapps"):
+            configure("--remove", target)
+        assert target not in read("--listapps")
 
 
 def mac_reference_response(host):

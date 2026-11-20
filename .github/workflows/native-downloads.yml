@@ -122,6 +122,20 @@ jobs:
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     steps:
+      - name: Start the Mac firewall before installing the app
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          firewall=/usr/libexec/ApplicationFirewall/socketfilterfw
+          if "$firewall" --getglobalstate | grep -qi disabled; then
+            echo "RESTORE_MAC_TEST_FIREWALL=1" >> "$GITHUB_ENV"
+            sudo -n "$firewall" --setglobalstate on
+            # The preference updates before the live filter is ready to accept new app rules.
+            sleep 10
+          fi
+          "$firewall" --getglobalstate | grep -qi enabled
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -136,3 +150,12 @@ jobs:
         run: |
           if [[ "$RUNNER_OS" == Windows ]]; then py=python; else py=python3; fi
           "$py" packaging/test-native.py downloads/*
+
+      - name: Restore the hosted Mac firewall state
+        if: always() && runner.os == 'macOS' && env.RESTORE_MAC_TEST_FIREWALL == '1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          firewall=/usr/libexec/ApplicationFirewall/socketfilterfw
+          sudo -n "$firewall" --setglobalstate off
+          "$firewall" --getglobalstate | grep -qi disabled
