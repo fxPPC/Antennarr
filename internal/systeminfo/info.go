@@ -4,13 +4,8 @@ package systeminfo
 
 import (
 	"context"
-	"os"
-	"os/exec"
 	"runtime"
-	"strconv"
-	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -45,10 +40,7 @@ type Collector struct {
 }
 
 func New(root string, mode func() (bool, bool)) *Collector {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	b, _ := exec.CommandContext(ctx, "uname", "-a").Output()
-	return &Collector{Root: root, Mode: mode, started: time.Now(), uname: strings.TrimSpace(string(b))}
+	return &Collector{Root: root, Mode: mode, started: time.Now(), uname: systemName()}
 }
 func (c *Collector) Run(ctx context.Context) {
 	t := time.NewTicker(10 * time.Second)
@@ -67,16 +59,8 @@ func (c *Collector) collect() {
 	if !streaming && !checking {
 		return
 	}
-	b, e := os.ReadFile("/proc/loadavg")
-	if e != nil {
-		return
-	}
-	fields := strings.Fields(string(b))
-	if len(fields) == 0 {
-		return
-	}
-	load, e := strconv.ParseFloat(fields[0], 64)
-	if e != nil {
+	load, ok := hostLoad()
+	if !ok {
 		return
 	}
 	c.mu.Lock()
@@ -91,11 +75,10 @@ func (c *Collector) collect() {
 }
 func (c *Collector) Snapshot() Snapshot {
 	v := Snapshot{Uname: c.uname, Go: runtime.Version(), CPUs: runtime.NumCPU(), Uptime: int64(time.Since(c.started).Seconds()), WindowMinutes: 60, Note: "Host 1-minute load sampled every 10 seconds since startup, up to the past hour; includes other host workloads. No samples means no measurement yet."}
-	var st syscall.Statfs_t
-	if syscall.Statfs(c.Root, &st) == nil {
-		v.DiskFree = uint64(st.Bavail) * uint64(st.Bsize)
-		v.DiskTotal = uint64(st.Blocks) * uint64(st.Bsize)
+	if runtime.GOOS == "windows" {
+		v.Note = "Windows does not report a Unix-style one-minute host load average."
 	}
+	v.DiskFree, v.DiskTotal = diskSpace(c.Root)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	cut := time.Now().Add(-time.Hour)

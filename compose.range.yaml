@@ -1,0 +1,10 @@
+# Add this file to compose.portable.yaml for a new seven-port installation.
+services:
+  antennarr:
+    environment:
+      ANTENNARR_ADMIN_LISTEN: !reset null
+      ANTENNARR_TUNER_PORTS: !reset null
+      ANTENNARR_PORT_RANGE: ${ANTENNARR_PORT_RANGE:-39192-39198}
+      ANTENNARR_BASE_URL: http://${ANTENNARR_PLEX_HOST:-127.0.0.1}
+    ports: !override
+      - "${ANTENNARR_BIND:-127.0.0.1}:${ANTENNARR_PORT_RANGE:-39192-39198}:${ANTENNARR_PORT_RANGE:-39192-39198}"

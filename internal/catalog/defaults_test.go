@@ -2,8 +2,31 @@ package catalog
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 )
+
+func TestCatalogueInAppdataWithURICharacters(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "Antennarr appdata #1 %20")
+	s, err := OpenWithDefaults(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.UpdateSetup(SetupUpdate{State: "dismissed"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err = OpenWithDefaults(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if p, err := s.SetupProgress(); err != nil || p.State != "dismissed" {
+		t.Fatal(p, err)
+	}
+}
 
 func addTestPresets(t *testing.T, s *Store, presets ...string) {
 	t.Helper()
@@ -59,6 +82,36 @@ func TestExistingEmptyCatalogueNotSeeded(t *testing.T) {
 	ch, _ := s.Channels()
 	if len(ch) != 0 {
 		t.Fatal("existing setup changed")
+	}
+	if p, err := s.SetupProgress(); err != nil || p.State != "dismissed" {
+		t.Fatal("existing empty catalogue prompted for setup", p, err)
+	}
+}
+
+func TestSetupRecognisesIndependentlyConfiguredInstall(t *testing.T) {
+	s, err := OpenWithDefaults(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	addTestPresets(t, s, "de-berlin")
+	if _, err = s.DB.Exec(`INSERT INTO accounts(identity,provider,kind,secret,state,created) VALUES('test','example.test','direct','{}','healthy',1)`); err != nil {
+		t.Fatal(err)
+	}
+	if p, err := s.SetupProgress(); err != nil || p.State != "pending" || p.HasTuner || !p.HasSources {
+		t.Fatal("disabled tuner counted as configured", p, err)
+	}
+	if _, err = s.DB.Exec("UPDATE output_profiles SET enabled=1"); err != nil {
+		t.Fatal(err)
+	}
+	if p, err := s.SetupProgress(); err != nil || p.State != "complete" || !p.HasTuner || !p.HasSources {
+		t.Fatal("configured install prompted for setup", p, err)
+	}
+	if _, err = s.DB.Exec("DELETE FROM accounts"); err != nil {
+		t.Fatal(err)
+	}
+	if p, err := s.SetupProgress(); err != nil || p.State != "complete" || p.HasSources {
+		t.Fatal("clearing accounts restarted setup", p, err)
 	}
 }
 

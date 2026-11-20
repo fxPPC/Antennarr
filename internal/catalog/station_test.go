@@ -175,7 +175,7 @@ func TestFreshBroadcastStationDefaultsAndReset(t *testing.T) {
 }
 
 func TestStationGuideCombinesKnownNetworkAliases(t *testing.T) {
-	channels, err := DefaultUSChannels()
+	channels, err := presetChannels("us-nyc")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -11,7 +11,6 @@ import (
 )
 
 var words = regexp.MustCompile(`[\p{L}\p{M}\p{N}]+`)
-var originalWords = words
 
 // 5USA is a UK service name, including its spaced Five USA variant. Preserve
 // that identity before interpreting USA as a provider country tag.
@@ -53,7 +52,17 @@ func sourceWords(name string) []string {
 		out[i] = name[l[0]:l[1]]
 		before := strings.TrimSpace(name[:l[0]])
 		after := strings.TrimSpace(name[l[1]:])
-		// Only a complete single-token tag marks an ambiguous country code.
+		// Providers also delimit the Indian tag as "IN | name" or "IN: name".
+		// Keep ordinary "in" in service names and country-like brands such as CW.
+		if strings.EqualFold(out[i], "IN") {
+			prefix := i == 0 && (strings.HasPrefix(after, "|") || strings.HasPrefix(after, ":"))
+			suffix := i == len(locs)-1 && strings.HasSuffix(before, "|")
+			if prefix || suffix {
+				out[i] = "[" + out[i] + "]"
+				continue
+			}
+		}
+		// Only a complete single-token bracketed tag marks an ambiguous country code.
 		// Closing punctuation in (The CW) or [WCBS TV] belongs to the whole
 		// brand, and must not turn CW into Curaçao or TV into Tuvalu.
 		if before != "" && after != "" {
@@ -136,22 +145,20 @@ func channelKey(name, region string) (string, string) {
 			rawFiltered = append(rawFiltered, original[i])
 		}
 	}
-	ts, original, initialCountry := splitCountry(filtered, rawFiltered, false)
-	out := []string{}
-	rawOut := []string{}
-	country := initialCountry
-	for i, t := range ts {
-		out = append(out, t)
-		rawOut = append(rawOut, original[i])
-	}
-	out, _, detected := splitCountry(out, rawOut, false)
+	ts, _, country := splitCountry(filtered, rawFiltered, false)
+	explicit := regionCountry(region)
 	if country == "" {
-		country = detected
+		country = explicit
+	} else if explicit != "" && country != explicit {
+		country = "conflict"
 	}
-	if country == "" {
-		country = regionCountry(region)
+	key := strings.Join(ts, " ")
+	// Freeview renamed 5SELECT to 5DRAMA. Normalise the exact service
+	// name on existing lineups as well as new presets.
+	switch key {
+	case "5select", "5 select", "five select":
+		key = "5drama"
 	}
-	key := strings.Join(out, " ")
 	// Canonical brand aliases preserve other words (regional variants,
 	// spin-offs, and timeshifts), instead of swallowing those distinctions.
 	for _, pair := range [][2]string{{"fox news channel", "fox news"}, {"foxnewschannel", "fox news"}, {"foxnews", "fox news"}, {"discovery channel", "discovery"}, {"discoverychannel", "discovery"}, {"the learning channel", "tlc"}, {"animalplanet", "animal planet"}, {"ms now", "msnow"}, {"msnbc", "msnow"}, {"mtv 1", "mtv"}, {"mtv1", "mtv"}, {"vh 1", "vh1"}} {
@@ -172,16 +179,25 @@ type channelMatcher struct {
 	stationKey  string
 	networkKey  string
 }
+
+// Some catalogues prefix an Indian service with a language and, occasionally,
+// a news section. Only an Indian channel can use this alternate spelling.
+var indianCategory = regexp.MustCompile(`(?i)^\s*(?:hindi|marathi)\s*[-|:]\s*(?:news\s*\|\s*)?`)
+
 type sourceLabel struct {
 	channelLabel
-	guide     channelLabel
-	words     string
-	ambiguous bool
+	guide         channelLabel
+	indianService channelLabel
+	words         string
+	ambiguous     bool
 }
 
 func parseSourceLabel(name, region string) sourceLabel {
 	k, c := channelKey(name, region)
 	label := sourceLabel{channelLabel: channelLabel{k, c}, ambiguous: catalogueHeading.MatchString(name), words: " " + strings.Join(exclusionWords(name), " ") + " "}
+	if prefix := indianCategory.FindStringIndex(name); prefix != nil {
+		label.indianService.key, label.indianService.country = channelKey(name[prefix[1]:], region)
+	}
 	for _, token := range strings.Fields(k) {
 		if token == "hbofhd" {
 			label.ambiguous = true
@@ -270,7 +286,11 @@ func (m channelMatcher) nameMatches(label sourceLabel) bool {
 		return false
 	}
 	for _, p := range m.positive {
-		if p.key != "" && label.key != "" && p.key == label.key && (p.country == "" || label.country == "" || p.country == label.country) {
+		if p.key == "" || p.country != "" && label.country != "" && p.country != label.country {
+			continue
+		}
+		if p.key == label.key || p.country == "in" && p.key == label.indianService.key &&
+			(label.indianService.country == "" || label.indianService.country == "in") {
 			return true
 		}
 	}
@@ -306,19 +326,25 @@ func readLearnedChannelIDs(q interface {
 // a contradictory recognised name, a country boundary, or an exclusion. An ID
 // manually associated with several channels is not safe to reuse automatically.
 func resolveChannel(channels []channelMatcher, label sourceLabel, tvg string, known learnedChannelIDs) *channelMatcher {
-	learned := map[string]bool{}
-	for _, c := range channels {
-		if known["tvg:"+strings.ToLower(tvg)][c.channel.ID] {
-			learned[c.channel.ID] = true
+	// Learned IDs can be shared across profiles. An ID must identify a single
+	// channel within this profile before it can stand in for a display name.
+	var learned string
+	if ids := known["tvg:"+strings.ToLower(tvg)]; tvg != "" && len(ids) > 0 {
+		for _, c := range channels {
+			if !ids[c.channel.ID] {
+				continue
+			}
+			if learned != "" {
+				learned = ""
+				break
+			}
+			learned = c.channel.ID
 		}
-	}
-	if tvg == "" || len(learned) != 1 {
-		learned = nil
 	}
 	var selected *channelMatcher
 	for i := range channels {
 		c := &channels[i]
-		if !c.matches(label) && !(learned[c.channel.ID] && !c.excludes(label) && c.compatible(label) && c.stationMatches(label)) {
+		if !c.matches(label) && !(learned != "" && learned == c.channel.ID && !c.excludes(label) && c.compatible(label) && c.stationMatches(label)) {
 			continue
 		}
 		if guideConflict(channels, *c, label) {

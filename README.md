@@ -8,10 +8,12 @@ Antennarr turns authorised Xtream account lists into HDHomeRun-compatible tuners
 
 | Release | Docker Hub tag | Linux platforms | Fresh installation |
 | --- | --- | --- | --- |
-| Stable 1.0 | `1.0` or `latest`; pin `v1.0.7` for the exact release | amd64, ARM64 | One US tuner with 150 editable channels |
-| 1.1 preview | `v1.1.0-alpha.8` | ARM64 | Starts empty. Choose New York City (150 channels), London (110), or both |
+| Stable 1.0 | `1.0` or `latest`; pin `v1.0.8` for the exact release | amd64, ARM64 | One US tuner with 150 editable channels |
+| 1.1 preview | `v1.1.0-beta.1` | amd64, ARM64 | Starts empty. Choose from six optional city presets |
 
-**Most users should install stable 1.0.** For the alpha, follow [multi-tuner setup](docs/MULTI-TUNER.md). Use a separate data directory. Opening 1.0 data in the alpha migrates it to schema 9. Returning to 1.0 requires a pre-upgrade backup.
+**Docker is the best-supported installation.** The [1.1 beta downloads](https://github.com/fxPPC/Antennarr/releases/tag/v1.1.0-beta.1) also include standalone macOS and Windows apps for ARM64 and amd64, with FFmpeg and FFprobe bundled. [Native installation and firewall settings](docs/NATIVE.md)
+
+**Most users should install stable 1.0.** For the beta, follow [multi-tuner setup](docs/MULTI-TUNER.md). Use a separate data directory. Opening 1.0 data in the beta migrates it to schema 9. Returning to 1.0 requires a pre-upgrade backup.
 
 ## Install stable 1.0
 
@@ -43,7 +45,7 @@ Antennarr tests candidate feeds and keeps working ones in a channel’s roster. 
 
 - [Docker Hub tags](https://hub.docker.com/r/antennarr/antennarr/tags) and [GitHub releases](https://github.com/fxPPC/Antennarr/releases)
 - [Release notes](docs/RELEASE-NOTES.md), [data compatibility](docs/VERSIONING.md), and [1.1 acceptance tests](docs/V1.1-PLAN.md)
-- [Contributing](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md), [HTTP API](docs/API.md), and [testing](docs/TESTING.md)
+- [Build from source](docs/BUILD.md), [contributing](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md), [HTTP API](docs/API.md), and [testing](docs/TESTING.md)
 - [Setup questions](https://github.com/fxPPC/Antennarr/discussions), [bug reports](https://github.com/fxPPC/Antennarr/issues/new/choose), and [private security reports](https://github.com/fxPPC/Antennarr/security/advisories/new)
 
 Antennarr is licensed under [GPL-3.0-or-later](LICENSE). Images include [third-party notices](docs/licenses/README.md) and corresponding source at `/usr/share/doc/antennarr/source.tar.gz`.

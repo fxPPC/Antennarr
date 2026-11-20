@@ -6,7 +6,7 @@ on:
       version:
         description: New version (vMAJOR.MINOR.PATCH, optionally -alpha.N, -beta.N, or -rc.N)
         required: true
-        default: v1.1.0-alpha.4
+        default: v1.1.0-beta.1
       promote_latest:
         description: Make this stable release the recommended version (never for prereleases or older maintenance lines)
         type: boolean
@@ -46,6 +46,12 @@ jobs:
             exit 1
           fi
           jq -r 'to_entries[] | "\(.key)=\(.value)"' /tmp/release-plan.json >> "$GITHUB_OUTPUT"
+  native-apps:
+    needs: preflight
+    if: startsWith(inputs.version, 'v1.1.') && contains(inputs.version, '-beta.')
+    uses: ./.github/workflows/native-downloads.yml
+    with:
+      version: ${{ needs.preflight.outputs.version }}
   verify-source:
     needs: preflight
     uses: ./.github/workflows/source-checks.yml
@@ -122,6 +128,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           mkdir -p release
+          go run ./packaging/runtime -arch "$ARCH" -out "release/wolfi-runtime-linux-$ARCH.tar.gz"
           mv /tmp/candidate.tar "release/image-$ARCH.tar"
           mv "/tmp/sbom-$ARCH.spdx.json" release/
           cp /tmp/image-vulnerabilities.json "release/vulnerabilities-$ARCH.json"
@@ -134,7 +141,10 @@ jobs:
           retention-days: 7
           if-no-files-found: error
   publish:
-    needs: [preflight, candidate]
+    needs: [preflight, candidate, native-apps]
+    if: >-
+      !cancelled() && needs.preflight.result == 'success' && needs.candidate.result == 'success'
+      && (needs.native-apps.result == 'success' || needs.native-apps.result == 'skipped')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: release
@@ -159,6 +169,19 @@ jobs:
           pattern: candidate-*
           merge-multiple: true
           path: release
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: needs.native-apps.result == 'success'
+        with:
+          pattern: native-*
+          merge-multiple: true
+          path: release
+      - name: Verify the four tested native downloads
+        if: needs.native-apps.result == 'success'
+        run: |
+          for arch in amd64 arm64; do
+            test -s "release/antennarr-$VERSION-macos-$arch.dmg"
+            test -s "release/antennarr-$VERSION-windows-$arch-setup.exe"
+          done
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
@@ -209,7 +232,8 @@ jobs:
           printf 'digest=%s\n' "$digest" >> "$GITHUB_OUTPUT"
           git archive --format=tar.gz --prefix="antennarr-$VERSION/" HEAD > "release/antennarr-$VERSION-source.tar.gz"
           cd release
-          sha256sum antennarr-*-source.tar.gz sbom-*.spdx.json vulnerabilities-*.json IMAGE-DIGEST.txt > SHA256SUMS
+          shopt -s nullglob
+          sha256sum antennarr-*-source.tar.gz wolfi-runtime-linux-*.tar.gz antennarr-*.dmg antennarr-*-setup.exe sbom-*.spdx.json vulnerabilities-*.json IMAGE-DIGEST.txt > SHA256SUMS
         id: publication
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
@@ -221,12 +245,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          shopt -s nullglob
           flags=()
           if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          # The changelog keeps earlier releases. Publish only this version's entry.
+          awk -v heading="# $VERSION" '/^# / { if (selected) exit; selected = ($0 == heading); next } selected { print }' docs/RELEASE-NOTES.md > /tmp/release-notes.md
+          test -s /tmp/release-notes.md
           gh release create "$VERSION" --target "$GITHUB_SHA" --draft --title "Antennarr $VERSION" \
             "${flags[@]}" \
-            --notes-file docs/RELEASE-NOTES.md \
-            release/antennarr-*-source.tar.gz release/sbom-*.spdx.json release/vulnerabilities-*.json release/SHA256SUMS release/IMAGE-DIGEST.txt
+            --notes-file /tmp/release-notes.md \
+            release/antennarr-*-source.tar.gz release/wolfi-runtime-linux-*.tar.gz release/antennarr-*.dmg release/antennarr-*-setup.exe release/sbom-*.spdx.json release/vulnerabilities-*.json release/SHA256SUMS release/IMAGE-DIGEST.txt
           # Attach every asset before publishing an immutable release.
           gh release edit "$VERSION" --draft=false --latest="$PROMOTE_LATEST"
           cat release/IMAGE-DIGEST.txt >> "$GITHUB_STEP_SUMMARY"

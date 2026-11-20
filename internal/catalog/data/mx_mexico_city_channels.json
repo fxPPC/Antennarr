@@ -1,0 +1,293 @@
+[
+  {
+    "number": "001",
+    "name": "Azteca Uno",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "Azteca 1",
+      "AztecaUno",
+      "XHDF",
+      "XHDF-TDT",
+      "-internacional",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "002",
+    "name": "Las Estrellas",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "LasEstrellas",
+      "Canal de las Estrellas",
+      "XEW",
+      "XEW-TDT",
+      "-latinoamerica",
+      "-latinoamérica",
+      "-internacional",
+      "-Europa",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "003",
+    "name": "Imagen Televisión",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "Imagen Television",
+      "Imagen TV",
+      "ImagenTV",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "004",
+    "name": "N+ Foro",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "N Más Foro",
+      "N Mas Foro",
+      "ForoTV",
+      "Foro TV",
+      "XHTV",
+      "XHTV-TDT",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "005",
+    "name": "Canal 5",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "Canal Cinco",
+      "Canal5",
+      "Televisa Canal 5",
+      "XHGC",
+      "XHGC-TDT",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "007",
+    "name": "Azteca 7",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "Azteca Siete",
+      "Azteca7",
+      "-internacional",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "009",
+    "name": "NU9VE",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "NU9VE TV",
+      "El Nueve",
+      "Televisa Nueve",
+      "XEQ",
+      "XEQ-TDT",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "011",
+    "name": "Canal Once",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "Once TV",
+      "Once TV México",
+      "XEIPN-TDT 11.1",
+      "-niños",
+      "-ninos",
+      "-internacional",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "014",
+    "name": "Canal Catorce",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "Canal 14",
+      "CanalCatorce",
+      "SPR Canal Catorce",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "020",
+    "name": "TV UNAM",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "TVUNAM",
+      "Televisión UNAM",
+      "Television UNAM",
+      "XHUNAM",
+      "XHUNAM-TDT",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "021",
+    "name": "Capital 21",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "Capital21",
+      "Capital 21 CDMX",
+      "XHCDM-TDT 21.1",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "022",
+    "name": "Canal 22",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "Canal22",
+      "Canal Veintidós",
+      "Canal Veintidos",
+      "XEIMT-TDT 22.1",
+      "-internacional",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "045",
+    "name": "Canal del Congreso",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "Canal del Congreso de la Unión",
+      "Canal del Congreso de la Union",
+      "XHHCU-TDT 45.1",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "112",
+    "name": "Once Niñas y Niños",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "Once Ninas y Ninos",
+      "Once Niños",
+      "Once Ninos",
+      "XEIPN-TDT 11.2",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "222",
+    "name": "MX Nuestro Cine",
+    "region": "MX",
+    "enabled": true,
+    "aliases": [
+      "Nuestro Cine MX",
+      "XEIMT-TDT 22.2",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  }
+]

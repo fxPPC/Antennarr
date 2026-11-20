@@ -1,0 +1,134 @@
+name: Native apps
+on:
+  workflow_call:
+    inputs:
+      version:
+        type: string
+        required: true
+  pull_request:
+    paths:
+      - '.github/workflows/native-downloads.yml'
+      - 'packaging/*native*'
+      - 'packaging/build-windows-installer.ps1'
+      - 'packaging/native/**'
+      - 'cmd/antennarr/desktop*'
+      - 'internal/desktopstats/**'
+permissions:
+  contents: read
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {target: macos-arm64, runner: macos-15}
+          - {target: macos-amd64, runner: macos-15-intel}
+          - {target: windows-arm64, runner: ubuntu-24.04}
+          - {target: windows-amd64, runner: ubuntu-24.04}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version: '1.27.4'
+      - name: Build the bundled FFmpeg and FFprobe
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          if [[ "$TARGET" == *-amd64 ]] && ! command -v nasm >/dev/null; then
+            if [[ "$RUNNER_OS" == macOS ]]; then brew install nasm; else sudo apt-get update && sudo apt-get install -y nasm; fi
+          fi
+          if [[ "$RUNNER_OS" == macOS ]]; then export BUILD_JOBS=$(sysctl -n hw.ncpu); else export BUILD_JOBS=$(nproc); fi
+          sh packaging/build-native-media.sh "$TARGET" "$RUNNER_TEMP/media"
+      - name: Build the native app
+        env:
+          TARGET: ${{ matrix.target }}
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: |
+          source_version=$(sed -n 's/^ARG VERSION=//p' Dockerfile)
+          test -n "$source_version"
+          test -z "$RELEASE_VERSION" || test "$RELEASE_VERSION" = "$source_version"
+          python3 packaging/build-native.py "$source_version" "$RUNNER_TEMP/downloads" --target "$TARGET" --media-dir "$RUNNER_TEMP/media"
+      - name: Transfer Windows payload for installer compilation
+        if: startsWith(matrix.target, 'windows-')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: payload-${{ matrix.target }}
+          path: ${{ runner.temp }}/downloads/*.zip
+          retention-days: 2
+          compression-level: 0
+          if-no-files-found: error
+      - name: Keep the Mac disk image for testing and publication
+        if: startsWith(matrix.target, 'macos-')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-${{ matrix.target }}
+          path: ${{ runner.temp }}/downloads/*.dmg
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+  windows-installer:
+    name: Package Windows ${{ matrix.arch }}
+    needs: build
+    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: payload-windows-${{ matrix.arch }}
+          path: downloads
+      - name: Compile the installer from the matching native payload
+        env:
+          ARCH: ${{ matrix.arch }}
+        shell: pwsh
+        run: |
+          $version = (Select-String -Path Dockerfile -Pattern '^ARG VERSION=(.+)$').Matches[0].Groups[1].Value
+          ./packaging/build-windows-installer.ps1 -Version $version -Arch $env:ARCH -PayloadZip "downloads/antennarr-$version-windows-$env:ARCH.zip" -OutputDir installers
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-windows-${{ matrix.arch }}
+          path: installers/*-setup.exe
+          retention-days: 7
+          compression-level: 0
+          if-no-files-found: error
+  smoke:
+    name: Test ${{ matrix.target }} on ${{ matrix.runner }}
+    needs: [build, windows-installer]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {target: macos-arm64, runner: macos-15}
+          - {target: macos-amd64, runner: macos-15-intel}
+          - {target: macos-arm64, runner: macos-26}
+          - {target: macos-amd64, runner: macos-26-intel}
+          - {target: windows-arm64, runner: windows-11-arm}
+          - {target: windows-amd64, runner: windows-2025}
+          - {target: windows-amd64, runner: windows-2022}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: native-${{ matrix.target }}
+          path: downloads
+      - name: Extract, launch, tune, and restart the app on its target platform
+        shell: bash
+        env:
+          ANTENNARR_TEST_FIREWALL: '1'
+        run: |
+          if [[ "$RUNNER_OS" == Windows ]]; then py=python; else py=python3; fi
+          "$py" packaging/test-native.py downloads/*

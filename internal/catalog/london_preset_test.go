@@ -12,7 +12,7 @@ import (
 // into the London guide entry. Fixtures contain labels only, never accounts.
 func londonPresetMatchers(t *testing.T) ([]Channel, []channelMatcher) {
 	t.Helper()
-	channels, err := DefaultLondonChannels()
+	channels, err := presetChannels("uk-london")
 	if err != nil {
 		t.Fatal(err)
 	}

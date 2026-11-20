@@ -15,6 +15,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -43,6 +44,9 @@ var page []byte
 type API struct {
 	TunerPorts            config.TunerPorts
 	PrimaryListen         string
+	AdminListen           string
+	CompatListen          string
+	PortRange             string
 	SystemInfo            func() systeminfo.Snapshot
 	Monitor               func(context.Context) (monitor.Snapshot, error)
 	WithIdle              func(func() error) error
@@ -110,8 +114,10 @@ func (a *API) Register(mux *http.ServeMux, auth func(http.HandlerFunc) http.Hand
 		for _, addr := range addrs {
 			ip, _, e := net.ParseCIDR(addr.String())
 			if e == nil && ip.To4() != nil && ip.IsPrivate() && !ip.IsLoopback() {
-				links["private_tuner_url"] = "http://" + net.JoinHostPort(ip.String(), "9192")
-				links["stream_fallback_url"] = "http://" + net.JoinHostPort(ip.String(), "5004") + "/auto/v{channel}"
+				links["private_tuner_url"] = "http://" + net.JoinHostPort(ip.String(), strconv.Itoa(a.primaryPort()))
+				if _, port, err := net.SplitHostPort(a.CompatListen); err == nil {
+					links["stream_fallback_url"] = "http://" + net.JoinHostPort(ip.String(), port) + "/auto/v{channel}"
+				}
 				break
 			}
 		}
@@ -127,7 +133,8 @@ func (a *API) Register(mux *http.ServeMux, auth func(http.HandlerFunc) http.Hand
 		pattern string
 		fn      http.HandlerFunc
 	}{
-		{"GET /api/profiles", a.profiles}, {"POST /api/profiles", a.addProfile}, {"POST /api/profiles/{id}", a.saveProfile}, {"DELETE /api/profiles/{id}", a.deleteProfile}, {"GET /api/presets", a.presets},
+		{"GET /api/setup", a.setup}, {"POST /api/setup", a.saveSetup},
+		{"GET /api/listeners", a.listeners}, {"GET /api/profiles", a.profiles}, {"POST /api/profiles", a.addProfile}, {"POST /api/profiles/{id}", a.saveProfile}, {"DELETE /api/profiles/{id}", a.deleteProfile}, {"GET /api/presets", a.presets},
 		{"GET /api/lineup", a.exportLineup}, {"POST /api/lineup", a.importLineup}, {"GET /api/output/search", a.outputSearch}, {"GET /api/system", a.systemStatus}, {"POST /api/channels/bulk", a.bulkChannels}, {"POST /api/reset", a.resetApplication}, {"GET /api/monitor", a.monitorStatus}, {"POST /api/outgoing/{id}/stop", a.stopOutgoing}, {"POST /api/input/clear", a.clearQueue}, {"GET /api/roster", a.rosterSummary}, {"GET /api/roster/{id}", a.rosterEntries}, {"GET /api/channels/{id}/excluded", a.excludedStreams}, {"POST /api/roster/{id}/policy", a.rosterPolicy}, {"GET /api/input/accounts", a.inputAccounts}, {"GET /api/input/import", a.importStatus}, {"GET /api/events", a.events}, {"GET /api/login", a.login}, {"POST /api/login", a.saveLogin}, {"GET /api/settings", a.settings}, {"POST /api/settings", a.saveSettings}, {"GET /api/removal-policy", a.removalPolicy}, {"POST /api/removal-policy", a.saveRemovalPolicy}, {"POST /api/import", a.importSources}, {"GET /api/channels", a.channels}, {"POST /api/channels", a.saveChannel}, {"DELETE /api/channels/{id}", a.deleteChannel}, {"POST /api/mappings", a.mapping}, {"POST /api/backup", a.fullBackup}, {"GET /api/backups/{name}", a.downloadBackup}, {"POST /api/restore", a.restoreBackup},
 	} {
 		fn := route.fn

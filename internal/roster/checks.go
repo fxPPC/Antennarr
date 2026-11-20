@@ -66,8 +66,6 @@ func (s *Service) discover(parent context.Context, v config.Settings, urgent boo
 			s.report("Save account recovery", e)
 			return
 		}
-		s.recruitAccount = a.ID
-		s.recruitVisited = map[string]bool{}
 		outcome = "healthy"
 		return
 	}
@@ -116,8 +114,6 @@ func (s *Service) discover(parent context.Context, v config.Settings, urgent boo
 	}
 	s.report("Save provider response", s.Store.ProviderResponsive(a.Provider))
 	outcome = "discovered"
-	s.recruitAccount = a.ID
-	s.recruitVisited = map[string]bool{}
 	s.mu.Lock()
 	s.emergency = map[string]bool{}
 	s.mu.Unlock()

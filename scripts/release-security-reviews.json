@@ -2362,5 +2362,24 @@
         "severity": "Low"
       }
     ]
+  },
+  "v1.1.0-beta.1": {
+    "reviewed_on": "2026-11-20",
+    "decision": "Approved on amd64 and ARM64 only if the complete final scan matches these two unfixed findings. The refreshed Linux images use FFmpeg 9.1.",
+    "require_exact": true,
+    "findings": [
+      {
+        "id": "CVE-2026-100290",
+        "package": "glibc-2.44",
+        "version": "2.44-r24",
+        "severity": "Low"
+      },
+      {
+        "id": "CVE-2026-115819",
+        "package": "glibc-2.44",
+        "version": "2.44-r24",
+        "severity": "Medium"
+      }
+    ]
   }
 }

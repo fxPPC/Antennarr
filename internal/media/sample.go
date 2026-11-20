@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -18,15 +19,20 @@ type Info struct {
 	Width, Height int
 }
 
+// ProbeBinary keeps the inspector paired with the configured FFmpeg distribution.
+func ProbeBinary(binary string) string {
+	name := "ffprobe"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	return filepath.Join(filepath.Dir(binary), name)
+}
+
 // Inspect and decode a small in-memory sample. This does not encode the output.
 func Inspect(ctx context.Context, binary string, sample []byte) (Info, error) {
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	probe := filepath.Join(filepath.Dir(binary), "ffprobe")
-	if filepath.Dir(binary) == "." {
-		probe = "ffprobe"
-	}
-	cmd := checkcpu.Command(ctx, probe, "-v", "error", "-threads", "1", "-show_streams", "-show_entries", "stream=codec_type,codec_name,width,height", "-of", "json", "-f", "mpegts", "-i", "pipe:0")
+	cmd := checkcpu.Command(ctx, ProbeBinary(binary), "-v", "error", "-threads", "1", "-show_streams", "-show_entries", "stream=codec_type,codec_name,width,height", "-of", "json", "-f", "mpegts", "-i", "pipe:0")
 	cmd.Stdin = bytes.NewReader(sample)
 	raw, e := cmd.Output()
 	if e != nil {

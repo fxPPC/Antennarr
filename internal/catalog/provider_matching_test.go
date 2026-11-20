@@ -7,7 +7,7 @@ import (
 
 func presetMatchers(t *testing.T) []channelMatcher {
 	t.Helper()
-	channels, err := DefaultUSChannels()
+	channels, err := presetChannels("us-nyc")
 	if err != nil {
 		t.Fatal(err)
 	}

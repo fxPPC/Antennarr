@@ -218,58 +218,68 @@ func TestPauseCancelsProbeAndBlocksNewChecks(t *testing.T) {
 	}
 }
 
-func TestRecruitmentUsesAccountAcrossVacanciesAndStopsAtFull(t *testing.T) {
-	s, ch, cs, p, tr := fixture(t)
-	other, e := s.Store.SaveChannel(catalog.Channel{Number: "2", Name: "CNN", Region: "US", Enabled: true})
-	if e != nil {
-		t.Fatal(e)
+func TestRecruitmentPrioritisesThinRostersAndSpreadsAccountUse(t *testing.T) {
+	s, _, cs, _, _ := fixture(t)
+	other, err := s.Store.SaveChannel(catalog.Channel{Number: "2", Name: "CNN", Region: "US", Enabled: true})
+	if err != nil {
+		t.Fatal(err)
 	}
-	entry, _ := ingest.FromURL("https://p0.example/cnn.ts", "CNN", "")
-	if _, e = s.Store.Import([]ingest.Entry{entry}, "fixture"); e != nil {
-		t.Fatal(e)
+	// The first account is already a verified source on the thicker channel.
+	if err = s.Store.Record(cs[0].StreamID, catalog.Result{Success: true}); err != nil {
+		t.Fatal(err)
 	}
-	rows, _ := s.Store.QueueCandidates(other, 1)
-	if len(rows) != 1 || rows[0].AccountID != cs[0].AccountID {
-		t.Fatal("fixture must share one account")
+	for _, host := range []string{cs[0].Provider, "independent.example"} {
+		entry, err := ingest.FromURL("https://"+host+"/cnn.ts", "CNN", "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err = s.Store.Import([]ingest.Entry{entry}, "fixture"); err != nil {
+			t.Fatal(err)
+		}
 	}
-	v := s.settings()
-	s.startRecruitment(context.Background(), ch, cs[0], v)
-	// Provider pacing must defer the next stream without losing account locality.
-	s.Store.DB.Exec("INSERT INTO provider_rates(provider,next_probe) VALUES(?,?) ON CONFLICT(provider) DO UPDATE SET next_probe=excluded.next_probe", catalog.ProviderKey(cs[0].Provider), time.Now().Add(time.Hour).UnixMilli())
-	summary, _ := s.Store.RosterState()
-	if s.recruitNext(context.Background(), summary.Channels, v) || p.calls.Load() != 1 {
-		t.Fatal("bypassed provider pacing")
+	queue, err := s.Store.QueueCandidates(other, 10)
+	if err != nil || len(queue) != 2 || queue[1].AccountID != cs[0].AccountID {
+		t.Fatal("expected independent account first and shared account as fallback", queue, err)
 	}
-	s.Store.DB.Exec("UPDATE provider_rates SET next_probe=0,blocked_until=0")
-	if !s.recruitNext(context.Background(), summary.Channels, v) || p.calls.Load() != 2 {
-		t.Fatal("did not audition second channel on same account")
+	// Force the old random queue order to prefer the shared account.
+	if _, err = s.Store.DB.Exec("UPDATE queue_positions SET position=CASE WHEN source_id=? THEN 0 ELSE 1 END WHERE kind='stream'", queue[1].StreamID); err != nil {
+		t.Fatal(err)
 	}
-	members, _ := s.Store.RosterMembers(other)
-	if len(members) != 1 {
-		t.Fatal("second channel not admitted")
+	s.step(context.Background())
+	members, err := s.Store.RosterMembers(other)
+	if err != nil || len(members) != 1 || members[0].AccountID != queue[0].AccountID {
+		t.Fatal("thinnest channel should get the independent account", members, err)
 	}
-	if tr.calls.Load() != 0 {
-		t.Fatal("unnecessary account/catalogue request")
-	}
-	// A full channel must never receive another audition.
-	s.recruitAccount = cs[0].AccountID
-	s.recruitVisited = map[string]bool{}
-	for i := range summary.Channels {
-		summary.Channels[i].Count = summary.Channels[i].Policy.Target
-	}
-	if s.recruitNext(context.Background(), summary.Channels, v) || p.calls.Load() != 2 {
-		t.Fatal("probed full channel")
+	queue, err = s.Store.QueueCandidates(other, 10)
+	if err != nil || len(queue) != 1 || queue[0].AccountID != cs[0].AccountID {
+		t.Fatal("shared account must remain eligible", queue, err)
 	}
 }
 
-func TestRecruitmentSkipsFailedAccount(t *testing.T) {
-	s, _, cs, p, _ := fixture(t)
-	s.recruitAccount = cs[0].AccountID
-	s.recruitVisited = map[string]bool{}
-	s.Store.DB.Exec("UPDATE accounts SET state='inactive' WHERE id=?", cs[0].AccountID)
-	summary, _ := s.Store.RosterState()
-	if s.recruitNext(context.Background(), summary.Channels, s.settings()) || s.recruitAccount != 0 || p.calls.Load() != 0 {
-		t.Fatal("failed account was not abandoned")
+func TestRecruitmentRotatesTiesAndSkipsUnfillableChannels(t *testing.T) {
+	s, ch, _, p, _ := fixture(t)
+	other, err := s.Store.SaveChannel(catalog.Channel{Number: "2", Name: "CNN", Region: "US", Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entry, _ := ingest.FromURL("https://cnn.example/channel.ts", "CNN", "")
+	if _, err = s.Store.Import([]ingest.Entry{entry}, "fixture"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.Store.SaveChannel(catalog.Channel{Number: "3", Name: "Empty", Region: "US", Enabled: true}); err != nil {
+		t.Fatal(err)
+	}
+	p.success = false // Failed auditions leave both rosters at the same depth.
+	attempts := map[string]int{}
+	for i := 0; i < 2; i++ {
+		if _, err = s.Store.DB.Exec("UPDATE provider_rates SET next_probe=0,next_api=0,blocked_until=0"); err != nil {
+			t.Fatal(err)
+		}
+		s.step(context.Background())
+		attempts[s.lastRecruitChannel]++
+	}
+	if p.calls.Load() != 2 || attempts[ch] != 1 || attempts[other] != 1 {
+		t.Fatal("expected one audition per fillable channel", attempts, p.calls.Load())
 	}
 }
 
@@ -279,7 +289,7 @@ func (t *authTransport) RoundTrip(r *http.Request) (*http.Response, error) {
 	t.calls.Add(1)
 	return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"user_info":{"auth":1,"status":"Active","max_connections":"5","active_cons":"0"}}`)), Request: r}, nil
 }
-func TestAccountBatchAuthenticatesOnlyOnce(t *testing.T) {
+func TestCachedAccessSurvivesFailedChannelAudition(t *testing.T) {
 	s, ch, _, p, _ := fixture(t)
 	other, _ := s.Store.SaveChannel(catalog.Channel{Number: "2", Name: "CNN", Region: "US", Enabled: true})
 	for i, name := range []string{"MTV", "CNN"} {
@@ -290,23 +300,26 @@ func TestAccountBatchAuthenticatesOnlyOnce(t *testing.T) {
 	}
 	tr := &authTransport{}
 	s.Client = &http.Client{Transport: tr}
-	rows, _ := s.Store.Candidates(other, false)
-	if len(rows) != 1 {
-		t.Fatal("missing fixture")
+	next, err := s.Store.QueueCandidates(other, 1)
+	if err != nil || len(next) != 1 {
+		t.Fatal(next, err)
 	}
-	aid := rows[0].AccountID
-	first, _ := s.Store.QueueAccountCandidates(ch, aid)
-	if len(first) != 1 {
-		t.Fatal("missing first channel")
+	pool, err := s.Store.QueueCandidates(ch, 20)
+	if err != nil {
+		t.Fatal(err)
 	}
-	p.success = false // One bad channel must not discard the account.
-	s.startRecruitment(context.Background(), ch, first[0], s.settings())
+	for _, c := range pool {
+		if c.AccountID == next[0].AccountID {
+			p.success = false
+			s.probe(context.Background(), c, s.settings())
+			break
+		}
+	}
+	if _, err = s.Store.DB.Exec("UPDATE provider_rates SET next_probe=0,blocked_until=0"); err != nil {
+		t.Fatal(err)
+	}
 	p.success = true
-	s.Store.DB.Exec("UPDATE provider_rates SET next_probe=0,blocked_until=0")
-	summary, _ := s.Store.RosterState()
-	if !s.recruitNext(context.Background(), summary.Channels, s.settings()) {
-		t.Fatal("no second audition")
-	}
+	s.probe(context.Background(), next[0], s.settings())
 	if tr.calls.Load() != 1 || p.calls.Load() != 2 {
 		t.Fatalf("auth=%d probes=%d", tr.calls.Load(), p.calls.Load())
 	}

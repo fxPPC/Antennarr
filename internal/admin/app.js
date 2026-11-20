@@ -10,6 +10,10 @@ import {
 import * as input from './ui/input.js';
 import * as output from './ui/output.js';
 import * as status from './ui/status.js';
+import * as setup from './ui/setup.js';
+import {bindImport} from './ui/source-import.js';
+import {listenerLabels, slotHelp} from './ui/listeners.js';
+import {routeParams} from './ui/navigation.js';
 const staticHelp = [
   ['#import-form textarea', 'Enter list-page URLs, or Base64-encoded URLs, one per line. Antennarr reads them only when you import; it does not scan them automatically. Keep the full #key on encrypted paste links.', 'List URLs'],
   ['#channel-form [name=number]', 'The channel number within this tuner. Different tuners may use the same number. Keep it stable to avoid disturbing existing Plex guide mappings.', 'Channel number'],
@@ -29,22 +33,41 @@ for (const [selector, text, name] of staticHelp) {
 help($('#live-streams').previousElementSibling, 'Outgoing viewers share one channel pipeline when they watch the same channel. Each active channel maintains a primary feed and a continuously receiving hot backup when sources are available.', 'Outgoing streams');
 help($('#current-work').previousElementSibling, 'Live startup, backup replacement, imports, and background checks appear here while running. Background checks yield to playback.', 'Working on');
 help($('#upcoming-title'), 'The next work depends on roster vacancies, continuous check passes, and provider pacing. Routine checks pause during playback; optional replenishment serves playing channels only.', 'Up next');
+bindImport();
+setup.bind(output.invalidateProfiles);
+async function refreshPorts() {
+  const listeners = await api('/api/listeners');
+  const labels = listenerLabels(listeners);
+  for (const key of ['range','admin','tuners']) $('#network-' + key).textContent = labels[key];
+  $('#network-capacity').textContent = labels.capacity + ' ' + slotHelp(listeners);
+}
+$('#network-ports').addEventListener('toggle', () => {
+  if ($('#network-ports').open) refreshPorts().catch(e => notice(e.message));
+});
 let adminLoaded = false;
 const admin = {
   init: async () => {
     if (adminLoaded) return;
     const ls=await api('/api/settings');const lf=$('#logging-settings');lf.elements.logging_level.value=ls.logging_level;
-    help(lf,'None suppresses application logs. Normal logs warnings and errors only. Debug includes source IDs, check results, and recovery diagnostics. Credentials and stream URLs remain hidden.','Docker logging');
+    help(lf,'None suppresses application logs. Normal logs warnings and errors only. Debug includes source IDs, check results, and recovery diagnostics. Credentials and stream URLs remain hidden.','Application logging');
     lf.onchange=async()=>{try{await api('/api/settings','POST',{logging_level:lf.elements.logging_level.value});$('#logging-result').textContent='Saved.'}catch(e){notice(e.message)}};
     const v = await api('/api/login');
     $('#login-form').elements.username.value = v.username;
     adminLoaded = true
   },
+  route: async () => {
+    if (routeParams().has('ports')) {
+      const panel = $('#network-ports');
+      panel.open = true;
+      panel.scrollIntoView({block:'nearest'});
+    }
+  },
   refresh: async () => {
+    if ($('#network-ports').open) await refreshPorts();
     if(!$('#system-info').open)return;
     const v=await api('/api/system');const root=$('#system-info-content');root.replaceChildren();
     const line=(label,value)=>{const p=document.createElement('p');p.textContent=label+': '+value;root.append(p)};
-    line('uname -a',v.uname||'Unavailable');line('Go',v.go);line('Available CPU threads',v.cpus);line('Application uptime',Math.floor(v.uptime_seconds/60)+' minutes');line('Disk free', (v.disk_free_bytes/1e9).toFixed(2)+' GB of '+(v.disk_total_bytes/1e9).toFixed(2)+' GB');
+    line('Operating system',v.uname||'Unavailable');line('Go',v.go);line('Available CPU threads',v.cpus);line('Application uptime',Math.floor(v.uptime_seconds/60)+' minutes');line('Disk free', (v.disk_free_bytes/1e9).toFixed(2)+' GB of '+(v.disk_total_bytes/1e9).toFixed(2)+' GB');
     for(const [key,label] of [['background','Average host load while checking'],['streaming','Average host load while streaming']])line(label,v[key].samples?v[key].load.toFixed(2)+' ('+v[key].samples+' samples)':'No samples yet');line('Measurement',v.note);
   }
 };
@@ -82,6 +105,7 @@ async function navigate() {
   key = aliases[key] || key;
   if (!pages[key]) key = 'status';
   current = key;
+  setup.visit(key);
   for (const name of Object.keys(pages)) $('#' + name).hidden = name !== key;
   for (const a of document.querySelectorAll('nav a')) a.setAttribute('aria-current', a.hash === '#' + key ? 'page' : 'false');
   try {
@@ -98,7 +122,9 @@ async function navigate() {
 window.addEventListener('hashchange', navigate);
 navigate();
 setInterval(async () => {
-  if (busy || document.hidden || !current) return;
+  if (document.hidden || !current) return;
+  void setup.poll();
+  if (busy) return;
   busy = true;
   const key = current;
   try {

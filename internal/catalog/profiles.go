@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
-	_ "embed"
+	"embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -32,25 +32,33 @@ type Profile struct {
 	PortOffset      int    `json:"port_offset"`
 }
 
-//go:embed data/uk_london_channels.json
-var defaultLondonChannelData []byte
+//go:embed data/*_channels.json
+var presetFiles embed.FS
 
-func DefaultLondonChannels() ([]Channel, error) {
-	var out []Channel
-	err := json.Unmarshal(defaultLondonChannelData, &out)
-	return out, err
-}
-
-// One registry owns market metadata and its versioned channel definitions.
-// Future markets add one entry and matching fixtures, without changing routing.
+// Presets are templates. Reading fresh channel definitions keeps edits isolated
+// from other tuners and from later additions of the same preset.
 type presetDefinition struct {
 	profile  Profile
-	channels func() ([]Channel, error)
+	filename string
+}
+
+func (p presetDefinition) channels() ([]Channel, error) {
+	data, err := presetFiles.ReadFile("data/" + p.filename)
+	if err != nil {
+		return nil, err
+	}
+	var channels []Channel
+	err = json.Unmarshal(data, &channels)
+	return channels, err
 }
 
 var tunerPresets = []presetDefinition{
-	{Profile{Kind: "hdhomerun", Name: "USA - New York City", Market: "New York City", Country: "US", Timezone: "America/New_York", GuideLocation: "10001", Preset: "us-nyc"}, DefaultUSChannels},
-	{Profile{Kind: "hdhomerun", Name: "UK - London", Market: "London", Country: "GB", Timezone: "Europe/London", GuideLocation: "SW1A 1AA", Preset: "uk-london"}, DefaultLondonChannels},
+	{Profile{Kind: "hdhomerun", Name: "USA - New York City", Market: "New York City", Country: "US", Timezone: "America/New_York", GuideLocation: "10001", Preset: "us-nyc"}, "us_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "UK - London", Market: "London", Country: "GB", Timezone: "Europe/London", GuideLocation: "SW1A 1AA", Preset: "uk-london"}, "uk_london_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Mexico - Mexico City", Market: "Mexico City", Country: "MX", Timezone: "America/Mexico_City", GuideLocation: "06000", Preset: "mx-mexico-city"}, "mx_mexico_city_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "India - Mumbai", Market: "Mumbai", Country: "IN", Timezone: "Asia/Kolkata", GuideLocation: "400001", Preset: "in-mumbai"}, "in_mumbai_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Germany - Berlin", Market: "Berlin", Country: "DE", Timezone: "Europe/Berlin", GuideLocation: "10115", Preset: "de-berlin"}, "de_berlin_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Netherlands - Amsterdam", Market: "Amsterdam", Country: "NL", Timezone: "Europe/Amsterdam", GuideLocation: "1012 JS", Preset: "nl-amsterdam"}, "nl_amsterdam_channels.json"},
 }
 
 func presetProfile(id string) (Profile, error) {
@@ -175,9 +183,12 @@ func (s *Store) SaveProfile(p Profile) (Profile, error) {
 	return s.Profile(p.ID)
 }
 
-// Allocate offsets monotonically, including removed profiles. A replacement
-// tuner must not silently inherit a removed device's identity or address.
-func addProfilePreset(tx *sql.Tx, preset string, maxOffset ...int) (Profile, error) {
+const nextLegacySlot = `SELECT max(coalesce((SELECT max(port_offset) FROM output_profiles),-1),
+		coalesce((SELECT CAST(value AS INTEGER) FROM settings WHERE name='profile_slot_highwater'),-1))+1`
+
+// Fixed ranges can reuse an empty listener; a replacement receives its own device ID.
+// Legacy listeners keep their historical monotonically allocated offsets.
+func addProfilePreset(tx *sql.Tx, preset string, limit int, reuse bool) (Profile, error) {
 	p, e := presetProfile(preset)
 	if e != nil {
 		return p, e
@@ -198,19 +209,25 @@ func addProfilePreset(tx *sql.Tx, preset string, maxOffset ...int) (Profile, err
 	if e != nil {
 		return p, e
 	}
-	if e = tx.QueryRow("SELECT max(coalesce((SELECT max(port_offset) FROM output_profiles),-1),coalesce((SELECT CAST(value AS INTEGER) FROM settings WHERE name='profile_slot_highwater'),-1))+1").Scan(&p.PortOffset); e != nil {
+	if reuse {
+		e = tx.QueryRow(`WITH RECURSIVE slots(n) AS (SELECT 0 UNION ALL SELECT n+1 FROM slots WHERE n<?)
+			SELECT coalesce(min(n),?+1) FROM slots WHERE NOT EXISTS(SELECT 1 FROM output_profiles p WHERE p.port_offset=n)`, limit, limit).Scan(&p.PortOffset)
+	} else {
+		e = tx.QueryRow(nextLegacySlot).Scan(&p.PortOffset)
+	}
+	if e != nil {
 		return p, e
+	}
+	if limit >= 0 && p.PortOffset > limit {
+		return p, errors.New("all configured tuner listener slots are reserved")
 	}
 	if p.PortOffset == 0 {
 		p.ID = "primary"
 	}
-	if len(maxOffset) > 0 && p.PortOffset > maxOffset[0] {
-		return p, errors.New("tuner listener range is full; configure more private tuner ports")
-	}
 	if _, e = tx.Exec("INSERT INTO output_profiles("+profileColumns+") VALUES(?,?,?,?,?,?,?,?,?,?,?)", p.ID, p.Kind, p.Name, p.Market, p.Country, p.Timezone, p.GuideLocation, p.Preset, p.Enabled, p.DeviceID, p.PortOffset); e != nil {
 		return p, e
 	}
-	if _, e = tx.Exec("INSERT INTO settings(name,value) VALUES('profile_slot_highwater',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", fmt.Sprint(p.PortOffset)); e != nil {
+	if _, e = tx.Exec("INSERT INTO settings(name,value) VALUES('profile_slot_highwater',?) ON CONFLICT(name) DO UPDATE SET value=max(CAST(settings.value AS INTEGER),CAST(excluded.value AS INTEGER))", fmt.Sprint(p.PortOffset)); e != nil {
 		return p, e
 	}
 	chs, e := presetChannels(preset)
@@ -230,12 +247,31 @@ func addProfilePreset(tx *sql.Tx, preset string, maxOffset ...int) (Profile, err
 	return p, nil
 }
 func (s *Store) AddProfilePreset(preset string, maxOffset ...int) (Profile, error) {
+	limit := -1
+	if len(maxOffset) > 0 {
+		limit = maxOffset[0]
+	}
+	return s.AddProfileForListeners(preset, limit, false)
+}
+
+func (s *Store) AvailableProfileSlots(limit int, reuse bool) (int, error) {
+	var n int
+	var err error
+	if reuse {
+		err = s.DB.QueryRow("SELECT count(*) FROM output_profiles WHERE port_offset BETWEEN 0 AND ?", limit).Scan(&n)
+	} else {
+		err = s.DB.QueryRow(nextLegacySlot).Scan(&n)
+	}
+	return max(0, limit+1-n), err
+}
+
+func (s *Store) AddProfileForListeners(preset string, limit int, reuse bool) (Profile, error) {
 	tx, e := s.DB.Begin()
 	if e != nil {
 		return Profile{}, e
 	}
 	defer tx.Rollback()
-	p, e := addProfilePreset(tx, preset, maxOffset...)
+	p, e := addProfilePreset(tx, preset, limit, reuse)
 	if e != nil {
 		return p, e
 	}
@@ -269,7 +305,7 @@ func (s *Store) seedLondonProfile() error {
 	if e != sql.ErrNoRows {
 		return e
 	}
-	if _, e = addProfilePreset(tx, "uk-london"); e != nil {
+	if _, e = addProfilePreset(tx, "uk-london", -1, false); e != nil {
 		return e
 	}
 	if _, e = tx.Exec("INSERT INTO settings(name,value) VALUES('multi_tuner_presets_seeded','1')"); e != nil {
@@ -394,7 +430,10 @@ func Presets() []Preset {
 	out := []Preset{}
 	for _, preset := range tunerPresets {
 		p := preset.profile
-		chs, _ := preset.channels()
+		chs, err := preset.channels()
+		if err != nil {
+			panic(fmt.Sprintf("invalid embedded preset %s: %v", p.Preset, err))
+		}
 		out = append(out, Preset{ID: p.Preset, Name: p.Name, Country: p.Country, Market: p.Market, Timezone: p.Timezone, GuideLocation: p.GuideLocation, Channels: len(chs), Version: 1})
 	}
 	return out

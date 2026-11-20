@@ -37,3 +37,86 @@ test('overlapping channel numbers stay in their own market', () => {
  assert.equal(profileLabel(profiles,'london'),'UK - London');
  assert.equal(profileLabel(profiles,'missing'),'Unavailable tuner');
 });
+
+import {currentStep, tunerOptions} from '../internal/admin/ui/setup.js';
+test('setup lists installed tuners and only the city presets still available to add', () => {
+  const profiles = [
+    {id:'primary',name:'My tuner',enabled:true,preset_id:''},
+    {id:'local-uk',name:'My London lineup',enabled:false,preset_id:'uk-london'}
+  ];
+  const presets = [
+    {id:'uk-london',name:'London',channels:5},
+    {id:'in-mumbai',name:'Mumbai',channels:10}
+  ];
+  const options = tunerOptions(profiles, presets);
+  assert.deepEqual(options.map(({value, label}) => [value, label]), [
+    ['profile:primary', 'My tuner'], ['profile:local-uk', 'My London lineup'], ['preset:in-mumbai', 'Mumbai']
+  ]);
+  assert.match(options[1].detail, /enables this tuner/);
+  assert.match(options[2].detail, /10 channels/);
+});
+
+test('setup resumes the saved step only while its selected tuner and source requirements hold', () => {
+  const profiles = [{id:'primary',enabled:true},{id:'second',enabled:false}];
+  const saved = {state:'active',step:'plex',profile_id:'primary',has_sources:true};
+  assert.equal(currentStep(saved, profiles), 'plex');
+  assert.equal(currentStep({...saved, step:'tuner'}, profiles), 'tuner');
+  assert.equal(currentStep({...saved, step:'sources'}, profiles), 'sources');
+  assert.equal(currentStep({...saved, has_sources:false}, profiles), 'sources');
+  for (const id of ['second','removed','']) assert.equal(currentStep({...saved, profile_id:id}, profiles), 'tuner');
+  for (const state of ['complete','dismissed']) assert.equal(currentStep({...saved, state}, profiles), '');
+  assert.equal(currentStep({state:'pending',step:'tuner',profile_id:'',has_sources:false}, []), 'tuner');
+});
+
+import {bindImport, showImport} from '../internal/admin/ui/source-import.js';
+test('shared source form retains failed lists and prevents stale polls from reopening a finished job', async t => {
+  const submit = {}, result = {textContent:''};
+  const form = {
+    elements:{text:{value:'list-one'},authorised:{checked:true}},
+    reportValidity:() => true,
+    querySelector:() => submit
+  };
+  const originalDocument = globalThis.document;
+  globalThis.document = {querySelector:selector => selector === '#import-form' ? form : result};
+  t.after(() => { if (originalDocument) globalThis.document = originalDocument; else delete globalThis.document; });
+  let id = 0;
+  t.mock.method(globalThis, 'fetch', async (path, options) => {
+    assert.equal(path, '/api/import');
+    assert.deepEqual(JSON.parse(options.body), {text:form.elements.text.value,authorised:true});
+    return Response.json({job_id:++id,state:'running'}, {status:202});
+  });
+  bindImport();
+  await form.onsubmit({preventDefault(){}});
+  assert.equal(submit.disabled, true);
+  showImport({job_id:1,state:'failed',summary:'Could not read list.'});
+  assert.equal(form.elements.text.value, 'list-one');
+  assert.equal(result.textContent, 'Could not read list.');
+  assert.equal(submit.disabled, false);
+  await form.onsubmit({preventDefault(){}});
+  showImport({job_id:2,state:'imported',processed:1,summary:'{"accounts_added":1,"accounts_existing":0,"duplicates":0}'});
+  assert.equal(form.elements.text.value, '');
+  assert.match(result.textContent, /1 new account/);
+  showImport({job_id:2,state:'running'});
+  showImport({job_id:1,state:'failed',summary:'Old error'});
+  assert.equal(submit.disabled, false);
+  assert.match(result.textContent, /Import complete/);
+});
+
+import {listenerLabels, slotHelp} from '../internal/admin/ui/listeners.js';
+test('the web UI reports configured ports and reserved capacity', () => {
+  const range = {port_range:'40100-40106',admin_port:40100,tuner_ports:[40101,40102,40103,40104,40105,40106],available_slots:1};
+  assert.deepEqual(listenerLabels(range), {range:'40100–40106',admin:'40100',tuners:'40101–40106',capacity:'1 of 6 tuner slots available.'});
+  assert.match(slotHelp(range), /disabled/);
+  assert.match(slotHelp({...range,available_slots:0}), /free a slot/);
+  const legacy = {port_range:'',admin_port:0,tuner_ports:[9192,9200,9201,9202],available_slots:0};
+  assert.deepEqual(listenerLabels(legacy), {range:'Individual ports (legacy configuration)',admin:'Shared with the primary tuner on 9192',tuners:'9192, 9200–9202',capacity:'0 of 4 tuner slots available.'});
+  assert.match(slotHelp(legacy), /legacy/);
+});
+test('a full allocation still lets setup enable an existing disabled tuner', () => {
+  const profiles = [{id:'my-tuner',name:'Local lineup',preset_id:'',enabled:false}];
+  const presets = [{id:'in-mumbai',name:'Mumbai',channels:23}];
+  const full = tunerOptions(profiles,presets,0);
+  assert.equal(!!full[0].disabled, false);
+  assert.equal(full[1].disabled, true);
+  assert.equal(tunerOptions(profiles,presets,1)[1].disabled, false);
+});

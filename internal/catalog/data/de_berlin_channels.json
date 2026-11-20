@@ -1,0 +1,546 @@
+[
+  {
+    "name": "Das Erste",
+    "number": "001",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "ARD",
+      "ARD Das Erste",
+      "DasErste",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ZDF",
+    "number": "002",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "-neo",
+      "-info",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RTL",
+    "number": "003",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "RTL Television",
+      "-up",
+      "-nitro",
+      "-zwei",
+      "-2",
+      "-super",
+      "-luxembourg",
+      "-luxemburg",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "SAT.1",
+    "number": "004",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Sat 1",
+      "Sat1",
+      "-gold",
+      "-emotions",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ProSieben",
+    "number": "005",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Pro Sieben",
+      "Pro 7",
+      "Pro7",
+      "-maxx",
+      "-fun",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "VOX",
+    "number": "006",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "-up",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Kabel Eins",
+    "number": "007",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Kabel 1",
+      "Kabel1",
+      "Kabeleins",
+      "-doku",
+      "-classics",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RTLZWEI",
+    "number": "008",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "RTL II",
+      "RTL2",
+      "RTL 2",
+      "RTL Zwei",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Super RTL",
+    "number": "009",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "SuperRTL",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "NITRO",
+    "number": "010",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "RTL Nitro",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "DMAX",
+    "number": "011",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TELE 5",
+    "number": "012",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Tele5",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "sixx",
+    "number": "013",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ProSieben MAXX",
+    "number": "015",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Pro Sieben Maxx",
+      "Pro7 Maxx",
+      "ProSiebenMaxx",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "DF1",
+    "number": "018",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "DF 1",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RTLup",
+    "number": "020",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "RTL Up",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "VOXup",
+    "number": "021",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Vox Up",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "rbb Berlin",
+    "number": "039",
+    "region": "DE",
+    "enabled": true,
+    "station": "BERLIN",
+    "aliases": [
+      "rbb Fernsehen Berlin",
+      "rbbBerlin",
+      "rbb",
+      "rbb Fernsehen",
+      "-brandenburg",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ARTE",
+    "number": "050",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "-france",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ZDFneo",
+    "number": "051",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "ZDF neo",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ZDFinfo",
+    "number": "052",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "ZDF info",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "3sat",
+    "number": "053",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "3 sat",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "KiKA",
+    "number": "060",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Kinderkanal",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "SPORT1",
+    "number": "065",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Sport 1",
+      "-plus",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "SAT.1 Gold",
+    "number": "071",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Sat1 Gold",
+      "Sat1Gold",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "N24 Doku",
+    "number": "074",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "N24Doku",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Kabel Eins Doku",
+    "number": "076",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Kabel 1 Doku",
+      "Kabel1Doku",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ntv",
+    "number": "078",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "n-tv",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "WELT",
+    "number": "079",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "-doku",
+      "Welt Nachrichtensender",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "phoenix",
+    "number": "080",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "tagesschau24",
+    "number": "082",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Tagesschau 24",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "tv.berlin",
+    "number": "125",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "TVBerlin",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Spreekanal",
+    "number": "127",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "Spree Kanal",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ALEX Berlin",
+    "number": "170",
+    "region": "DE",
+    "enabled": true,
+    "aliases": [
+      "ALEX TV",
+      "ALEX",
+      "-radio",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  }
+]

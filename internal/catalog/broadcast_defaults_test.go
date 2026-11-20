@@ -10,7 +10,7 @@ import (
 // Exercise the shipped preset, not a copy of its rules: every broadcast alias
 // must select only its intended service, including country and quality labels.
 func TestBroadcastPresetMatching(t *testing.T) {
-	channels, err := DefaultUSChannels()
+	channels, err := presetChannels("us-nyc")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestBroadcastMatchingUpgradeRefreshesSavedStreamsOnce(t *testing.T) {
 }
 
 func TestBroadcastPresetRejectsOtherServices(t *testing.T) {
-	channels, err := DefaultUSChannels()
+	channels, err := presetChannels("us-nyc")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -79,7 +79,7 @@ func (m channelMatcher) stationEvidence(key string) bool {
 		return true
 	}
 	for _, token := range strings.Fields(key) {
-		if strings.ReplaceAll(token, " ", "") == station {
+		if token == station {
 			return true
 		}
 	}
@@ -228,15 +228,14 @@ func guideConflict(channels []channelMatcher, target channelMatcher, label sourc
 }
 
 var referenceGuideMatchers = sync.OnceValue(func() []channelMatcher {
-	channels, err := DefaultUSChannels()
-	if err != nil {
-		panic("invalid bundled channel definitions: " + err.Error())
+	var channels []Channel
+	for _, preset := range tunerPresets {
+		records, err := preset.channels()
+		if err != nil {
+			panic("invalid embedded preset " + preset.profile.Preset + ": " + err.Error())
+		}
+		channels = append(channels, records...)
 	}
-	london, err := DefaultLondonChannels()
-	if err != nil {
-		panic("invalid bundled London definitions: " + err.Error())
-	}
-	channels = append(channels, london...)
 	var ukReferences []Channel
 	if err := json.Unmarshal(ukReferenceChannelData, &ukReferences); err != nil {
 		panic("invalid bundled UK reference identities: " + err.Error())
@@ -254,9 +253,13 @@ var referenceGuideMatchers = sync.OnceValue(func() []channelMatcher {
 		{Name: "3ABN Proclaim Network", Region: "US"},
 		{Name: "CW Plus Mountain", Region: "US"},
 		{Name: "Military History Channel", Region: "US"},
+		{Name: "Sports18", Region: "IN", Aliases: []string{"Sports 18"}},
 		{Name: "STARZ ENCORE Español", Region: "US", Aliases: []string{"STARZ ENCORE Espanol"}},
 		{Name: "Saigon Broadcasting Network", Region: "US"},
 		{Name: "Racer Network", Region: "US"},
+		{Name: "Deluxe Music", Region: "DE"},
+		{Name: "NPO Nieuws", Region: "NL"},
+		{Name: "100% NL TV", Region: "NL", Aliases: []string{"100nltv"}},
 	} {
 		channels = append(channels, c)
 	}

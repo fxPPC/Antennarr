@@ -1,4 +1,4 @@
-// Package roster coordinates a bounded verified pool; it never scans the whole catalogue on a cycle.
+// Package roster schedules source discovery, roster verification, and recruitment.
 package roster
 
 import (
@@ -12,7 +12,6 @@ import (
 	"database/sql"
 	"log/slog"
 	"net/http"
-	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -34,22 +33,20 @@ type Service struct {
 	Gateway         interface {
 		Probe(context.Context, string, string, time.Duration) media.ProbeResult
 	}
-	Live           func() bool
-	ActiveChannels func() map[string]bool
-	LivePairReady  func(string) bool
-	replenishing   bool
-	mu             sync.Mutex
-	cancel         context.CancelFunc
-	claimed        map[int64]bool
-	excluded       map[int64]int64
-	dirty          map[int64]bool
-	emergency      map[string]bool
-	cleanupNeeded  bool
-	lastCleanup    int64
-	cursor         int
-	turn           int
-	recruitAccount int64
-	recruitVisited map[string]bool
+	Live               func() bool
+	ActiveChannels     func() map[string]bool
+	LivePairReady      func(string) bool
+	replenishing       bool
+	mu                 sync.Mutex
+	cancel             context.CancelFunc
+	claimed            map[int64]bool
+	excluded           map[int64]int64
+	dirty              map[int64]bool
+	emergency          map[string]bool
+	cleanupNeeded      bool
+	lastCleanup        int64
+	lastRecruitChannel string
+	turn               int
 }
 
 func (s *Service) Preempt() {
@@ -349,41 +346,10 @@ func (s *Service) step(parent context.Context) {
 		return
 	}
 	s.state("waiting_candidates", 0)
-	// Reserve every third turn for overdue maintenance, so a difficult empty
-	// channel cannot monopolise the checker indefinitely.
+	// Keep verification moving even when vacancies persist.
 	s.turn++
-	if s.turn%3 == 0 {
-		if s.maintainPass(ctx, now, v) {
-			return
-		}
-	}
-	// Continue the current account across vacancies, one paced probe per turn.
-	// Maintenance above retains its reserved turn, and live playback preempts us.
-	if s.recruitAccount != 0 && s.recruitNext(ctx, summary.Channels, v) {
+	if (s.turn%3 == 0 || summary.Deficit == 0) && s.maintainPass(ctx, now, v) {
 		return
-	}
-	// Maintain the ready pool first; deficits below two get a fair urgent fill turn.
-	channels := summary.Channels
-	sort.SliceStable(channels, func(i, j int) bool { return (channels[i].Count < 2 && channels[j].Count >= 2) })
-	if len(channels) > 0 {
-		for n := 0; n < len(channels); n++ {
-			i := (s.cursor + n) % len(channels)
-			ch := channels[i]
-			if ch.Count >= min(2, ch.Policy.Target) {
-				continue
-			}
-			pool, e := s.Store.QueueCandidates(ch.ChannelID, 1)
-			if e == nil && len(pool) > 0 {
-				s.cursor = (i + 1) % len(channels)
-				s.startRecruitment(ctx, ch.ChannelID, pool[0], v)
-				return
-			}
-		}
-	}
-	if summary.Deficit == 0 || s.turn%3 == 0 {
-		if s.maintainPass(ctx, now, v) {
-			return
-		}
 	}
 	if summary.Deficit == 0 {
 		pass, err := s.Store.CheckPassStatus()
@@ -403,18 +369,8 @@ func (s *Service) step(parent context.Context) {
 		}
 		return
 	}
-	for n := 0; n < len(channels); n++ {
-		i := (s.cursor + n) % len(channels)
-		ch := channels[i]
-		if ch.Count >= ch.Policy.Target {
-			continue
-		}
-		pool, e := s.Store.QueueCandidates(ch.ChannelID, 1)
-		if e == nil && len(pool) > 0 {
-			s.cursor = (i + 1) % len(channels)
-			s.startRecruitment(ctx, ch.ChannelID, pool[0], v)
-			return
-		}
+	if s.recruit(ctx, summary.Channels, v) {
+		return
 	}
 	if s.discover(ctx, v, false) {
 		return
@@ -471,22 +427,8 @@ func (s *Service) replenishActive(ctx context.Context, v config.Settings) {
 		return
 	}
 	s.state("live_replenishment", 0)
-	if s.recruitAccount != 0 && s.recruitNext(ctx, channels, v) {
+	if s.recruit(ctx, channels, v) {
 		return
-	}
-	for n := 0; n < len(channels); n++ {
-		i := (s.cursor + n) % len(channels)
-		ch := channels[i]
-		pool, err := s.Store.QueueCandidates(ch.ChannelID, 1)
-		if err != nil {
-			s.report("Select live replenishment candidate", err)
-			return
-		}
-		if len(pool) > 0 {
-			s.cursor = i + 1
-			s.startRecruitment(ctx, ch.ChannelID, pool[0], v)
-			return
-		}
 	}
 	// Metadata discovery is necessary to find candidates for the playing channels.
 	// Media auditions remain scoped to those channels on the next turn.

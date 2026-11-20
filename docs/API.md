@@ -1,8 +1,8 @@
 # HTTP API
 
-The main listener defaults to `:9192` and serves tuner routes plus authenticated administration routes. Setting `ANTENNARR_ADMIN_LISTEN=:9193` enables a separate administration listener that omits tuner discovery/playback. Administration requires HTTP Basic authentication; `/healthz` and `/branding/logo.png` are public exceptions. Keep the main listener private and use HTTPS for remote administration. See [listener and proxy setup](INSTALL.md#addresses-and-docker-networking). Administration mutations require `X-Antennarr-Request: 1`. Bodies are bounded, and errors omit credentials.
+On a fresh beta installation, the first port in `ANTENNARR_PORT_RANGE` serves administration (default 39192). The next six ports serve tuner discovery and playback (39193–39198). Each tuner has a distinct device identity. Existing installations retain their configured listeners and primary address. [Port selection and upgrades](MULTI-TUNER.md#web-and-tuner-ports)
 
-Additional profiles have their own tuner-only listeners, initially `9200–9207`. `ANTENNARR_TUNER_PORTS` configures that private range. The same paths on different ports identify different devices. The administration-only listener exposes none of them. See [multi-tuner setup](MULTI-TUNER.md).
+Administration uses HTTP Basic authentication. The health check and branding image are public. Administration mutations require `X-Antennarr-Request: 1`. Request bodies are bounded, and errors omit credentials.
 
 ## Tuner
 
@@ -26,6 +26,7 @@ A disabled tuner returns 503; an unused listener slot returns 404. Each device a
 | GET `/api/connection` | Addresses Plex can use |
 | GET `/api/system` | Host, resource, and background/streaming load information |
 | GET, POST `/api/login` | Current username/change login; current password required |
+| GET, POST `/api/setup` | Read first-run progress and whether an enabled tuner and source account exist. Save wizard progress with `state` (`active`, `dismissed`, or `complete`). |
 | GET, POST `/api/settings` | Settings; immediate changes and restart requirements are reported by the save response |
 | GET, POST `/api/removal-policy` | `{account_failures,stream_failures}`, 0–100; zero disables that automatic retirement threshold |
 | POST `/api/import` | `{text,authorised:true}`; list URLs, optionally Base64 encoded; starts asynchronous import |

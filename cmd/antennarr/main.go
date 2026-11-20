@@ -18,23 +18,48 @@ import (
 	"antennarr/internal/systeminfo"
 	"antennarr/internal/tuner"
 	"context"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"strconv"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
 
 func main() {
-	// stdout is the operational log sink; Docker owns rotation and retention.
+	if len(os.Args) == 2 && os.Args[1] == "healthcheck" {
+		os.Exit(healthcheck())
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if os.Getenv("ANTENNARR_DESKTOP_CHILD") == "1" {
+		// Only the desktop launcher owns the pipe's write end. EOF also covers
+		// an unexpected launcher exit, including during a maintenance restart.
+		go func() {
+			_, _ = io.Copy(io.Discard, os.Stdin)
+			stop()
+		}()
+	}
+	for ctx.Err() == nil && run(ctx) {
+	}
+}
+
+func run(parent context.Context) bool {
 	var initialLevel slog.Level
 	levelErr := initialLevel.UnmarshalText([]byte(env("ANTENNARR_LOG_LEVEL", "DEBUG")))
 	var level slog.LevelVar
 	level.Set(initialLevel)
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: &level}))
+	logOutput := os.Stdout
+	desktopChild := os.Getenv("ANTENNARR_DESKTOP_CHILD") == "1"
+	if desktopChild {
+		logOutput = os.Stderr // stdout carries only the two menu counters.
+	}
+	logger := slog.New(slog.NewJSONHandler(logOutput, &slog.HandlerOptions{Level: &level}))
 	slog.SetDefault(logger)
 	if levelErr != nil {
 		slog.Error("invalid logging level")
@@ -42,7 +67,16 @@ func main() {
 	}
 	// Storage/tool locations are trusted deployment configuration, never values
 	// taken from HTTP requests, provider catalogues, or imported lists.
-	root := env("ANTENNARR_DATA", "/data")
+	root, err := dataDirectory()
+	if err != nil {
+		slog.Error("cannot determine the appdata directory", "error", err)
+		os.Exit(1)
+	}
+	binary, err := ffmpegBinary()
+	if err != nil {
+		slog.Error("media tools unavailable", "error", err)
+		os.Exit(1)
+	}
 	if err := recovery.ApplyReset(root); err != nil {
 		startupError("reset failed", root, err)
 		os.Exit(1)
@@ -57,10 +91,9 @@ func main() {
 		os.Exit(1)
 	}
 	level.Set(c.Settings.LogLevel())
-	ports, err := config.ParseTunerPorts(os.Getenv("ANTENNARR_TUNER_PORTS"))
-	if err == nil {
-		err = ports.ValidateListeners(env("ANTENNARR_LISTEN", ":9192"), os.Getenv("ANTENNARR_ADMIN_LISTEN"), os.Getenv("ANTENNARR_COMPAT_LISTEN"))
-	}
+	desktop := runtime.GOOS == "darwin" || runtime.GOOS == "windows"
+	listeners, err := config.ResolveListeners(root, c.PortRange, desktop)
+	ports := listeners.Extra
 	if err != nil {
 		slog.Error("invalid tuner listener configuration", "error", err)
 		os.Exit(1)
@@ -90,14 +123,10 @@ func main() {
 		slog.Error("channel matching unavailable")
 		os.Exit(1)
 	}
-	base := os.Getenv("ANTENNARR_BASE_URL")
-	if base == "" {
-		ip := privateIP()
-		if ip == "" {
-			slog.Error("no private interface address")
-			os.Exit(1)
-		}
-		base = "http://" + net.JoinHostPort(ip, "9192")
+	base, err := listeners.BaseURL(os.Getenv("ANTENNARR_BASE_URL"), desktop)
+	if err != nil {
+		slog.Error("cannot determine tuner address", "error", err)
+		os.Exit(1)
 	}
 	var m *stream.Manager
 	readChecks := func() config.Settings {
@@ -135,8 +164,7 @@ func main() {
 		slog.Error("roster eligibility refresh failed")
 		os.Exit(1)
 	}
-	checks := &roster.Service{Settings: readChecks, Activity: work, Store: store, Budget: limits, Gateway: checkGateway, Client: client, Binary: env("ANTENNARR_FFMPEG", "ffmpeg"), Live: func() bool { return m != nil && m.Status().Viewers > 0 }}
-	binary := env("ANTENNARR_FFMPEG", "ffmpeg")
+	checks := &roster.Service{Settings: readChecks, Activity: work, Store: store, Budget: limits, Gateway: checkGateway, Client: client, Binary: binary, Live: func() bool { return m != nil && m.Status().Viewers > 0 }}
 	eng := &engine.Engine{Activity: work, RaceSize: c.Settings.StartupRace, Buffer: time.Duration(c.Settings.BufferSeconds) * time.Second, StallTimeout: time.Duration(c.Settings.StallTimeoutMS) * time.Millisecond, Catalogue: checks, Budget: limits, Binary: binary, Preempt: checks.Preempt, Copy: func(ctx context.Context, u string, emit func([]byte)) error {
 		return gateway.Copy(ctx, binary, u, emit)
 	}, Inspect: func(ctx context.Context, b []byte) (media.Info, error) { return media.Inspect(ctx, binary, b) }}
@@ -184,7 +212,9 @@ func main() {
 		}
 		return out
 	}
-	restart := make(chan struct{}, 1)
+	ctx, stop := context.WithCancel(parent)
+	defer stop()
+	var restartRequested atomic.Bool
 	guard, guardErr := access.New(os.Getenv("ANTENNARR_TRUSTED_PROXIES"))
 	if guardErr != nil {
 		slog.Error("trusted proxy configuration invalid")
@@ -195,11 +225,9 @@ func main() {
 		return m.Status().Viewers > 0, state == "checking" || state == "discovering"
 	})
 	statusCollector := &monitor.Collector{Store: store, Playback: m.Status, Live: eng.Status, Work: work.Snapshot, Checker: checks.CheckerState}
-	s := tuner.Server{Guard: guard, ChannelList: channelList, BeforeTune: checks.Preempt, Admin: &admin.API{TunerPorts: ports, PrimaryListen: env("ANTENNARR_LISTEN", ":9192"), WithIdle: m.WithIdle, SystemInfo: system.Snapshot, Monitor: statusCollector.Snapshot, StopStream: m.Stop, WithChecksPaused: checks.WithPaused, WithProtectedAccounts: limits.WithProtectedAccounts, ReadLogin: login.Current, ChangeLogin: login.Change, DataRoot: root, BaseURL: base, Idle: func() bool { return m.Status().Viewers == 0 }, Restart: func() {
-		select {
-		case restart <- struct{}{}:
-		default:
-		}
+	s := tuner.Server{Guard: guard, ChannelList: channelList, BeforeTune: checks.Preempt, Admin: &admin.API{TunerPorts: ports, PrimaryListen: listeners.Primary, AdminListen: listeners.Admin, CompatListen: listeners.Compat, PortRange: listeners.Range, WithIdle: m.WithIdle, SystemInfo: system.Snapshot, Monitor: statusCollector.Snapshot, StopStream: m.Stop, WithChecksPaused: checks.WithPaused, WithProtectedAccounts: limits.WithProtectedAccounts, ReadLogin: login.Current, ChangeLogin: login.Change, DataRoot: root, BaseURL: base, Idle: func() bool { return m.Status().Viewers == 0 }, Restart: func() {
+		restartRequested.Store(true)
+		stop()
 	}, Activity: work, ReadSettings: func() (config.Settings, error) { v, e := config.Load(root); return v.Settings, e }, SaveSettings: func(v config.Settings) error {
 		copy := c
 		copy.Settings = v
@@ -235,7 +263,12 @@ func main() {
 			}
 		}
 	}
-	srv := http.Server{Addr: env("ANTENNARR_LISTEN", ":9192"), Handler: fleet.PrimaryHandler(), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
+	primaryHandler := fleet.PrimaryHandler()
+	if desktop || listeners.Range != "" {
+		// Standalone apps and seven-port installations keep administration off every tuner port.
+		primaryHandler = fleet.Handler(0)
+	}
+	srv := http.Server{Addr: listeners.Primary, Handler: primaryHandler, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
 	// Bind the bounded private range once. Adding/enabling a profile then needs
 	// no restart, and an unassigned port returns 404 rather than another tuner.
 	bindHost, _, _ := net.SplitHostPort(srv.Addr)
@@ -247,34 +280,41 @@ func main() {
 	for port := ports.First; port <= ports.Last; port++ {
 		listener, e := net.Listen("tcp", net.JoinHostPort(bindHost, strconv.Itoa(port)))
 		if e != nil {
-			slog.Error("additional tuner listener unavailable", "port", port)
+			slog.Error("additional tuner listener unavailable", "port", port, "error", e)
 			os.Exit(1)
 		}
 		extra = append(extra, deviceListener{&http.Server{Handler: fleet.Handler(port - ports.First + 1), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}, listener})
 	}
 	var adminServer *http.Server
 	var adminListener net.Listener
-	if addr := os.Getenv("ANTENNARR_ADMIN_LISTEN"); addr != "" {
+	if addr := listeners.Admin; addr != "" {
 		adminListener, err = net.Listen("tcp", addr)
 		if err != nil {
-			slog.Error("administration listener unavailable")
+			slog.Error("administration listener unavailable", "error", err)
 			os.Exit(1)
 		}
 		adminServer = &http.Server{Handler: s.AdminHandler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 2 * time.Minute, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
 	}
 	var compat *http.Server
 	var compatListener net.Listener
-	if addr := os.Getenv("ANTENNARR_COMPAT_LISTEN"); addr != "" {
+	if addr := listeners.Compat; addr != "" {
 		compatListener, err = net.Listen("tcp", addr)
 		if err != nil {
-			slog.Error("compatibility listener unavailable")
+			slog.Error("compatibility listener unavailable", "error", err)
 			os.Exit(1)
 		}
 		compat = &http.Server{Handler: fleet.FallbackHandler(), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	primaryListener, err := net.Listen("tcp", srv.Addr)
+	if err != nil {
+		slog.Error("primary tuner listener unavailable", "error", err)
+		os.Exit(1)
+	}
+	if desktopChild {
+		// An initial count also confirms this child owns every requested port.
+		go writeDesktopStats(ctx, os.Stdout, store, m.Status)
+	}
 	go system.Run(ctx)
-	defer stop()
 	for _, device := range extra {
 		go func() {
 			if e := device.server.Serve(device.listener); e != nil && e != http.ErrServerClosed {
@@ -299,20 +339,15 @@ func main() {
 			}
 		}()
 	}
-	go func() {
-		select {
-		case <-restart:
-			stop()
-		case <-ctx.Done():
-		}
-	}()
 	jobsDone := make(chan struct{})
 	go func() {
 		defer close(jobsDone)
 		checks.Run(ctx)
 	}()
 	defer func() { stop(); <-jobsDone }()
+	shutdownDone := make(chan struct{})
 	go func() {
+		defer close(shutdownDone)
 		<-ctx.Done()
 		m.Close()
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -331,25 +366,19 @@ func main() {
 		}
 		_ = srv.Shutdown(shutdown)
 	}()
-	slog.Info("tuner starting", "version", "v1.1.0-alpha.8", "schema", 9, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
-	if err = srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	slog.Info("tuner starting", "version", "v1.1.0-beta.1", "schema", 9, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
+	if err = srv.Serve(primaryListener); err != nil && err != http.ErrServerClosed {
 		slog.Error("HTTP server failed")
 		os.Exit(1)
 	}
+	<-shutdownDone
+	// Container restarts stay with its supervisor. Standalone applications
+	// close the old store and listeners before applying the staged operation.
+	return restartRequested.Load() && (runtime.GOOS == "darwin" || runtime.GOOS == "windows")
 }
 func env(k, d string) string {
 	if s := os.Getenv(k); s != "" {
 		return s
 	}
 	return d
-}
-func privateIP() string {
-	addrs, _ := net.InterfaceAddrs()
-	for _, a := range addrs {
-		ip, _, e := net.ParseCIDR(a.String())
-		if e == nil && ip.To4() != nil && !ip.IsLoopback() && ip.IsPrivate() {
-			return ip.String()
-		}
-	}
-	return ""
 }

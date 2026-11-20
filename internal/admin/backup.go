@@ -45,7 +45,7 @@ func (a *API) fullBackup(w http.ResponseWriter, r *http.Request) {
 	name, e := recovery.Create(a.DataRoot, a.BaseURL, a.Store, release)
 	if e != nil {
 		slog.Error("full backup failed", "error", e)
-		failure(w, 500, "Full backup failed; check Docker logs")
+		failure(w, 500, "Full backup failed; check the application logs")
 		return
 	}
 	response(w, map[string]string{"backup": name, "download": "/api/backups/" + name})

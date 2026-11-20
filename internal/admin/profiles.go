@@ -23,6 +23,36 @@ func (a *API) ports() config.TunerPorts {
 	return p
 }
 
+func (a *API) primaryPort() int {
+	_, raw, err := net.SplitHostPort(a.PrimaryListen)
+	if err != nil {
+		return 9192
+	}
+	port, _ := strconv.Atoi(raw)
+	return port
+}
+
+func (a *API) listeners(w http.ResponseWriter, _ *http.Request) {
+	p := a.ports()
+	ports := []int{a.primaryPort()}
+	for port := p.First; port <= p.Last; port++ {
+		ports = append(ports, port)
+	}
+	available, err := a.Store.AvailableProfileSlots(len(ports)-1, a.PortRange != "")
+	if err != nil {
+		failure(w, 500, "Tuner listeners unavailable")
+		return
+	}
+	_, raw, _ := net.SplitHostPort(a.AdminListen)
+	adminPort, _ := strconv.Atoi(raw)
+	response(w, struct {
+		Range     string `json:"port_range"`
+		Admin     int    `json:"admin_port"`
+		Ports     []int  `json:"tuner_ports"`
+		Available int    `json:"available_slots"`
+	}{a.PortRange, adminPort, ports, available})
+}
+
 type profileView struct {
 	catalog.Profile
 	TunerURL     string `json:"tuner_url"`
@@ -50,11 +80,7 @@ func (a *API) profiles(w http.ResponseWriter, r *http.Request) {
 			v.AddressError = err.Error()
 		}
 		if p.PortOffset == 0 {
-			v.ListenPort = 9192
-			if a.PrimaryListen != "" {
-				_, raw, _ := net.SplitHostPort(a.PrimaryListen)
-				v.ListenPort, _ = strconv.Atoi(raw)
-			}
+			v.ListenPort = a.primaryPort()
 		} else {
 			v.ListenPort, _ = a.ports().Port(p.PortOffset)
 		}
@@ -77,7 +103,7 @@ func (a *API) addProfile(w http.ResponseWriter, r *http.Request) {
 	var out catalog.Profile
 	apply := func() error {
 		var err error
-		out, err = a.Store.AddProfilePreset(v.PresetID, p.Last-p.First+1)
+		out, err = a.Store.AddProfileForListeners(v.PresetID, p.Last-p.First+1, a.PortRange != "")
 		return err
 	}
 	var err error

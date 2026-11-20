@@ -30,6 +30,15 @@ class GateTests(unittest.TestCase):
         match['vulnerability']['fix']['state'] = 'fixed'
         self.assertEqual(gate.blocking_findings({'matches': [match]}, True, [approved]), [match])
 
+    def test_exact_review_rejects_missing_duplicate_and_newly_fixable_findings(self):
+        approvals = [{'id': 'CVE-test', 'package': 'pkg', 'version': '1', 'severity': 'Low'}]
+        match = {'vulnerability': {'id': 'CVE-test', 'severity': 'Low', 'fix': {'versions': ['2']}},
+                 'artifact': {'name': 'pkg', 'version': '1'}}
+        self.assertTrue(gate.exact_review([match], approvals))
+        self.assertFalse(gate.exact_review([], approvals))
+        self.assertFalse(gate.exact_review([match, match], approvals))
+        self.assertEqual(gate.blocking_findings({'matches': [match]}, True, approvals), [match])
+
     def test_incomplete_report_fails_closed(self):
         for report in [{}, {'matches': None}, {'matches': {}}]:
             with self.assertRaises(ValueError):
