@@ -372,6 +372,20 @@ def verify_windows_rule(server, admin):
 
 
 @contextlib.contextmanager
+def new_mac_bundle(folder):
+    app = folder / "Antennarr.app"
+    app.mkdir()  # Refuse an existing application or symlink.
+    created = app.stat()
+    try:
+        yield app
+    finally:
+        if app.exists() or app.is_symlink():
+            if not os.path.samestat(created, app.lstat()):
+                raise RuntimeError(f"The test bundle at {app} was replaced; leaving it in place")
+            shutil.rmtree(app)
+
+
+@contextlib.contextmanager
 def installed(archive, root):
     package = root / "Test Applications"
     if archive.suffix == ".zip":
@@ -384,22 +398,33 @@ def installed(archive, root):
                     extracted.chmod(0o755)
         yield package
     elif archive.suffix == ".dmg":
-        mount = root / "Mounted image"
-        mount.mkdir()
-        subprocess.run(["hdiutil", "verify", "-quiet", archive], check=True, timeout=100)
-        subprocess.run(["hdiutil", "attach", "-quiet", "-readonly", "-nobrowse", "-noautoopen",
-                        "-mountpoint", mount, archive], check=True, timeout=90)
-        try:
-            assert os.statvfs(mount).f_flag & os.ST_RDONLY
-            assert (mount / "Applications").is_symlink() and os.readlink(mount / "Applications") == "/Applications"
-            assert (mount / "Read Me.txt").is_file()
-            subprocess.run(["codesign", "--verify", "--deep", "--strict", mount / "Antennarr.app"], check=True)
+        hosted = firewall_requested()
+        if hosted:
+            package = Path("/Applications")
+        else:
             package.mkdir()
-            subprocess.run(["ditto", mount / "Antennarr.app", package / "Antennarr.app"], check=True, timeout=90)
-        finally:
-            subprocess.run(["hdiutil", "detach", "-quiet", mount], check=True, timeout=60)
-        with mac_firewall(package / "Antennarr.app"):
-            yield package
+        with new_mac_bundle(package) as app:
+            mount = root / "Mounted image"
+            mount.mkdir()
+            subprocess.run(["hdiutil", "verify", "-quiet", archive], check=True, timeout=100)
+            subprocess.run(["hdiutil", "attach", "-quiet", "-readonly", "-nobrowse", "-noautoopen",
+                            "-mountpoint", mount, archive], check=True, timeout=90)
+            try:
+                assert os.statvfs(mount).f_flag & os.ST_RDONLY
+                assert (mount / "Applications").is_symlink() and os.readlink(mount / "Applications") == "/Applications"
+                assert (mount / "Read Me.txt").is_file()
+                subprocess.run(["codesign", "--verify", "--deep", "--strict", mount / "Antennarr.app"], check=True)
+                subprocess.run(["ditto", mount / "Antennarr.app", app], check=True, timeout=90)
+            finally:
+                subprocess.run(["hdiutil", "detach", "-quiet", mount], check=True, timeout=60)
+            with contextlib.ExitStack() as cleanup:
+                if hosted:
+                    # Finder registers an app when it is dragged to Applications.
+                    registrar = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
+                    subprocess.run([registrar, "-f", app], check=True, timeout=30)
+                    cleanup.callback(subprocess.run, [registrar, "-u", app], check=True, timeout=30)
+                with mac_firewall(app):
+                    yield package
     else:
         import ctypes
         import winreg
@@ -515,7 +540,7 @@ def exercise(package, root, os_name, arch):
     for path in [launcher, server, ffmpeg, ffprobe]:
         assert path.is_file() and os.access(path, os.X_OK), f"Missing executable {path}"
 
-    check_native_files(package, [launcher, server, ffmpeg, ffprobe], arch)
+    check_native_files(package / "Antennarr.app" if os_name == "macos" else package, [launcher, server, ffmpeg, ffprobe], arch)
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith("ANTENNARR_")}
     data = root / "Application Data"
     saved_range = data / "config/port-range"
