@@ -1594,5 +1594,773 @@
         "severity": "Medium"
       }
     ]
+  },
+  "v1.1.0-alpha.8": {
+    "reviewed_on": "2026-11-19",
+    "decision": "Approved for the ARM64 alpha 8 image only. Exact match required. No fixed versions listed.",
+    "findings": [
+      {
+        "id": "CVE-2026-107696",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-120210",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-115819",
+        "package": "glibc-2.44",
+        "version": "2.44-r23",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125250",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125262",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-100290",
+        "package": "glibc-2.44",
+        "version": "2.44-r23",
+        "severity": "Low"
+      },
+      {
+        "id": "CVE-2026-125213",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125222",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125233",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125196",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125202",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125257",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125218",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125219",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125256",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125260",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125210",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125212",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125214",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125227",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125204",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125241",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-107675",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125066",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125067",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125070",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125064",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125065",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125068",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125225",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125229",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125259",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125235",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125239",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125208",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125181",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125211",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125269",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125231",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125240",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125230",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125234",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125232",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125238",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125073",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125173",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125194",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125254",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125200",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125205",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125264",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125104",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125185",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125199",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125183",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125187",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125207",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125224",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125180",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125216",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125221",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125226",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125248",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125249",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125251",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "High"
+      },
+      {
+        "id": "CVE-2026-125071",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125069",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125072",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125237",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125245",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125246",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125242",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125252",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125191",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125215",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125258",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125263",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125186",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125189",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125223",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125197",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125178",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125261",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125171",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125172",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125193",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125095",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125099",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125220",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-120244",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-120245",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-107677",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-120243",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-120246",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-120247",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125253",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125270",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-107676",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125255",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125265",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125102",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125179",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125184",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125217",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125266",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125268",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125103",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125176",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125177",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125182",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125097",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125100",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125101",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125175",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125096",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125170",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125190",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125192",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125247",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125243",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125236",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125098",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-107678",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-125188",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Low"
+      },
+      {
+        "id": "CVE-2026-125195",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Low"
+      },
+      {
+        "id": "CVE-2026-125206",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Low"
+      },
+      {
+        "id": "CVE-2026-125198",
+        "package": "ffmpeg-9.0",
+        "version": "9.0.2-r10",
+        "severity": "Low"
+      }
+    ]
   }
 }
