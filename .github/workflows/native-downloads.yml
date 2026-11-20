@@ -11,7 +11,8 @@ on:
       - 'packaging/*native*'
       - 'packaging/build-windows-installer.ps1'
       - 'packaging/native/**'
-      - 'cmd/antennarr/desktop*'
+      - 'cmd/antennarr/**'
+      - 'internal/desktopapp/**'
       - 'internal/desktopstats/**'
 permissions:
   contents: read
@@ -102,13 +103,16 @@ jobs:
           compression-level: 0
           if-no-files-found: error
   smoke:
-    name: Test ${{ matrix.target }} on ${{ matrix.runner }}
+    name: Test ${{ matrix.target }} on ${{ matrix.runner }}${{ matrix.repeat }}
     needs: [build, windows-installer]
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Run the same signed app on three fresh macOS 15 ARM machines.
           - {target: macos-arm64, runner: macos-15}
+          - {target: macos-arm64, runner: macos-15, repeat: ' (second machine)'}
+          - {target: macos-arm64, runner: macos-15, repeat: ' (third machine)'}
           - {target: macos-amd64, runner: macos-15-intel}
           - {target: macos-arm64, runner: macos-26}
           - {target: macos-amd64, runner: macos-26-intel}

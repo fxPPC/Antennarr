@@ -25,7 +25,6 @@ from urllib.request import build_opener, ProxyHandler, Request
 import zipfile
 
 
-MAC_SERVER = Path("Contents/Helpers/Antennarr Server.app")
 HTTP = build_opener(ProxyHandler({}))
 AUTH = "Basic " + base64.b64encode(b"admin:admin").decode()
 
@@ -78,11 +77,31 @@ def stop(process):
         process.wait(timeout=5)
 
 
+def mac_app_pids(executable):
+    listing = subprocess.check_output(["/bin/ps", "-axww", "-o", "pid=,comm="], text=True)
+    result = []
+    for line in listing.splitlines():
+        entry = line.strip().split(None, 1)
+        if len(entry) == 2 and entry[1] == str(executable):
+            result.append(int(entry[0]))
+    return result
+
+
+def assert_mac_listeners(pid, admin, tuner_urls):
+    # lsof -a intersects the process, protocol, and LISTEN filters. A child with
+    # the same installation path cannot satisfy this check on the app's behalf.
+    output = subprocess.check_output(["/usr/sbin/lsof", "-nP", "-a", "-p", str(pid),
+                                      "-iTCP", "-sTCP:LISTEN", "-Fn"], text=True, timeout=8)
+    bound = {line[1:] for line in output.splitlines() if line.startswith("n")}
+    expected = {urlparse(url).netloc for url in [admin, *tuner_urls]}
+    assert expected <= bound, f"App PID {pid} does not own {sorted(expected-bound)}; listening on {sorted(bound)}"
+
+
 @contextlib.contextmanager
-def running(executable, env, base, logfile):
+def running(executable, env, base, logfile, foreground=False):
     with logfile.open("wb") as output:
-        finder = platform.system() == "Darwin" and firewall_requested()
-        command = [executable]
+        finder = not foreground and platform.system() == "Darwin" and firewall_requested()
+        command = [executable, "--serve"] if foreground else [executable]
         if finder:
             # Launch Services starts the normal menu app. Its login argument suppresses the browser.
             command = ["/usr/bin/open", "-n", "-W", "-g", "-a", executable.parents[2],
@@ -107,18 +126,20 @@ def running(executable, env, base, logfile):
                 time.sleep(0.15)
             else:
                 raise RuntimeError("Timed out waiting for the native server")
-            yield
+            pid = process.pid
+            if finder:
+                matches = mac_app_pids(executable)
+                assert len(matches) == 1, f"Expected one Finder-launched {executable}, found {matches}"
+                pid = matches[0]
+            yield pid
         except Exception:
             print(logfile.read_text(errors="replace")[-4000:])
             raise
         finally:
             if finder:
                 # open -W waits for the app but signals sent to open do not reach it.
-                listing = subprocess.check_output(["/bin/ps", "-axww", "-o", "pid=,comm="], text=True)
-                for line in listing.splitlines():
-                    entry = line.strip().split(None, 1)
-                    if len(entry) == 2 and entry[1] == str(executable):
-                        os.kill(int(entry[0]), signal.SIGTERM)
+                for pid in mac_app_pids(executable):
+                    os.kill(pid, signal.SIGTERM)
                 try:
                     process.wait(timeout=10)
                 except subprocess.TimeoutExpired:
@@ -308,70 +329,98 @@ def mac_firewall(app):
         yield
         return
     app = app.resolve()
-    # These are the two apps a user can allow in Firewall Options.
-    targets = [str(app), str(app / MAC_SERVER)]
-    assert not any(target in read("--listapps") for target in targets)
+    target = str(app)
+    assert target not in read("--listapps")
     restore_off = "disabled" in state.lower()
-    block_all = read("--getblockall")
-    restore_block_all = "enabled" in block_all.lower()
-    added = []
+    # Block-all intentionally overrides all application rules. Keep its setting.
+    assert "disabled" in read("--getblockall").lower(), "Runner blocks all inbound applications"
     try:
         configure("--setglobalstate", "on")
         assert "enabled" in read("--getglobalstate").lower()
-        # Block-all overrides individual application rules.
-        if restore_block_all:
-            configure("--setblockall", "off")
-        assert "disabled" in read("--getblockall").lower()
-        for target in targets:
-            configure("--add", target)
-            added.append(target)
-            configure("--unblockapp", target)
-            allowed = read("--getappblocked", target)
-            assert re.search(r"permit|allow|not blocked|unblocked", allowed, re.I), allowed
-            print(f"macOS firewall rule for {target}: {allowed}", flush=True)
+        configure("--add", target)
+        configure("--unblockapp", target)
+        allowed = read("--getappblocked", target)
+        assert re.search(r"permit|allow|not blocked|unblocked", allowed, re.I), allowed
+        print(f"macOS firewall rule for {target}: {allowed}", flush=True)
         yield
     finally:
         try:
-            for target in reversed(added):
-                if target in read("--listapps"):
-                    configure("--remove", target)
-            assert not any(target in read("--listapps") for target in added)
+            if target in read("--listapps"):
+                configure("--remove", target)
+            assert target not in read("--listapps")
         finally:
-            if restore_block_all:
-                configure("--setblockall", "on")
             if restore_off:
                 configure("--setglobalstate", "off")
 
 
-def wait_for_mac_tuner(base):
-    # ALF reloads its policy asynchronously when the CI runner enables the
-    # firewall. Require an actual tuner response before testing its routes.
-    deadline = time.monotonic() + 25
-    while True:
-        try:
-            return api(base, "/discover.json")
-        except (URLError, TimeoutError, ConnectionError) as exc:
-            if time.monotonic() >= deadline:
-                port = urlparse(base).port
-                listeners = subprocess.run(["/usr/sbin/lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"],
-                                           capture_output=True, text=True, timeout=5)
-                # Distinguish a client-specific failure from a system-wide
-                # refusal, and retain the firewall decision before the VM exits.
-                probe = subprocess.run(["/usr/bin/curl", "--noproxy", "*", "--silent", "--show-error",
-                                        "--connect-timeout", "2", "--max-time", "4", "--output", "/dev/null",
-                                        "--write-out", "%{http_code}", base + "/discover.json"],
-                                       capture_output=True, text=True, timeout=6)
-                print("macOS system HTTP client:", probe.returncode, probe.stdout, probe.stderr.strip())
-                predicate = ('(process == "socketfilterfw" OR process == "Firewall" OR '
-                             'subsystem BEGINSWITH "com.apple.alf" OR subsystem == "com.apple.networkextension") '
-                             'AND (eventMessage CONTAINS[c] "antennarr" OR eventMessage CONTAINS[c] "drop" '
-                             'OR eventMessage CONTAINS[c] "deny")')
-                decisions = subprocess.run(["/usr/bin/log", "show", "--last", "90s", "--style", "compact",
-                                            "--info", "--predicate", predicate], capture_output=True, text=True, timeout=20)
-                print("macOS firewall events:", (decisions.stdout or decisions.stderr)[-4000:], flush=True)
-                raise RuntimeError(f"macOS firewall test could not reach {base}; "
-                                   f"local listeners: {listeners.stdout.strip()}") from exc
-            time.sleep(0.4)
+def mac_reference_response(host):
+    # An unrelated Apple-signed socket owner on the same NIC distinguishes a
+    # runner-wide network failure from one specific to the app. Diagnostics
+    # run only after Antennarr has already failed on a disposable hosted Mac.
+    tool = "/usr/libexec/ApplicationFirewall/socketfilterfw"
+    nc = "/usr/bin/nc"
+    registered = nc in subprocess.check_output([tool, "--listapps"], text=True)
+    try:
+        if not registered:
+            for option in ("--add", "--unblockapp"):
+                subprocess.run(["sudo", "-n", tool, option, nc], check=True, timeout=10)
+        with socket.socket() as reservation:
+            reservation.bind((host, 0))
+            port = reservation.getsockname()[1]
+        command = [nc, "-l", host, str(port)]
+        with subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.DEVNULL) as listener:
+            try:
+                listener.stdin.write(b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\nConnection: close\r\n\r\ncontrol")
+                listener.stdin.flush()
+                end = time.monotonic() + 3
+                while time.monotonic() < end and listener.poll() is None:
+                    if subprocess.run(["/usr/sbin/lsof", "-nP", "-a", "-p", str(listener.pid),
+                                       f"-iTCP:{port}", "-sTCP:LISTEN"], stdout=subprocess.DEVNULL).returncode == 0:
+                        break
+                    time.sleep(0.05)
+                with HTTP.open(f"http://{host}:{port}/", timeout=3) as response:
+                    assert response.status == 200 and response.read(7) == b"control"
+                    print("Independent Apple listener responded on the same LAN address.", flush=True)
+            finally:
+                listener.terminate()
+    finally:
+        if not registered:
+            subprocess.run(["sudo", "-n", tool, "--remove", nc], check=True, timeout=10)
+
+
+def diagnose_mac_request(base, admin, pid):
+    # Preserve the first real failure. OPTIONS * is handled by net/http before
+    # Antennarr's tuner routing and its catalogue queries.
+    url = urlparse(base)
+    route = subprocess.run(["/sbin/route", "-n", "get", url.hostname], capture_output=True, text=True, timeout=5)
+    print("Tuner route:", route.stdout.strip(), flush=True)
+    try:
+        with socket.create_connection((url.hostname, url.port), timeout=3) as probe:
+            probe.settimeout(3)
+            probe.sendall(b"OPTIONS * HTTP/1.1\r\nHost: tuner\r\nConnection: close\r\n\r\n")
+            # Keep the client socket open while collecting endpoint ownership,
+            # so an accepted socket is distinguishable from the listening fd.
+            listing = subprocess.run(["/usr/sbin/lsof", "-nP", "-iTCP:" + str(url.port)],
+                                     capture_output=True, text=True, timeout=5)
+            print(f"Tuner socket owners (app PID {pid}):", listing.stdout.strip(), flush=True)
+            print("Server-level HTTP probe:", probe.recv(256).split(b"\r\n", 1)[0], flush=True)
+    except OSError as error:
+        print("Server-level HTTP probe:", error, flush=True)
+    try:
+        print("Admin health:", api(admin, "/healthz"), "saved tuners:", len(api(admin, "/api/profiles")), flush=True)
+    except (OSError, RuntimeError) as error:
+        print("Admin probe:", error, flush=True)
+    try:
+        mac_reference_response(url.hostname)
+    except (OSError, AssertionError, subprocess.SubprocessError) as error:
+        print("Independent Apple listener:", error, flush=True)
+    predicate = ('(process == "socketfilterfw" OR process == "Firewall" OR subsystem BEGINSWITH "com.apple.alf" '
+                 'OR subsystem == "com.apple.networkextension") AND (eventMessage CONTAINS[c] "antennarr" '
+                 'OR eventMessage CONTAINS[c] "drop" OR eventMessage CONTAINS[c] "deny")')
+    events = subprocess.run(["/usr/bin/log", "show", "--last", "60s", "--style", "compact",
+                             "--info", "--predicate", predicate], capture_output=True, text=True, timeout=20)
+    print("macOS firewall events:", (events.stdout or events.stderr)[-4000:], flush=True)
+
 
 
 def set_private_firewall(enabled):
@@ -442,9 +491,8 @@ def installed(archive, root):
                 if hosted:
                     # Finder registers an app when it is dragged to Applications.
                     registrar = "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
-                    for registered in (app / MAC_SERVER, app):
-                        subprocess.run([registrar, "-f", registered], check=True, timeout=30)
-                        cleanup.callback(subprocess.run, [registrar, "-u", registered], check=True, timeout=30)
+                    subprocess.run([registrar, "-f", app], check=True, timeout=30)
+                    cleanup.callback(subprocess.run, [registrar, "-u", app], check=True, timeout=30)
                 with mac_firewall(app):
                     yield package
     else:
@@ -554,17 +602,19 @@ def exercise(package, root, os_name, arch):
         app = package / "Antennarr.app"
         bindir = app / "Contents/MacOS"
         launcher = bindir / "Antennarr"
-        server = app / MAC_SERVER / "Contents/MacOS/antennarr-server"
+        assert set(bindir.iterdir()) == {launcher}, "Expected one app executable for the menu and tuner"
+        assert not (app / "Contents/Helpers/Antennarr Server.app").exists()
         media = bindir.parent / "Resources" / "media" / "bin"
         ffmpeg, ffprobe = media / "ffmpeg", media / "ffprobe"
     else:
         launcher, server = package / "Antennarr.exe", package / "antennarr-server.exe"
         media = package / "media" / "bin"
         ffmpeg, ffprobe = media / "ffmpeg.exe", media / "ffprobe.exe"
-    for path in [launcher, server, ffmpeg, ffprobe]:
+    executables = [launcher, ffmpeg, ffprobe] if os_name == "macos" else [launcher, server, ffmpeg, ffprobe]
+    for path in executables:
         assert path.is_file() and os.access(path, os.X_OK), f"Missing executable {path}"
 
-    check_native_files(package / "Antennarr.app" if os_name == "macos" else package, [launcher, server, ffmpeg, ffprobe], arch)
+    check_native_files(package / "Antennarr.app" if os_name == "macos" else package, executables, arch)
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith("ANTENNARR_")}
     data = root / "Application Data"
     saved_range = data / "config/port-range"
@@ -588,7 +638,7 @@ def exercise(package, root, os_name, arch):
         subprocess.run([tool, "-version"], stdout=subprocess.DEVNULL, check=True, timeout=10, env=env)
     env.update(ANTENNARR_HEADLESS="1", ANTENNARR_DATA=str(data), ANTENNARR_FIXTURES=str(root))
     verify_dependency_error(launcher, env, root)
-    with running(launcher, env, admin_base, root / "first-run.log"):
+    with running(launcher, env, admin_base, root / "first-run.log") as pid:
         try:
             HTTP.open(admin_base + "/admin", timeout=3)
         except HTTPError as exc:
@@ -613,12 +663,19 @@ def exercise(package, root, os_name, arch):
             local.bind((tuner_host, 0))
         expected = {f"http://{tuner_host}:{port}" for port in range(admin + 1, admin + 7)}
         assert {p["tuner_url"] for p in profiles} == expected
+        if os_name == "macos":
+            assert_mac_listeners(pid, admin_base, expected)
         for p in profiles:
             url = p["tuner_url"]
-            if os_name == "macos" and firewall_requested():
-                discovery = wait_for_mac_tuner(url)
-            else:
+            try:
                 discovery = api(url, "/discover.json")
+            except (OSError, RuntimeError):
+                if os_name == "macos" and firewall_requested():
+                    try:
+                        diagnose_mac_request(url, admin_base, pid)
+                    except (OSError, subprocess.SubprocessError) as error:
+                        print("Mac diagnostics failed:", error, flush=True)
+                raise
             assert discovery["FriendlyName"] == p["name"]
             tuner_only(url)
             assert len(api(url, "/lineup.json")) == p["channel_count"]
@@ -635,11 +692,17 @@ def exercise(package, root, os_name, arch):
         device = api(tuner, "/discover.json")["DeviceID"]
         assert re.fullmatch(r"[0-9A-F]{8}", device)
         fixture_stream(admin_base, tuner, ffmpeg, ffprobe, root, env)
-    with running(launcher, env, admin_base, root / "restart.log"):
+    with running(launcher, env, admin_base, root / "restart.log") as pid:
+        if os_name == "macos":
+            assert_mac_listeners(pid, admin_base, expected)
         assert api(admin_base, "/api/settings")["scans_paused"] is True
         assert api(tuner, "/discover.json")["DeviceID"] == device
         assert any(c["GuideName"] == "Native fixture" for c in api(tuner, "/lineup.json"))
     desktop_menu(launcher, env, admin_base, root)
+    if os_name == "macos":
+        with running(launcher, env, admin_base, root / "cli.log", foreground=True) as pid:
+            assert_mac_listeners(pid, admin_base, expected)
+            assert api(tuner, "/discover.json")["DeviceID"] == device
 
 
 if __name__ == "__main__":
