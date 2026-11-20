@@ -67,16 +67,50 @@ func Open(root string) (*Store, error) { return open(root, false) }
 // only for a new catalogue. Existing lineups retain their saved state.
 func OpenWithDefaults(root string) (*Store, error) { return open(root, true) }
 
+// Direct callers can initialise a catalogue before the configuration loader has
+// created its directory. Create each missing component relative to its open parent.
+func openCatalogueDir(path string) (*os.Root, error) {
+	dir, err := os.OpenRoot(path)
+	if !errors.Is(err, os.ErrNotExist) || filepath.Dir(path) == path {
+		return dir, err
+	}
+	parent, err := openCatalogueDir(filepath.Dir(path))
+	if err != nil {
+		return nil, err
+	}
+	defer parent.Close()
+	name := filepath.Base(path)
+	if err := parent.Mkdir(name, 0700); err != nil && !errors.Is(err, os.ErrExist) {
+		return nil, err
+	}
+	return parent.OpenRoot(name)
+}
+
 func open(root string, defaults bool) (*Store, error) {
-	for _, d := range []string{"database", "secrets", "backups"} {
-		if e := os.MkdirAll(filepath.Join(root, d), 0700); e != nil {
-			return nil, e
+	absolute, err := filepath.Abs(root)
+	if err != nil {
+		return nil, err
+	}
+	data, err := openCatalogueDir(absolute)
+	if err != nil {
+		return nil, err
+	}
+	defer data.Close()
+	for _, dir := range []string{"database", "secrets", "backups"} {
+		if err := data.MkdirAll(dir, 0700); err != nil {
+			return nil, err
+		}
+		// SQLite reopens its directory by name for the WAL and its sidecars.
+		// Require an ordinary directory so those files stay in appdata.
+		info, err := data.Lstat(dir)
+		if err != nil {
+			return nil, err
+		}
+		if !info.IsDir() {
+			return nil, fmt.Errorf("catalogue %s must be a directory under appdata", dir)
 		}
 	}
-	dbpath, e := filepath.Abs(filepath.Join(root, "database/antennarr.db"))
-	if e != nil {
-		return nil, e
-	}
+	dbpath := filepath.Join(absolute, "database", "antennarr.db")
 	// SQLite file URIs use forward slashes and a leading slash for drive letters.
 	uriPath := filepath.ToSlash(dbpath)
 	if !strings.HasPrefix(uriPath, "/") {

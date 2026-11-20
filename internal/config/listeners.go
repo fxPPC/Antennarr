@@ -3,10 +3,10 @@ package config
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -30,12 +30,23 @@ func freshPortRange() string {
 	return DefaultPortRange
 }
 
+// The operator selects the data directory. A link within it must not redirect
+// the launcher or Docker health probe to another user's configuration.
+func readListenerFile(root, name string) ([]byte, error) {
+	file, err := os.OpenInRoot(root, name)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+	return io.ReadAll(file)
+}
+
 // ReadListeners resolves the same addresses as the server without initialising any app data.
 func ReadListeners(root string, desktop bool) (Listeners, error) {
 	var saved struct {
 		PortRange string `json:"port_range"`
 	}
-	raw, err := os.ReadFile(filepath.Join(root, "config", "config.json"))
+	raw, err := readListenerFile(root, "config/config.json")
 	switch {
 	case errors.Is(err, os.ErrNotExist):
 		saved.PortRange = freshPortRange()
@@ -66,7 +77,7 @@ func ResolveListeners(root, savedRange string, desktop bool) (Listeners, error) 
 		return Listeners{}, errors.New("ANTENNARR_PORT_RANGE conflicts with ANTENNARR_LISTEN, ANTENNARR_ADMIN_LISTEN, or ANTENNARR_TUNER_PORTS")
 	}
 	if requested == "" && !legacy {
-		file, err := os.ReadFile(filepath.Join(root, "config", "port-range"))
+		file, err := readListenerFile(root, "config/port-range")
 		switch {
 		case err == nil:
 			requested = strings.TrimSpace(strings.TrimPrefix(string(file), "\ufeff"))

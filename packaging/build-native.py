@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Build the opt-in beta desktop ZIPs from an Antennarr checkout."""
 import argparse
+from contextlib import contextmanager, suppress
 import hashlib
 import os
 from pathlib import Path
 import plistlib
 import re
+import secrets
 import shutil
 import stat
 import struct
@@ -34,7 +36,55 @@ def verify_machine(path, system, arch):
         raise ValueError(f"{path} has the wrong architecture for {system}-{arch}")
 
 
-def build(target, version, output, media):
+@contextmanager
+def release_directory(path):
+    # Resolve existing parent aliases (such as /tmp on macOS), but open the
+    # selected directory itself without following a symlink. Hold it throughout
+    # the build so renaming any ancestor cannot redirect publication.
+    target = path.parent.resolve() / path.name if path.name not in ("", "..") else path.resolve()
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+    directory = os.open("/", flags)
+    try:
+        for component in target.parts[1:]:
+            name = os.path.basename(component)
+            if name in ("", ".", "..") or name != component:
+                raise ValueError("Expected a directory name")
+            try:
+                child = os.open(name, flags, dir_fd=directory)
+            except FileNotFoundError:
+                try:
+                    os.mkdir(name, dir_fd=directory)
+                except FileExistsError:
+                    pass  # A concurrent builder may have just created the same directory.
+                child = os.open(name, flags, dir_fd=directory)
+            os.close(directory)
+            directory = child
+        yield directory
+    finally:
+        os.close(directory)
+
+
+def publish(asset, output_fd):
+    # Even when the build uses another filesystem, the final rename must be
+    # local to the destination so readers always get a complete, verified file.
+    temporary = ".antennarr-" + secrets.token_hex(16)
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW
+    fd = os.open(temporary, flags, 0o600, dir_fd=output_fd)
+    try:
+        with os.fdopen(fd, "wb") as dst, asset.open("rb") as src:
+            shutil.copyfileobj(src, dst)
+            dst.flush()
+            os.fchmod(dst.fileno(), 0o644)
+            os.fsync(dst.fileno())
+        os.replace(temporary, asset.name, src_dir_fd=output_fd, dst_dir_fd=output_fd)
+    except BaseException:
+        with suppress(FileNotFoundError):
+            os.unlink(temporary, dir_fd=output_fd)
+        raise
+    os.fsync(output_fd)
+
+
+def build(target, version, output, output_fd, media):
     system, arch = target.split("-")
     mac = system == "macos"
     ext = "" if mac else ".exe"
@@ -106,7 +156,7 @@ def build(target, version, output, media):
         (stage / "README.txt").write_text(readme, encoding="utf-8")
         if mac:
             (resources / "README.txt").write_text(readme, encoding="utf-8")
-        final = output / f"antennarr-{version}-{target}.zip"
+        archive = Path(work) / f"antennarr-{version}-{target}.zip"
         if mac:
             # Seal the complete bundle, including the bundled helpers. Ad-hoc
             # signing checks integrity without claiming a Developer ID identity.
@@ -116,30 +166,23 @@ def build(target, version, output, media):
             subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(app)], check=True)
             subprocess.run(["codesign", "--verify", "--deep", "--strict", str(app)], check=True)
 
-        # Write beside the destination so a failed build never leaves a partial release asset.
-        with tempfile.NamedTemporaryFile(dir=output, prefix=".antennarr-", suffix=".zip", delete=False) as tmp:
-            archive = Path(tmp.name)
-        try:
-            with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as z:
-                for file in sorted(stage.rglob("*")):
-                    if not file.is_file():
-                        continue
-                    item = zipfile.ZipInfo(file.relative_to(stage).as_posix())
-                    item.create_system = 3
-                    mode = 0o755 if file in (server, launcher) or file.parent == resources / "media" / "bin" else 0o644
-                    item.external_attr = (stat.S_IFREG | mode) << 16
-                    item.compress_type = zipfile.ZIP_DEFLATED
-                    with file.open("rb") as src, z.open(item, "w") as dest:
-                        shutil.copyfileobj(src, dest)
-            with zipfile.ZipFile(archive) as z:
-                bad_entry = z.testzip()
-                if bad_entry:
-                    raise ValueError(f"ZIP verification failed for {bad_entry}")
-            archive.chmod(0o644)
-            archive.replace(final)
-            print(final, flush=True)
-        finally:
-            archive.unlink(missing_ok=True)
+        with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as z:
+            for file in sorted(stage.rglob("*")):
+                if not file.is_file():
+                    continue
+                item = zipfile.ZipInfo(file.relative_to(stage).as_posix())
+                item.create_system = 3
+                mode = 0o755 if file in (server, launcher) or file.parent == resources / "media" / "bin" else 0o644
+                item.external_attr = (stat.S_IFREG | mode) << 16
+                item.compress_type = zipfile.ZIP_DEFLATED
+                with file.open("rb") as src, z.open(item, "w") as dest:
+                    shutil.copyfileobj(src, dest)
+        with zipfile.ZipFile(archive) as z:
+            bad_entry = z.testzip()
+            if bad_entry:
+                raise ValueError(f"ZIP verification failed for {bad_entry}")
+        publish(archive, output_fd)
+        print(output / archive.name, flush=True)
         if mac:
             layout = Path(work) / "Drag to Applications"
             layout.mkdir()
@@ -147,14 +190,12 @@ def build(target, version, output, media):
             (layout / "Applications").symlink_to("/Applications")
             shutil.copyfile(ASSETS / "finder-layout.bin", layout / ".DS_Store")
             shutil.copyfile(stage / "README.txt", layout / "Read Me.txt")
-            dmg = output / (final.stem + ".dmg")
-            with tempfile.TemporaryDirectory(dir=output, prefix=".antennarr-dmg-") as temp:
-                image = Path(temp) / dmg.name
-                subprocess.run(["hdiutil", "create", "-volname", "Antennarr Beta", "-fs", "HFS+",
-                                "-format", "UDZO", "-srcfolder", str(layout), str(image)], check=True)
-                subprocess.run(["hdiutil", "verify", "-quiet", str(image)], check=True)
-                image.replace(dmg)
-            print(dmg, flush=True)
+            image = archive.with_suffix(".dmg")
+            subprocess.run(["hdiutil", "create", "-volname", "Antennarr Beta", "-fs", "HFS+",
+                            "-format", "UDZO", "-srcfolder", str(layout), str(image)], check=True)
+            subprocess.run(["hdiutil", "verify", "-quiet", str(image)], check=True)
+            publish(image, output_fd)
+            print(output / image.name, flush=True)
 
 
 def copy_media(media, payload, folder, name):
@@ -174,12 +215,12 @@ def main():
     args = parser.parse_args()
     if not re.fullmatch(r"v1\.1\.\d+-beta\.\d+", args.version):
         parser.error("expected a beta release tag, for example v1.1.0-beta.1")
-    args.output.mkdir(parents=True, exist_ok=True)
-    for target in [args.target] if args.target else TARGETS:
-        media = args.media_dir / target
-        if args.target and not media.is_dir():
-            media = args.media_dir
-        build(target, args.version, args.output, media)
+    with release_directory(args.output) as output_fd:
+        for target in [args.target] if args.target else TARGETS:
+            media = args.media_dir / target
+            if args.target and not media.is_dir():
+                media = args.media_dir
+            build(target, args.version, args.output, output_fd, media)
 
 
 if __name__ == "__main__":

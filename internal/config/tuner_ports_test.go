@@ -136,3 +136,17 @@ func TestNetworkRangeInvalidAndConflicting(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestListenerFileStaysWithinAppdata(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.WriteFile(filepath.Join(outside, "config.json"), []byte("{}"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "config")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if _, err := ReadListeners(root, false); err == nil {
+		t.Fatal("read configuration outside the appdata root")
+	}
+}

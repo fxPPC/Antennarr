@@ -65,3 +65,19 @@ func TestOlderAndUnversionedDatabasesArePreserved(t *testing.T) {
 		})
 	}
 }
+
+func TestCatalogueUsesItsOwnDatabaseDirectory(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(root, "database")); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if s, err := Open(root); err == nil {
+		s.Close()
+		t.Fatal("opened a database outside the appdata root")
+	}
+	entries, err := os.ReadDir(outside)
+	if err != nil || len(entries) != 0 {
+		t.Fatal("unexpected external files", entries, err)
+	}
+}

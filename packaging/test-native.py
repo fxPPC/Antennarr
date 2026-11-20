@@ -334,6 +334,20 @@ def wait_for_mac_tuner(base):
                 port = urlparse(base).port
                 listeners = subprocess.run(["/usr/sbin/lsof", "-nP", f"-iTCP:{port}", "-sTCP:LISTEN"],
                                            capture_output=True, text=True, timeout=5)
+                # Distinguish a client-specific failure from a system-wide
+                # refusal, and retain the firewall decision before the VM exits.
+                probe = subprocess.run(["/usr/bin/curl", "--noproxy", "*", "--silent", "--show-error",
+                                        "--connect-timeout", "2", "--max-time", "4", "--output", "/dev/null",
+                                        "--write-out", "%{http_code}", base + "/discover.json"],
+                                       capture_output=True, text=True, timeout=6)
+                print("macOS system HTTP client:", probe.returncode, probe.stdout, probe.stderr.strip())
+                predicate = ('(process == "socketfilterfw" OR process == "Firewall" OR '
+                             'subsystem BEGINSWITH "com.apple.alf" OR subsystem == "com.apple.networkextension") '
+                             'AND (eventMessage CONTAINS[c] "antennarr" OR eventMessage CONTAINS[c] "drop" '
+                             'OR eventMessage CONTAINS[c] "deny")')
+                decisions = subprocess.run(["/usr/bin/log", "show", "--last", "90s", "--style", "compact",
+                                            "--info", "--predicate", predicate], capture_output=True, text=True, timeout=20)
+                print("macOS firewall events:", (decisions.stdout or decisions.stderr)[-4000:], flush=True)
                 raise RuntimeError(f"macOS firewall test could not reach {base}; "
                                    f"local listeners: {listeners.stdout.strip()}") from exc
             time.sleep(0.4)
