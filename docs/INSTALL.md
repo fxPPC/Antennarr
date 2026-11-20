@@ -1,6 +1,6 @@
 # Installation, upgrades, and manual recovery
 
-Stable **v1.0.7** runs on Linux amd64 and ARM64. The commands below install stable 1.0. For the ARM64 **v1.1.0-alpha.8** image or an alpha source build, follow [multi-tuner setup](MULTI-TUNER.md).
+Stable **v1.0.8** runs on Linux amd64 and ARM64. The commands below install stable 1.0. For the amd64 or ARM64 **v1.1.0-beta.1** image or a beta source build, follow [multi-tuner setup](MULTI-TUNER.md).
 
 Use Linux Docker on ARM64 or amd64, with local writable appdata. The Wolfi Linux runtime, FFmpeg, and FFprobe are included in the image. Docker source builds also include the Go toolchain in their build stage; Go is needed on your host only for local development outside Docker. Store SQLite appdata locally, not on SMB/NFS.
 
@@ -40,7 +40,7 @@ The examples set `ANTENNARR_ADMIN_LISTEN=:9193` to enable the separate administr
 For stable Compose settings, clone the matching release, then copy its environment file:
 
 ```sh
-git clone --branch v1.0.7 https://github.com/fxPPC/Antennarr.git
+git clone --branch v1.0.8 https://github.com/fxPPC/Antennarr.git
 cd Antennarr
 cp portable.env.example .env
 ```
@@ -88,7 +88,7 @@ Replace that example with your actual proxy address. Multiple IPs/CIDRs are comm
 
 ## Upgrade
 
-Keep the same `/data` bind mount, tuner URL, and Plex server. Stable 1.0 uses schema 8. This 1.1 alpha converts schema 8 to schema 9 before starting workers, preserving existing identities and configuration and adding London disabled. Returning to 1.0 requires the complete manual pre-upgrade backup. Unsupported/unversioned populated databases are refused rather than replaced. Do not downgrade an upgraded data directory. Same-minor stable patch downgrade support is a v1.1 release requirement; alpha builds do not yet carry that guarantee.
+Keep the same `/data` bind mount, tuner URL, and Plex server. Stable 1.0 uses schema 8. This 1.1 beta converts schema 8 to schema 9 before starting workers, preserving existing identities and configuration and adding London disabled. Returning to 1.0 requires the complete manual pre-upgrade backup. Unsupported/unversioned populated databases are refused rather than replaced. Do not downgrade an upgraded data directory. Same-minor stable patch downgrade support is a v1.1 release requirement; prerelease builds do not yet carry that guarantee.
 
 For a published-image Compose installation, change `ANTENNARR_IMAGE` in `.env` to the desired release, stop playback, then run:
 

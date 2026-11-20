@@ -26,15 +26,19 @@ def identity(want):
  assert next(x for x in out.splitlines() if x.startswith('Uid:')).split()[1]==str(want),out
 try:
  start();ready();identity(10001);assert not json.loads(request('/api/channels').stdout);assert not json.loads(request('/api/profiles').stdout)
- for preset in ('us-nyc','uk-london'):update('/api/profiles',{'preset_id':preset})
- channels=json.loads(request('/api/channels').stdout);assert len(channels)==260
- profiles=json.loads(request('/api/profiles').stdout);assert len(profiles)==2 and not any(p['enabled'] for p in profiles)
- assert sorted(p['channel_count'] for p in profiles)==[110,150]
- london=next(p for p in profiles if p['preset_id']=='uk-london')
- update('/api/profiles/'+london['id'],{'enabled':True})
- lineup=json.loads(run('exec',name,'curl','-fsS','http://127.0.0.1:9200/lineup.json').stdout);assert len(lineup)==110
- update('/api/profiles/'+london['id'],{'enabled':False})
- accounts=json.loads(request('/api/input/accounts').stdout);assert accounts['items']==[] and accounts['total']==0;stop();print('PASS default IDs, 260 channels, two disabled tuners, zero accounts',flush=True)
+ expected={'us-nyc':150,'uk-london':110,'mx-mexico-city':15,'in-mumbai':23,'de-berlin':34,'nl-amsterdam':22}
+ for preset in expected:
+  update('/api/profiles',{'preset_id':preset})
+ channels=json.loads(request('/api/channels').stdout)
+ assert len(channels)==sum(expected.values())
+ profiles=json.loads(request('/api/profiles').stdout)
+ assert {p['preset_id']:p['channel_count'] for p in profiles}==expected and not any(p['enabled'] for p in profiles)
+ for profile in profiles:
+  update('/api/profiles/'+profile['id'],{'enabled':True})
+  url='http://127.0.0.1:'+str(profile['listen_port'])+'/lineup.json'
+  lineup=json.loads(run('exec',name,'curl','-fsS',url).stdout)
+  assert len(lineup)==expected[profile['preset_id']]
+ accounts=json.loads(request('/api/input/accounts').stdout);assert accounts['items']==[] and accounts['total']==0;stop();print('PASS default IDs, six optional tuners and scoped lineups, zero accounts',flush=True)
  start(puid=12345,pgid=12346);ready();identity(12345);assert json.loads(request('/api/channels').stdout)==channels;stop();print('PASS custom PUID/PGID adjusts existing ownership and preserves channels',flush=True)
  start(uid='12345:12346',extra=('--cap-drop','ALL','--read-only','--tmpfs','/tmp'));ready();identity(12345);stop();print('PASS explicit --user and no capabilities',flush=True)
  start(puid=12345,pgid=12346,extra=('--cap-drop','ALL','--cap-add','CHOWN','--cap-add','DAC_OVERRIDE','--cap-add','SETUID','--cap-add','SETGID','--read-only','--tmpfs','/tmp','--security-opt','no-new-privileges:true'));ready();identity(12345);stop();print('PASS hardened initialisation',flush=True)

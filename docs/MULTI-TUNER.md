@@ -1,21 +1,32 @@
 # Setting up Plex tuners
 
-One installation can serve several markets. The New York City preset contains 150 editable channels and the London preset contains 110. You choose which tuners to add.
+Fresh installs start empty. Add any of these presets, review its channels, then enable it. Each tuner has its own lineup and Plex address.
+
+| City | Editable channels | Guide location |
+| --- | ---: | --- |
+| New York City | 150 | 10001 |
+| London | 110 | SW1A 1AA |
+| Mexico City | 15 | 06000 |
+| Mumbai | 23 | 400001 |
+| Berlin | 34 | 10115 |
+| Amsterdam | 22 | 1012 JS |
+
+Guide locations are starting points for Plex setup. Check the station and local edition when mapping each channel.
 
 ## Try the preview
 
-Use a separate disposable appdata directory. Do not point two containers at the same directory, or let an alpha open your live 1.0 data. To test an upgrade, restore a **manually created** backup into the disposable directory first.
+Use a separate disposable appdata directory. Do not point two containers at the same directory, or let a beta open your live 1.0 data. To test an upgrade, restore a **manually created** backup into the disposable directory first.
 
 ```sh
-git clone --branch v1.1.0-alpha.8 https://github.com/fxPPC/Antennarr.git
+git clone --branch v1.1.0-beta.1 https://github.com/fxPPC/Antennarr.git
 cd Antennarr
 cp portable.env.example .env
 # Edit .env: a separate ANTENNARR_DATA_DIR and an address reachable from Plex.
-ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-alpha.8 docker compose -f compose.portable.yaml pull
-ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-alpha.8 docker compose -f compose.portable.yaml up -d --no-build
+ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.1 docker compose -f compose.portable.yaml pull
+ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.1 docker compose -f compose.portable.yaml up -d --no-build
 ```
 
-These commands use the published ARM64 image. On amd64, build the same checkout locally with `ANTENNARR_IMAGE=antennarr:local docker compose -f compose.portable.yaml up -d --build`. If stable and alpha run on the same host, give them separate Compose projects, data directories, and non-overlapping listener and host ports (or run the preview on a separate host).
+These commands pull the published image for Linux amd64 or ARM64. If stable and beta run on the same host, give them separate Compose projects, data directories, and non-overlapping listener and host ports (or run the preview on a separate host).
 
 Open administration on port 39192, sign in with `admin/admin` on a fresh install, and change the login. In first-time setup, choose the tuners you want and enable them, import authorised sources, and wait for suitable streams to fill their rosters. An upgraded primary tuner retains its previous enabled state and channels; the new London tuner starts disabled.
 
@@ -40,7 +51,7 @@ An added tuner keeps its allocated port and DeviceID across renames and restarts
 
 Manually add each enabled tuner address in Plex. Use the US guide appropriate to ZIP **10001** for New York and a UK guide covering London, with a postcode such as **SW1A 1AA**, for London. The London numbers are stable local numbers, not copied satellite guide numbers. Map channels to the correct guide service, especially BBC One London and ITV1 London.
 
-**Real Plex acceptance remains pending.** The alpha has separate HTTP device identities and scoped lineups, but independent guide selection, scheduled recordings with overlapping numbers, and client recovery have not yet been verified in a real multi-device Plex setup. Do not use the preview for essential recordings.
+**Real Plex acceptance remains pending.** The beta has separate HTTP device identities and scoped lineups, but independent guide selection, scheduled recordings with overlapping numbers, and client recovery have not yet been verified in a real multi-device Plex setup. Do not use the preview for essential recordings.
 
 All devices share the configured maximum outgoing streams and account/provider limits. Each advertises that global capacity; the application rejects requests beyond the shared total rather than multiplying capacity by the number of devices. The same channel’s viewers share one primary/hot-backup controller. Different tuner channels have independent IDs and controllers, even when their display names or numbers match.
 

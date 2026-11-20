@@ -1,3 +1,11 @@
+# v1.1.0-beta.1
+
+Public beta for Linux amd64 and ARM64. Pull `antennarr/antennarr:v1.1.0-beta.1`. The stable 1.0 series remains the default.
+
+- Recruitment checks the thinnest eligible rosters first, rotates ties, and favours accounts used across fewer existing roster entries. A busy account can still supply a channel when alternatives are scarce.
+- Mexico City, Mumbai, Berlin, and Amsterdam join New York City and London as optional presets. Fresh installs start empty. Adding a preset creates a disabled tuner with its own editable channel list.
+- Use a separate data directory for testing. Back up before upgrading 1.0 data to schema 9. See [multi-tuner setup](MULTI-TUNER.md) for installation, guide locations, and outstanding real-Plex checks.
+
 # v1.1.0-alpha.8
 
 ## Changes since v1.0.x
