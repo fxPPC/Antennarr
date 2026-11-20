@@ -37,8 +37,7 @@ Troubleshooting
   the complete release. To use another compatible pair, set
   ANTENNARR_FFMPEG to the full FFmpeg path with FFprobe in the same directory.
   For foreground automation, run the desktop launcher with ANTENNARR_HEADLESS=1.
-  The accompanying antennarr-server executable can also run without the desktop UI.
-  On Mac, it is inside Antennarr.app/Contents/Helpers/Antennarr Server.app/Contents/MacOS/.
+  @CLI@
 
 Source, licences, and build instructions
   https://github.com/fxPPC/Antennarr/tree/@VERSION@

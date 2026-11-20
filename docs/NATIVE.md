@@ -23,7 +23,7 @@ On first run, open **Status** in the web interface. Sign in with `admin` / `admi
 Fresh installs use seven consecutive TCP ports. By default, the web UI opens at `http://127.0.0.1:39192`, and Plex can reach tuners on ports 39193–39198 on the computer’s private network. The Tuners page shows each Plex address. Set `ANTENNARR_PORT_RANGE` before launch or save a range such as `41000-41006` in the data folder’s `config/port-range` file and restart. The first port serves administration on this computer. The next six serve tuners. An existing installation keeps its old ports until you choose a range.
 
 - **Windows Defender Firewall.** Choose the range in Setup. If Plex runs on another computer, select the private-network firewall option and approve the Windows prompt. Setup allows incoming TCP connections to the six tuner ports from the local subnet on Private networks. Run Setup again when changing ports so the rule matches the new range.
-- **Mac firewall.** Allow incoming connections for **Antennarr** and **Antennarr Server**. To add the helper in **System Settings → Network → Firewall → Options**, click **+**, press **Command–Shift–G**, and enter `/Applications/Antennarr.app/Contents/Helpers/Antennarr Server.app`. [Apple’s firewall settings](https://support.apple.com/guide/mac-help/change-firewall-settings-on-mac-mh34041/mac)
+- **Mac firewall.** Allow incoming connections for **Antennarr**. To review the permission, open **System Settings → Network → Firewall → Options** and select the installed Antennarr app. [Apple’s firewall settings](https://support.apple.com/guide/mac-help/change-firewall-settings-on-mac-mh34041/mac)
 
 ## Older systems and upgrades
 
