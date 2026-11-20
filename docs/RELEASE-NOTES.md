@@ -4,6 +4,7 @@ Public beta for Linux amd64 and ARM64. Pull `antennarr/antennarr:v1.1.0-beta.1`.
 
 - Recruitment checks the thinnest eligible rosters first, rotates ties, and favours accounts used across fewer existing roster entries. A busy account can still supply a channel when alternatives are scarce.
 - Mexico City, Mumbai, Berlin, and Amsterdam join New York City and London as optional presets. Fresh installs start empty. Adding a preset creates a disabled tuner with its own editable channel list.
+- Channel rules accept the former 5SELECT name for 5DRAMA and distinguish regional editions, delayed feeds, and conflicting guide IDs. In an offline check of 22 saved catalogues, the matcher found candidates for 12/15 Mexico City, 16/23 Mumbai, 31/34 Berlin, and 20/22 Amsterdam channels. Playback and Plex guide mapping need separate verification.
 - Use a separate data directory for testing. Back up before upgrading 1.0 data to schema 9. See [multi-tuner setup](MULTI-TUNER.md) for installation, guide locations, and outstanding real-Plex checks.
 
 # v1.1.0-alpha.8
