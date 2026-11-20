@@ -78,7 +78,7 @@ func (a *API) importSources(w http.ResponseWriter, r *http.Request) {
 				summary = string(b)
 			} else {
 				job.Detail("import", "local_catalogue_error", 0)
-				summary = "Could not save imported entries. Check Docker logs before retrying."
+				summary = "Could not save imported entries. Check the application logs before retrying."
 				if n > 0 {
 					summary = fmt.Sprintf("Saved %d entries before an import database error. Retry the list to continue; existing entries are deduplicated.", n)
 				}

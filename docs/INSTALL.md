@@ -4,6 +4,8 @@ Stable **v1.0.8** runs on Linux amd64 and ARM64. The commands below install stab
 
 Use Linux Docker on ARM64 or amd64, with local writable appdata. The Wolfi Linux runtime, FFmpeg, and FFprobe are included in the image. Docker source builds also include the Go toolchain in their build stage; Go is needed on your host only for local development outside Docker. Store SQLite appdata locally, not on SMB/NFS.
 
+For the Mac and Windows beta installers, see [native installation](NATIVE.md).
+
 ## Install the published image
 
 Choose a dedicated appdata directory and your Docker server's LAN address. Replace both placeholders below:

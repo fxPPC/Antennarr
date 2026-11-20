@@ -2,8 +2,31 @@ package catalog
 
 import (
 	"fmt"
+	"path/filepath"
 	"testing"
 )
+
+func TestCatalogueInAppdataWithURICharacters(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "Antennarr appdata #1 %20")
+	s, err := OpenWithDefaults(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.UpdateSetup(SetupUpdate{State: "dismissed"}); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	s, err = OpenWithDefaults(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	if p, err := s.SetupProgress(); err != nil || p.State != "dismissed" {
+		t.Fatal(p, err)
+	}
+}
 
 func addTestPresets(t *testing.T, s *Store, presets ...string) {
 	t.Helper()

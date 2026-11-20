@@ -86,6 +86,12 @@ func TestSetupProgressPersistsAndCanReopen(t *testing.T) {
 	if p = call("GET", "", 200); p.State != "active" || !p.HasTuner || !p.HasSources {
 		t.Fatal("in-progress guide skipped before Plex", p)
 	}
+	other, err := s.AddProfilePreset("nl-amsterdam")
+	if err != nil {
+		t.Fatal(err)
+	}
+	disabled, _ := json.Marshal(map[string]string{"state": "complete", "profile_id": other.ID})
+	call("POST", string(disabled), 409)
 	if p = call("POST", `{"state":"complete","step":"plex"}`, 200); p.State != "complete" {
 		t.Fatal(p)
 	}

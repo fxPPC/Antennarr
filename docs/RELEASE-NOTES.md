@@ -3,6 +3,7 @@
 ## What changes when you upgrade from 1.0
 
 - **Run several Plex tuners from one installation.** Each tuner has its own Plex address, channel lineup, and playback quality preference. Choose from New York City, London, Mexico City, Mumbai, Berlin, and Amsterdam. Your existing tuner keeps its identity, channel edits, and rosters.
+- **Run Antennarr directly on macOS or Windows.** Drag the Mac app into Applications or run the Windows installer. Both are available for ARM64 and Intel/AMD processors. FFmpeg and FFprobe are bundled. From the Mac menu bar or Windows notification area, check live viewers and channel coverage, open settings, set Antennarr to start at login, or quit. Docker remains the best-supported option. [Desktop downloads and setup](https://github.com/fxPPC/Antennarr/blob/v1.1.0-beta.1/docs/NATIVE.md)
 - **Give channels with the fewest feeds first pick.** Antennarr spreads working feeds across more source accounts and can still use an account that supplies other channels when alternatives are scarce. Channel matching distinguishes local editions and time-shifted feeds.
 - **A first-run wizard walks you through setup.** Choose a city tuner, import an authorised source list, and find the address to add in Plex. The wizard is optional for existing installations.
 - **Find and manage channels more easily in the web UI.** Select an empty or partial roster count in Status to see the channels, search across tuners, or pause scans in Sources while existing channels keep playing.

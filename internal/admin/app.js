@@ -38,7 +38,7 @@ const admin = {
   init: async () => {
     if (adminLoaded) return;
     const ls=await api('/api/settings');const lf=$('#logging-settings');lf.elements.logging_level.value=ls.logging_level;
-    help(lf,'None suppresses application logs. Normal logs warnings and errors only. Debug includes source IDs, check results, and recovery diagnostics. Credentials and stream URLs remain hidden.','Docker logging');
+    help(lf,'None suppresses application logs. Normal logs warnings and errors only. Debug includes source IDs, check results, and recovery diagnostics. Credentials and stream URLs remain hidden.','Application logging');
     lf.onchange=async()=>{try{await api('/api/settings','POST',{logging_level:lf.elements.logging_level.value});$('#logging-result').textContent='Saved.'}catch(e){notice(e.message)}};
     const v = await api('/api/login');
     $('#login-form').elements.username.value = v.username;
@@ -48,7 +48,7 @@ const admin = {
     if(!$('#system-info').open)return;
     const v=await api('/api/system');const root=$('#system-info-content');root.replaceChildren();
     const line=(label,value)=>{const p=document.createElement('p');p.textContent=label+': '+value;root.append(p)};
-    line('uname -a',v.uname||'Unavailable');line('Go',v.go);line('Available CPU threads',v.cpus);line('Application uptime',Math.floor(v.uptime_seconds/60)+' minutes');line('Disk free', (v.disk_free_bytes/1e9).toFixed(2)+' GB of '+(v.disk_total_bytes/1e9).toFixed(2)+' GB');
+    line('Operating system',v.uname||'Unavailable');line('Go',v.go);line('Available CPU threads',v.cpus);line('Application uptime',Math.floor(v.uptime_seconds/60)+' minutes');line('Disk free', (v.disk_free_bytes/1e9).toFixed(2)+' GB of '+(v.disk_total_bytes/1e9).toFixed(2)+' GB');
     for(const [key,label] of [['background','Average host load while checking'],['streaming','Average host load while streaming']])line(label,v[key].samples?v[key].load.toFixed(2)+' ('+v[key].samples+' samples)':'No samples yet');line('Measurement',v.note);
   }
 };

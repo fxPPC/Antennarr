@@ -73,8 +73,16 @@ func open(root string, defaults bool) (*Store, error) {
 			return nil, e
 		}
 	}
-	dbpath := filepath.Join(root, "database/antennarr.db")
-	u := url.URL{Scheme: "file", Path: dbpath}
+	dbpath, e := filepath.Abs(filepath.Join(root, "database/antennarr.db"))
+	if e != nil {
+		return nil, e
+	}
+	// SQLite file URIs use forward slashes and a leading slash for drive letters.
+	uriPath := filepath.ToSlash(dbpath)
+	if !strings.HasPrefix(uriPath, "/") {
+		uriPath = "/" + uriPath
+	}
+	u := url.URL{Scheme: "file", Path: uriPath}
 	q := url.Values{}
 	q.Set("_txlock", "immediate")
 	q.Add("_pragma", "journal_mode(WAL)")

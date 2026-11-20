@@ -78,7 +78,7 @@ export async function refresh() {
   if (pass.generation && c.total) recruitment.append(el('p',`Check pass ${compactNumber(pass.generation)}: ${compactNumber(pass.checked)} / ${compactNumber(pass.total)} unique streams checked · ${compactNumber(pass.remaining)} pending · ${compactNumber(pass.deferred||0)} temporarily deferred · ${compactNumber(pass.released)} released for replacement.`));
   if (pass.last_seconds) recruitment.append(el('small',`Previous pass took ${pass.last_seconds<60 ? pass.last_seconds+' seconds' : (pass.last_seconds/60).toFixed(1)+' minutes'}: ${pass.last_checked} checked, ${pass.last_released} released for replacement.`));
   if (c.empty) attention.append(el('p', `${c.empty} channels have no verified source yet.`, 'warning-text'));
-  if (checker.last_error) attention.append(el('p', checker.last_error + ' failed at ' + date(checker.error_at) + '. Check Docker logs and Admin → System info.', 'warning-text'));
+  if (checker.last_error) attention.append(el('p', checker.last_error + ' failed at ' + date(checker.error_at) + '. Check the application logs and Admin → System info.', 'warning-text'));
   const completedChecks=(work.recent||[]).filter(j=>['stream_check','account_check','account_discovery'].includes(j.kind)).map(j=>j.finished||0);
   const lastResult = Math.max(p.last_check, p.last_discovery,p.last_access||0,...completedChecks);
   if(checker.state==='checks_waiting' && pass.remaining)attention.append(el('p',`${compactNumber(pass.remaining)} pending checks are waiting for providers.${checker.next?' Earliest retry '+countdown(checker.next)+'.':''}`));

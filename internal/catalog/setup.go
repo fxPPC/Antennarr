@@ -73,16 +73,20 @@ func (s *Store) UpdateSetup(u SetupUpdate) (SetupProgress, error) {
 		return p, ErrSetupIncomplete
 	}
 	if u.ProfileID != nil {
-		if *u.ProfileID != "" {
-			var exists bool
-			if err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM output_profiles WHERE id=?)", *u.ProfileID).Scan(&exists); err != nil {
-				return p, err
-			}
-			if !exists {
-				return p, ErrSetupProfile
-			}
-		}
 		p.ProfileID = *u.ProfileID
+	}
+	if p.ProfileID != "" && (u.ProfileID != nil || u.State == "complete") {
+		var enabled bool
+		err = tx.QueryRow("SELECT enabled FROM output_profiles WHERE id=?", p.ProfileID).Scan(&enabled)
+		if errors.Is(err, sql.ErrNoRows) {
+			return p, ErrSetupProfile
+		}
+		if err != nil {
+			return p, err
+		}
+		if u.State == "complete" && !enabled {
+			return p, ErrSetupIncomplete
+		}
 	}
 	if u.Step != nil {
 		p.Step = *u.Step
