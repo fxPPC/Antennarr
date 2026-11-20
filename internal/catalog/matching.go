@@ -179,16 +179,25 @@ type channelMatcher struct {
 	stationKey  string
 	networkKey  string
 }
+
+// Some catalogues prefix an Indian service with a language and, occasionally,
+// a news section. Only an Indian channel can use this alternate spelling.
+var indianCategory = regexp.MustCompile(`(?i)^\s*(?:hindi|marathi)\s*[-|:]\s*(?:news\s*\|\s*)?`)
+
 type sourceLabel struct {
 	channelLabel
-	guide     channelLabel
-	words     string
-	ambiguous bool
+	guide         channelLabel
+	indianService channelLabel
+	words         string
+	ambiguous     bool
 }
 
 func parseSourceLabel(name, region string) sourceLabel {
 	k, c := channelKey(name, region)
 	label := sourceLabel{channelLabel: channelLabel{k, c}, ambiguous: catalogueHeading.MatchString(name), words: " " + strings.Join(exclusionWords(name), " ") + " "}
+	if prefix := indianCategory.FindStringIndex(name); prefix != nil {
+		label.indianService.key, label.indianService.country = channelKey(name[prefix[1]:], region)
+	}
 	for _, token := range strings.Fields(k) {
 		if token == "hbofhd" {
 			label.ambiguous = true
@@ -277,7 +286,11 @@ func (m channelMatcher) nameMatches(label sourceLabel) bool {
 		return false
 	}
 	for _, p := range m.positive {
-		if p.key != "" && label.key != "" && p.key == label.key && (p.country == "" || label.country == "" || p.country == label.country) {
+		if p.key == "" || p.country != "" && label.country != "" && p.country != label.country {
+			continue
+		}
+		if p.key == label.key || p.country == "in" && p.key == label.indianService.key &&
+			(label.indianService.country == "" || label.indianService.country == "in") {
 			return true
 		}
 	}

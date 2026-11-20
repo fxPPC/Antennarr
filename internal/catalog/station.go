@@ -253,6 +253,7 @@ var referenceGuideMatchers = sync.OnceValue(func() []channelMatcher {
 		{Name: "3ABN Proclaim Network", Region: "US"},
 		{Name: "CW Plus Mountain", Region: "US"},
 		{Name: "Military History Channel", Region: "US"},
+		{Name: "Sports18", Region: "IN", Aliases: []string{"Sports 18"}},
 		{Name: "STARZ ENCORE Español", Region: "US", Aliases: []string{"STARZ ENCORE Espanol"}},
 		{Name: "Saigon Broadcasting Network", Region: "US"},
 		{Name: "Racer Network", Region: "US"},
