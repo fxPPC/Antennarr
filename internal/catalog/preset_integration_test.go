@@ -92,3 +92,36 @@ func TestAmbiguousCompactLabelCannotInheritTVG(t *testing.T) {
 		t.Fatalf("ambiguous feed inherited TVG mapping: %d %v", len(rows), e)
 	}
 }
+
+func TestAllMarketsResolveIndependently(t *testing.T) {
+	var matchers []channelMatcher
+	for _, preset := range tunerPresets {
+		channels, err := preset.channels()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, ch := range channels {
+			ch.ProfileID = preset.profile.Preset
+			ch.ID = ch.ProfileID + "-" + ch.Number
+			matchers = append(matchers, compileChannel(ch))
+		}
+	}
+	for _, tc := range []struct{ label, guide, market, name string }{
+		{"US | CNN HD", "cnn.us", "us-nyc", "CNN"},
+		{"UK | BBC One London", "bbconelondon.uk", "uk-london", "BBC One London"},
+		{"MX | Las Estrellas HD", "lasestrellas.mx", "mx-mexico-city", "Las Estrellas"},
+		{"IN | DD News HD", "ddnews.in", "in-mumbai", "DD News"},
+		{"DE | RTL HD", "rtl.de", "de-berlin", "RTL"},
+		{"NL | RTL 4 HD", "rtl4.nl", "nl-amsterdam", "RTL 4"},
+		{"DE | RTL HD", "rtl4.nl", "", ""},
+		{"UK | CNN HD", "cnn.us", "", ""},
+	} {
+		got := resolveChannel(matchers, sourceLabelWithID(tc.label, "", tc.guide), tc.guide, nil)
+		if got == nil && tc.market == "" {
+			continue
+		}
+		if got == nil || got.channel.ProfileID != tc.market || got.channel.Name != tc.name {
+			t.Errorf("%s with %s matched %s, want %s/%s", tc.label, tc.guide, matcherName(got), tc.market, tc.name)
+		}
+	}
+}
