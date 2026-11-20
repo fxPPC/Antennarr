@@ -34,7 +34,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/releases/tags/$VERSION" | jq -e '.immutable and .prerelease and (.draft|not)'
           git worktree add --detach /tmp/preview-source "refs/tags/$VERSION"
           echo "revision=$(git -C /tmp/preview-source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
         with:
           go-version: '1.27.4'
       - name: Build and test the ARM64 runtime
