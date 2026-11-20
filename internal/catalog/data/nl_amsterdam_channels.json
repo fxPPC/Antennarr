@@ -1,0 +1,352 @@
+[
+  {
+    "name": "NPO 1",
+    "number": "001",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "NPO1",
+      "Nederland 1",
+      "-extra",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "NPO 2",
+    "number": "002",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "NPO2",
+      "Nederland 2",
+      "-extra",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "NPO 3",
+    "number": "003",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "NPO3",
+      "Nederland 3",
+      "-extra",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RTL 4",
+    "number": "004",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "RTL4",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RTL 5",
+    "number": "005",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "RTL5",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "SBS6",
+    "number": "006",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "SBS 6",
+      "-classics",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RTL 7",
+    "number": "007",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "RTL7",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Veronica / Disney Jr.",
+    "number": "008",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "Veronica",
+      "Veronica Disney Junior",
+      "-radio",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Net5",
+    "number": "009",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "Net 5",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RTL 8",
+    "number": "010",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "RTL8",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "STAR Channel",
+    "number": "011",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "StarChannel",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Viaplay TV",
+    "number": "013",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "ViaplayTV",
+      "-plus",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Ziggo Sport",
+    "number": "014",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "Ziggo Sport 1",
+      "ZiggoSport",
+      "ZiggoSport1",
+      "-extra",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Paramount Network",
+    "number": "016",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "ParamountNetwork",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Eurosport 1",
+    "number": "025",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "Eurosport1",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "NPO 2 extra",
+    "number": "082",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "NPO2 extra",
+      "NPO2Extra",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ESPN 1",
+    "number": "421",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "ESPN1",
+      "ESPN",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ESPN 2",
+    "number": "422",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "ESPN2",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ESPN 3",
+    "number": "423",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "ESPN3",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ESPN 4",
+    "number": "424",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "ESPN4",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "NH",
+    "number": "707",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "NH Nieuws",
+      "NH TV",
+      "RTV Noord-Holland",
+      "-radio",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "AT5",
+    "number": "725",
+    "region": "NL",
+    "enabled": true,
+    "aliases": [
+      "AT 5",
+      "AT5 Amsterdam",
+      "-radio",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  }
+]
