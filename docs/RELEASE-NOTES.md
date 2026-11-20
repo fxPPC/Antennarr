@@ -1,3 +1,7 @@
+# v1.0.8
+
+Stable maintenance release for Linux amd64 and ARM64. Updates the Wolfi runtime base and CI tooling. Existing 1.0 settings, channels, rosters, and Plex tuner identities use the same schema.
+
 # v1.0.7
 
 Full accounts wait an hour between discovery retries. Roster checks continue across available providers while others are blocked. New installations default to 15 streams per channel.
