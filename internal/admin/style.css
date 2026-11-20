@@ -74,3 +74,6 @@ h2{font-size:clamp(29px,4vw,43px);letter-spacing:-.045em;line-height:1.1;margin-
 .tuner-channels .card>summary strong{flex:1;min-width:155px}.last-verified{font-size:.78rem}
 :focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 @media(max-width:680px){nav{display:grid;grid-template-columns:repeat(4,1fr)}nav a{text-align:center;padding:9px 4px}.tuner-card{padding:12px}.last-verified{width:100%}.tuner-channels .card>summary{gap:4px 10px}#channel-coverage{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}#channel-coverage a{padding:12px 8px;font-size:.78rem}#channel-coverage a strong{font-size:1.55rem}}
+.network-ports{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 18px}
+.network-ports dt{color:var(--accent)}.network-ports dd{margin:0;overflow-wrap:anywhere}
+#setup-capacity a,#tuner-capacity a{display:inline-block;white-space:nowrap;min-height:24px}

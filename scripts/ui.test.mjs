@@ -101,3 +101,22 @@ test('shared source form retains failed lists and prevents stale polls from reop
   assert.equal(submit.disabled, false);
   assert.match(result.textContent, /Import complete/);
 });
+
+import {listenerLabels, slotHelp} from '../internal/admin/ui/listeners.js';
+test('the web UI reports configured ports and reserved capacity', () => {
+  const range = {port_range:'40100-40106',admin_port:40100,tuner_ports:[40101,40102,40103,40104,40105,40106],available_slots:1};
+  assert.deepEqual(listenerLabels(range), {range:'40100–40106',admin:'40100',tuners:'40101–40106',capacity:'1 of 6 tuner slots available.'});
+  assert.match(slotHelp(range), /disabled/);
+  assert.match(slotHelp({...range,available_slots:0}), /free a slot/);
+  const legacy = {port_range:'',admin_port:0,tuner_ports:[9192,9200,9201,9202],available_slots:0};
+  assert.deepEqual(listenerLabels(legacy), {range:'Individual ports (legacy configuration)',admin:'Shared with the primary tuner on 9192',tuners:'9192, 9200–9202',capacity:'0 of 4 tuner slots available.'});
+  assert.match(slotHelp(legacy), /legacy/);
+});
+test('a full allocation still lets setup enable an existing disabled tuner', () => {
+  const profiles = [{id:'my-tuner',name:'Local lineup',preset_id:'',enabled:false}];
+  const presets = [{id:'in-mumbai',name:'Mumbai',channels:23}];
+  const full = tunerOptions(profiles,presets,0);
+  assert.equal(!!full[0].disabled, false);
+  assert.equal(full[1].disabled, true);
+  assert.equal(tunerOptions(profiles,presets,1)[1].disabled, false);
+});

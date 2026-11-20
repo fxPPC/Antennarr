@@ -37,6 +37,7 @@ jobs:
       - run: ANTENNARR_V104_UPGRADE_FIXTURE=/tmp/antennarr-v104-upgrade-fixture go test ./internal/recovery -run TestPublishedV104UpgradeAndManualRestore -count=1
       - run: GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o /tmp/antennarr-arm64 ./cmd/antennarr
       - run: docker compose -f compose.portable.yaml config --quiet
+      - run: ANTENNARR_PORT_RANGE=41000-41006 docker compose -f compose.portable.yaml -f compose.range.yaml config --quiet
       - run: docker build --pull -t antennarr:source-check .
       - run: ANTENNARR_TEST_IMAGE=antennarr:source-check python3 packaging/test-permissions.py
       - run: ANTENNARR_TEST_IMAGE=antennarr:source-check ANTENNARR_TEST_FIXTURES=/tmp/antennarr-fixtures sh packaging/test-runtime-media.sh

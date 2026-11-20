@@ -1,5 +1,6 @@
 import { routeParams, pageURL, linkedText } from './navigation.js';
 import { confirmAction } from './core.js';
+import {tunerSlotSummary} from './listeners.js';
 import { profilePath, profileChannels, profileLabel } from './profiles.js';
 import {
   $,
@@ -17,7 +18,7 @@ import {
 } from './core.js';
 let ready = false, profiles = [], presets = [], channels = [], selectedProfile = '';
 const channelCards = new Map(), profileCards = new Map();
-let loadingProfiles, viewKey = '', editReturn = '';
+let listeners, loadingProfiles, viewKey = '', editReturn = '';
 let rosterByChannel = new Map();
 export function invalidateProfiles() {
   viewKey = '';
@@ -165,8 +166,8 @@ function loadChannels() {
 }
 async function renderProfiles() {
   const openChannels = new Set([...channelCards].filter(([, value]) => value.card.open).map(([id]) => id));
-  const [loadedProfiles, loadedPresets] = await Promise.all([
-    api('/api/profiles'), api('/api/presets')
+  const [loadedProfiles, loadedPresets, loadedListeners] = await Promise.all([
+    api('/api/profiles'), api('/api/presets'), api('/api/listeners')
   ]);
   const {tuner: requested, coverage, searching} = view();
   const scoped = requested ? loadedProfiles.filter(p => p.id === requested) :
@@ -181,6 +182,8 @@ async function renderProfiles() {
   rosterByChannel = new Map(savedRosters.flatMap(r => r.channels).map(r => [r.channel_id,r]));
   profiles = loadedProfiles;
   presets = loadedPresets;
+  listeners = loadedListeners;
+  $('#tuner-capacity span').textContent = tunerSlotSummary(listeners);
   channels = channelLists.flat();
   const editor = $('#channel-form');
   // Deleted/replaced channels must not remain editable under another tuner.
@@ -205,6 +208,7 @@ async function renderProfiles() {
   $('#output-profile-tools').hidden = !active;
   $('#tuners-title').textContent = active?.name || (coverage ? ({empty:'Empty rosters',partial:'Partial rosters',full:'Full rosters'}[coverage] || 'Channels') : 'Tuners');
   $('#tuners-intro').hidden = !!requested || !!coverage;
+  $('#tuner-capacity').hidden = !!requested || !!coverage;
   $('#tuners-back').hidden = !requested && !coverage;
   $('#output-settings').closest('details').hidden = !!requested || !!coverage;
   $('#add-tuners').hidden = !!requested || !!coverage;
@@ -218,7 +222,7 @@ async function renderProfiles() {
       link.append(el('strong',p.name),el('span',p.channel_count+' channels · '+(p.enabled?'Enabled':'Disabled')),el('b','→'));
       directory.append(link);
     }
-    directory.append(navLink('Add tuner', pageURL('output',{add:1}),'add-market'));
+    directory.append(navLink(listeners.available_slots ? 'Add tuner' : 'View city presets', pageURL('output',{add:1}),'add-market'));
   }
   if (requested && !active) directory.append(el('p','This tuner is no longer available.'));
   if (routeParams().has('add')) $('#add-tuners').open = true;
@@ -389,10 +393,14 @@ function renderPresets() {
     const row = el('article', undefined, 'preset-card');
     row.append(el('h3', preset.name), el('p', preset.channels + (preset.channels === 1 ? ' editable channel' : ' editable channels')), el('p', preset.guide_location || '', 'muted'));
     if (added) row.append(el('p', 'Already added · ' + (added.enabled ? 'enabled' : 'disabled'), 'muted'));
-    else row.append(button('Add ' + preset.name, async () => {
-      await api('/api/profiles', 'POST', {preset_id: id});
-      await loadChannels();
-    }));
+    else {
+      const add = button('Add ' + preset.name, async () => {
+        await api('/api/profiles', 'POST', {preset_id: id});
+        await loadChannels();
+      });
+      add.disabled = listeners.available_slots === 0;
+      row.append(add);
+    }
     root.append(row);
   }
 }
@@ -543,6 +551,11 @@ async function renderEntries(ch, root) {
   }
 }
 export async function refresh() {
+  const {tuner, coverage} = view();
+  if (listeners && !tuner && !coverage) {
+    const current = await api('/api/listeners');
+    if (current.available_slots !== listeners.available_slots) await loadChannels();
+  }
   const saved = await Promise.all(profiles.filter(p => profileCards.has(p.id)).map(profile => api(profilePath('/api/roster', profile.id))));
   const counts = new Map([...document.querySelectorAll('[data-channel-count]')].map(node => [node.dataset.channelCount, node]));
   for (const r of saved.flatMap(roster => roster.channels)) {

@@ -32,13 +32,8 @@ import (
 )
 
 func main() {
-	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
-		if os.Getenv("ANTENNARR_LISTEN") == "" {
-			os.Setenv("ANTENNARR_LISTEN", config.DesktopTunerListen())
-		}
-		if os.Getenv("ANTENNARR_ADMIN_LISTEN") == "" {
-			os.Setenv("ANTENNARR_ADMIN_LISTEN", "127.0.0.1:39192")
-		}
+	if len(os.Args) == 2 && os.Args[1] == "healthcheck" {
+		os.Exit(healthcheck())
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -96,10 +91,9 @@ func run(parent context.Context) bool {
 		os.Exit(1)
 	}
 	level.Set(c.Settings.LogLevel())
-	ports, err := config.ParseTunerPorts(os.Getenv("ANTENNARR_TUNER_PORTS"))
-	if err == nil {
-		err = ports.ValidateListeners(env("ANTENNARR_LISTEN", ":9192"), os.Getenv("ANTENNARR_ADMIN_LISTEN"), os.Getenv("ANTENNARR_COMPAT_LISTEN"))
-	}
+	desktop := runtime.GOOS == "darwin" || runtime.GOOS == "windows"
+	listeners, err := config.ResolveListeners(root, c.PortRange, desktop)
+	ports := listeners.Extra
 	if err != nil {
 		slog.Error("invalid tuner listener configuration", "error", err)
 		os.Exit(1)
@@ -129,17 +123,10 @@ func run(parent context.Context) bool {
 		slog.Error("channel matching unavailable")
 		os.Exit(1)
 	}
-	base := os.Getenv("ANTENNARR_BASE_URL")
-	if base == "" {
-		ip := config.PrivateIPv4()
-		if ip == "" && (runtime.GOOS == "darwin" || runtime.GOOS == "windows") {
-			ip = "127.0.0.1"
-		}
-		if ip == "" {
-			slog.Error("no private interface address")
-			os.Exit(1)
-		}
-		base = "http://" + net.JoinHostPort(ip, "9192")
+	base, err := listeners.BaseURL(os.Getenv("ANTENNARR_BASE_URL"), desktop)
+	if err != nil {
+		slog.Error("cannot determine tuner address", "error", err)
+		os.Exit(1)
 	}
 	var m *stream.Manager
 	readChecks := func() config.Settings {
@@ -238,7 +225,7 @@ func run(parent context.Context) bool {
 		return m.Status().Viewers > 0, state == "checking" || state == "discovering"
 	})
 	statusCollector := &monitor.Collector{Store: store, Playback: m.Status, Live: eng.Status, Work: work.Snapshot, Checker: checks.CheckerState}
-	s := tuner.Server{Guard: guard, ChannelList: channelList, BeforeTune: checks.Preempt, Admin: &admin.API{TunerPorts: ports, PrimaryListen: env("ANTENNARR_LISTEN", ":9192"), WithIdle: m.WithIdle, SystemInfo: system.Snapshot, Monitor: statusCollector.Snapshot, StopStream: m.Stop, WithChecksPaused: checks.WithPaused, WithProtectedAccounts: limits.WithProtectedAccounts, ReadLogin: login.Current, ChangeLogin: login.Change, DataRoot: root, BaseURL: base, Idle: func() bool { return m.Status().Viewers == 0 }, Restart: func() {
+	s := tuner.Server{Guard: guard, ChannelList: channelList, BeforeTune: checks.Preempt, Admin: &admin.API{TunerPorts: ports, PrimaryListen: listeners.Primary, AdminListen: listeners.Admin, CompatListen: listeners.Compat, PortRange: listeners.Range, WithIdle: m.WithIdle, SystemInfo: system.Snapshot, Monitor: statusCollector.Snapshot, StopStream: m.Stop, WithChecksPaused: checks.WithPaused, WithProtectedAccounts: limits.WithProtectedAccounts, ReadLogin: login.Current, ChangeLogin: login.Change, DataRoot: root, BaseURL: base, Idle: func() bool { return m.Status().Viewers == 0 }, Restart: func() {
 		restartRequested.Store(true)
 		stop()
 	}, Activity: work, ReadSettings: func() (config.Settings, error) { v, e := config.Load(root); return v.Settings, e }, SaveSettings: func(v config.Settings) error {
@@ -277,12 +264,11 @@ func run(parent context.Context) bool {
 		}
 	}
 	primaryHandler := fleet.PrimaryHandler()
-	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
-		// Desktop firewalls allow Plex to reach tuner ports. Administration
-		// has its own local listener, even when the primary tuner is absent.
+	if desktop || listeners.Range != "" {
+		// Standalone apps and seven-port installations keep administration off every tuner port.
 		primaryHandler = fleet.Handler(0)
 	}
-	srv := http.Server{Addr: env("ANTENNARR_LISTEN", ":9192"), Handler: primaryHandler, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
+	srv := http.Server{Addr: listeners.Primary, Handler: primaryHandler, ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
 	// Bind the bounded private range once. Adding/enabling a profile then needs
 	// no restart, and an unassigned port returns 404 rather than another tuner.
 	bindHost, _, _ := net.SplitHostPort(srv.Addr)
@@ -301,7 +287,7 @@ func run(parent context.Context) bool {
 	}
 	var adminServer *http.Server
 	var adminListener net.Listener
-	if addr := os.Getenv("ANTENNARR_ADMIN_LISTEN"); addr != "" {
+	if addr := listeners.Admin; addr != "" {
 		adminListener, err = net.Listen("tcp", addr)
 		if err != nil {
 			slog.Error("administration listener unavailable")
@@ -311,7 +297,7 @@ func run(parent context.Context) bool {
 	}
 	var compat *http.Server
 	var compatListener net.Listener
-	if addr := os.Getenv("ANTENNARR_COMPAT_LISTEN"); addr != "" {
+	if addr := listeners.Compat; addr != "" {
 		compatListener, err = net.Listen("tcp", addr)
 		if err != nil {
 			slog.Error("compatibility listener unavailable")

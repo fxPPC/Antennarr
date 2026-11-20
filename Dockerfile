@@ -22,8 +22,8 @@ COPY LICENSE /usr/share/doc/antennarr/LICENSE
 COPY packaging/entrypoint.sh /usr/local/bin/antennarr-entrypoint
 RUN chmod 755 /usr/local/bin/antennarr-entrypoint
 USER 0:0
-EXPOSE 9192 9193 9200-9207
-HEALTHCHECK --interval=30s --timeout=3s --start-period=30s CMD curl -fsS http://127.0.0.1:9192/healthz || exit 1
+EXPOSE 39192-39198
+HEALTHCHECK --interval=30s --timeout=3s --start-period=30s CMD ["/usr/local/bin/antennarr", "healthcheck"]
 ENTRYPOINT ["/usr/local/bin/antennarr-entrypoint"]
 
 FROM go-tools AS build

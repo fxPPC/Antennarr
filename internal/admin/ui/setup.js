@@ -1,19 +1,20 @@
 import {$, api} from './core.js';
 import {showImport} from './source-import.js';
+import {tunerSlotSummary} from './listeners.js';
 
 const steps = ['tuner', 'sources', 'plex'];
 const headings = ['Choose a tuner', 'Import a source list', 'Connect to Plex'];
-let profiles = [], presets = [], saved, step, lastOptions;
+let profiles = [], presets = [], saved, step, lastOptions, listeners;
 let visiting = false, working = false, focusOnOpen = false, generation = 0;
 let invalidateTuners;
 
 // Installed tuners can have custom names and may have no city preset at all.
-export function tunerOptions(profiles, presets) {
+export function tunerOptions(profiles, presets, availableSlots) {
   const installed = new Set(profiles.map(p => p.preset_id));
   return [
     ...profiles.map(p => ({value: 'profile:' + p.id, label: p.name, detail: p.enabled ? 'This tuner is enabled.' : 'Next enables this tuner.'})),
     ...presets.filter(p => !installed.has(p.id)).map(p => ({
-      value: 'preset:' + p.id, label: p.name,
+      value: 'preset:' + p.id, label: p.name, disabled: availableSlots === 0,
       detail: 'Next adds this tuner with ' + p.channels + ' channels and enables it.'
     }))
   ];
@@ -40,14 +41,14 @@ function hide() {
 
 function controls() {
   const profile = profiles.find(p => p.id === saved?.profile_id);
-  $('#setup-next').disabled = working || (step === 'tuner' ? !$('#setup-tuner').value : !saved?.has_sources);
+  $('#setup-next').disabled = working || (step === 'tuner' ? !$('#setup-tuner').value || $('#setup-tuner').selectedOptions[0]?.disabled : !saved?.has_sources);
   $('#setup-finish').disabled = working || !profile?.tuner_url || !profile?.enabled || !saved?.has_sources;
   for (const id of ['setup-back','setup-skip','setup-tuner','setup-resume']) $('#' + id).disabled = working;
 }
 
 function selectHint() {
-  const selected = tunerOptions(profiles, presets).find(p => p.value === $('#setup-tuner').value);
-  $('#setup-city-hint').textContent = selected?.detail || 'Choose the city whose channels you want Plex to offer.';
+  const selected = tunerOptions(profiles, presets, listeners?.available_slots).find(p => p.value === $('#setup-tuner').value);
+  $('#setup-city-hint').textContent = selected?.detail || (listeners?.available_slots === 0 ? 'Choose an installed tuner to continue.' : 'Choose the city whose channels you want Plex to offer.');
   controls();
 }
 
@@ -71,16 +72,21 @@ function render(focus = false) {
   moveImport($(step === 'sources' ? '#setup-import' : '#source-import'));
   if (changed || focus) $('#setup-message').textContent = '';
   if (step === 'tuner') {
-    const select = $('#setup-tuner'), options = tunerOptions(profiles, presets);
+    const select = $('#setup-tuner'), options = tunerOptions(profiles, presets, listeners.available_slots);
+    $('#setup-capacity span').textContent = tunerSlotSummary(listeners);
     const signature = JSON.stringify(options);
     const previous = select.value;
     const optionsChanged = signature !== lastOptions;
     if (optionsChanged) {
-      select.replaceChildren(new Option('Choose a tuner…', ''), ...options.map(o => new Option(o.label, o.value)));
+      select.replaceChildren(new Option('Choose a tuner…', ''), ...options.map(o => {
+        const option = new Option(o.label, o.value);
+        option.disabled = o.disabled === true;
+        return option;
+      }));
       lastOptions = signature;
     }
     if (changed || optionsChanged) {
-      select.value = (!changed && options.some(o => o.value === previous)) ? previous : selected ? 'profile:' + selected.id : '';
+      select.value = (!changed && options.some(o => o.value === previous && !o.disabled)) ? previous : selected ? 'profile:' + selected.id : '';
     }
     selectHint();
   } else if (step === 'sources') {
@@ -106,14 +112,16 @@ async function load(ticket, focus = false) {
     hide();
     return;
   }
-  const [p, templates, job] = await Promise.all([
+  const [p, templates, ports, job] = await Promise.all([
     api('/api/profiles'),
     presets.length ? presets : api('/api/presets'),
+    api('/api/listeners'),
     data.step === 'sources' || (data.step === 'plex' && !data.has_sources) ? api('/api/input/import') : null
   ]);
   if (ticket !== generation || !visiting) return;
   saved = data;
   profiles = p;
+  listeners = ports;
   presets = templates;
   if (job) showImport(job);
   render(focus || focusOnOpen);

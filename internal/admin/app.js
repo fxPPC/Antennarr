@@ -12,6 +12,8 @@ import * as output from './ui/output.js';
 import * as status from './ui/status.js';
 import * as setup from './ui/setup.js';
 import {bindImport} from './ui/source-import.js';
+import {listenerLabels, slotHelp} from './ui/listeners.js';
+import {routeParams} from './ui/navigation.js';
 const staticHelp = [
   ['#import-form textarea', 'Enter list-page URLs, or Base64-encoded URLs, one per line. Antennarr reads them only when you import; it does not scan them automatically. Keep the full #key on encrypted paste links.', 'List URLs'],
   ['#channel-form [name=number]', 'The channel number within this tuner. Different tuners may use the same number. Keep it stable to avoid disturbing existing Plex guide mappings.', 'Channel number'],
@@ -33,6 +35,15 @@ help($('#current-work').previousElementSibling, 'Live startup, backup replacemen
 help($('#upcoming-title'), 'The next work depends on roster vacancies, continuous check passes, and provider pacing. Routine checks pause during playback; optional replenishment serves playing channels only.', 'Up next');
 bindImport();
 setup.bind(output.invalidateProfiles);
+async function refreshPorts() {
+  const listeners = await api('/api/listeners');
+  const labels = listenerLabels(listeners);
+  for (const key of ['range','admin','tuners']) $('#network-' + key).textContent = labels[key];
+  $('#network-capacity').textContent = labels.capacity + ' ' + slotHelp(listeners);
+}
+$('#network-ports').addEventListener('toggle', () => {
+  if ($('#network-ports').open) refreshPorts().catch(e => notice(e.message));
+});
 let adminLoaded = false;
 const admin = {
   init: async () => {
@@ -44,7 +55,15 @@ const admin = {
     $('#login-form').elements.username.value = v.username;
     adminLoaded = true
   },
+  route: async () => {
+    if (routeParams().has('ports')) {
+      const panel = $('#network-ports');
+      panel.open = true;
+      panel.scrollIntoView({block:'nearest'});
+    }
+  },
   refresh: async () => {
+    if ($('#network-ports').open) await refreshPorts();
     if(!$('#system-info').open)return;
     const v=await api('/api/system');const root=$('#system-info-content');root.replaceChildren();
     const line=(label,value)=>{const p=document.createElement('p');p.textContent=label+': '+value;root.append(p)};

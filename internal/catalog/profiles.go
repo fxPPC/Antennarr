@@ -183,9 +183,12 @@ func (s *Store) SaveProfile(p Profile) (Profile, error) {
 	return s.Profile(p.ID)
 }
 
-// Allocate offsets monotonically, including removed profiles. A replacement
-// tuner must not silently inherit a removed device's identity or address.
-func addProfilePreset(tx *sql.Tx, preset string, maxOffset ...int) (Profile, error) {
+const nextLegacySlot = `SELECT max(coalesce((SELECT max(port_offset) FROM output_profiles),-1),
+		coalesce((SELECT CAST(value AS INTEGER) FROM settings WHERE name='profile_slot_highwater'),-1))+1`
+
+// Fixed ranges can reuse an empty listener; a replacement receives its own device ID.
+// Legacy listeners keep their historical monotonically allocated offsets.
+func addProfilePreset(tx *sql.Tx, preset string, limit int, reuse bool) (Profile, error) {
 	p, e := presetProfile(preset)
 	if e != nil {
 		return p, e
@@ -206,19 +209,25 @@ func addProfilePreset(tx *sql.Tx, preset string, maxOffset ...int) (Profile, err
 	if e != nil {
 		return p, e
 	}
-	if e = tx.QueryRow("SELECT max(coalesce((SELECT max(port_offset) FROM output_profiles),-1),coalesce((SELECT CAST(value AS INTEGER) FROM settings WHERE name='profile_slot_highwater'),-1))+1").Scan(&p.PortOffset); e != nil {
+	if reuse {
+		e = tx.QueryRow(`WITH RECURSIVE slots(n) AS (SELECT 0 UNION ALL SELECT n+1 FROM slots WHERE n<?)
+			SELECT coalesce(min(n),?+1) FROM slots WHERE NOT EXISTS(SELECT 1 FROM output_profiles p WHERE p.port_offset=n)`, limit, limit).Scan(&p.PortOffset)
+	} else {
+		e = tx.QueryRow(nextLegacySlot).Scan(&p.PortOffset)
+	}
+	if e != nil {
 		return p, e
+	}
+	if limit >= 0 && p.PortOffset > limit {
+		return p, errors.New("all configured tuner listener slots are reserved")
 	}
 	if p.PortOffset == 0 {
 		p.ID = "primary"
 	}
-	if len(maxOffset) > 0 && p.PortOffset > maxOffset[0] {
-		return p, errors.New("tuner listener range is full; configure more private tuner ports")
-	}
 	if _, e = tx.Exec("INSERT INTO output_profiles("+profileColumns+") VALUES(?,?,?,?,?,?,?,?,?,?,?)", p.ID, p.Kind, p.Name, p.Market, p.Country, p.Timezone, p.GuideLocation, p.Preset, p.Enabled, p.DeviceID, p.PortOffset); e != nil {
 		return p, e
 	}
-	if _, e = tx.Exec("INSERT INTO settings(name,value) VALUES('profile_slot_highwater',?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", fmt.Sprint(p.PortOffset)); e != nil {
+	if _, e = tx.Exec("INSERT INTO settings(name,value) VALUES('profile_slot_highwater',?) ON CONFLICT(name) DO UPDATE SET value=max(CAST(settings.value AS INTEGER),CAST(excluded.value AS INTEGER))", fmt.Sprint(p.PortOffset)); e != nil {
 		return p, e
 	}
 	chs, e := presetChannels(preset)
@@ -238,12 +247,31 @@ func addProfilePreset(tx *sql.Tx, preset string, maxOffset ...int) (Profile, err
 	return p, nil
 }
 func (s *Store) AddProfilePreset(preset string, maxOffset ...int) (Profile, error) {
+	limit := -1
+	if len(maxOffset) > 0 {
+		limit = maxOffset[0]
+	}
+	return s.AddProfileForListeners(preset, limit, false)
+}
+
+func (s *Store) AvailableProfileSlots(limit int, reuse bool) (int, error) {
+	var n int
+	var err error
+	if reuse {
+		err = s.DB.QueryRow("SELECT count(*) FROM output_profiles WHERE port_offset BETWEEN 0 AND ?", limit).Scan(&n)
+	} else {
+		err = s.DB.QueryRow(nextLegacySlot).Scan(&n)
+	}
+	return max(0, limit+1-n), err
+}
+
+func (s *Store) AddProfileForListeners(preset string, limit int, reuse bool) (Profile, error) {
 	tx, e := s.DB.Begin()
 	if e != nil {
 		return Profile{}, e
 	}
 	defer tx.Rollback()
-	p, e := addProfilePreset(tx, preset, maxOffset...)
+	p, e := addProfilePreset(tx, preset, limit, reuse)
 	if e != nil {
 		return p, e
 	}
@@ -277,7 +305,7 @@ func (s *Store) seedLondonProfile() error {
 	if e != sql.ErrNoRows {
 		return e
 	}
-	if _, e = addProfilePreset(tx, "uk-london"); e != nil {
+	if _, e = addProfilePreset(tx, "uk-london", -1, false); e != nil {
 		return e
 	}
 	if _, e = tx.Exec("INSERT INTO settings(name,value) VALUES('multi_tuner_presets_seeded','1')"); e != nil {

@@ -513,3 +513,47 @@ func TestProfileResolutionPreference(t *testing.T) {
 		t.Fatal("invalid height accepted")
 	}
 }
+
+func TestFixedListenerSlotsReserveDisabledTunersAndReuseOnlyVacancies(t *testing.T) {
+	s, err := OpenWithDefaults(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.Close()
+	var saved []Profile
+	for _, preset := range Presets() {
+		p, err := s.AddProfileForListeners(preset.ID, 5, true)
+		if err != nil || p.PortOffset != len(saved) || p.Enabled {
+			t.Fatal(p, err)
+		}
+		saved = append(saved, p)
+	}
+	if len(saved) != 6 {
+		t.Fatal("expected six presets", len(saved))
+	}
+	if n, err := s.AvailableProfileSlots(5, true); err != nil || n != 0 {
+		t.Fatal(n, err)
+	}
+	if err = s.DeleteProfile(saved[2].ID); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := s.AvailableProfileSlots(5, true); err != nil || n != 1 {
+		t.Fatal(n, err)
+	}
+	if n, err := s.AvailableProfileSlots(5, false); err != nil || n != 0 {
+		t.Fatal("legacy slots recycled", n, err)
+	}
+	p, err := s.AddProfileForListeners(saved[2].Preset, 5, true)
+	if err != nil || p.PortOffset != 2 || p.ID == saved[2].ID || p.DeviceID == saved[2].DeviceID {
+		t.Fatal(p, err)
+	}
+	for _, old := range saved {
+		if old.PortOffset == 2 {
+			continue
+		}
+		current, err := s.ProfileAtPort(old.PortOffset)
+		if err != nil || current.ID != old.ID || current.DeviceID != old.DeviceID {
+			t.Fatal(current, old, err)
+		}
+	}
+}

@@ -133,12 +133,11 @@ func (s *session) start(headless bool) error {
 		return fmt.Errorf("cannot create app data: %w", err)
 	}
 	os.Setenv("ANTENNARR_DATA", s.data)
-	primary, err := privateAddress(defaultEnv("ANTENNARR_LISTEN", config.DesktopTunerListen()))
+	listeners, err := config.ReadListeners(s.data, true)
 	if err != nil {
 		return err
 	}
-	defaultEnv("ANTENNARR_BASE_URL", primary)
-	s.adminURL, err = privateAddress(defaultEnv("ANTENNARR_ADMIN_LISTEN", "127.0.0.1:39192"))
+	s.adminURL, err = privateAddress(listeners.Admin)
 	if err != nil {
 		return err
 	}

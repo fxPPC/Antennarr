@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Build the opt-in beta desktop ZIPs from an Antennarr checkout."""
 import argparse
+import hashlib
 import os
 from pathlib import Path
 import plistlib
@@ -37,12 +38,6 @@ def build(target, version, output, media):
     system, arch = target.split("-")
     mac = system == "macos"
     ext = "" if mac else ".exe"
-    for tool in ("ffmpeg", "ffprobe"):
-        verify_machine(media / "bin" / (tool + ext), system, arch)
-    for required in ("licences", "source"):
-        if not (media / required).is_dir() or not any((media / required).iterdir()):
-            raise ValueError(f"Missing packaged media {required} in {media}")
-
     if mac and sys.platform != "darwin":
         raise ValueError("Build macOS desktop targets on a Mac with the Command Line Tools.")
     with tempfile.TemporaryDirectory(prefix="antennarr-package-") as work:
@@ -52,10 +47,25 @@ def build(target, version, output, media):
         resources = contents / "Resources" if mac else stage
         binaries.mkdir(parents=True)
         resources.mkdir(parents=True, exist_ok=True)
-        for entry in media.rglob("*"):
-            if entry.is_symlink():
-                raise ValueError(f"Media payload contains a symbolic link: {entry}")
-        shutil.copytree(media, resources / "media")
+        # Package only outputs of build-native-media.sh, even if its working
+        # directory was reused or holds other local files.
+        media = media.resolve(strict=True)
+        payload = resources / "media"
+        for folder, names in (("bin", ("ffmpeg" + ext, "ffprobe" + ext)),
+                              ("licences", ("LICENSE.md", "COPYING.LGPLv2.1")),
+                              ("source", ("SHA256SUMS", "build-native-media.sh"))):
+            (payload / folder).mkdir(parents=True)
+            for name in names:
+                copy_media(media, payload, folder, name)
+        for tool in ("ffmpeg", "ffprobe"):
+            verify_machine(payload / "bin" / (tool + ext), system, arch)
+        checksum = (payload / "source/SHA256SUMS").read_text(encoding="ascii").strip()
+        source = re.fullmatch(r"([0-9a-f]{64})  (ffmpeg-[0-9]+(?:\.[0-9]+)*\.tar\.xz)", checksum)
+        if not source:
+            raise ValueError("Invalid FFmpeg source checksum record")
+        copied_source = copy_media(media, payload, "source", source[2])
+        if hashlib.sha256(copied_source.read_bytes()).hexdigest() != source[1]:
+            raise ValueError("FFmpeg source checksum does not match the packaged archive")
         shutil.copytree(ROOT / "docs" / "licenses", resources / "licenses")
         shutil.copyfile(ROOT / "LICENSE", resources / "LICENSE")
         launcher = binaries / ("Antennarr" + ext)
@@ -144,6 +154,13 @@ def build(target, version, output, media):
                 subprocess.run(["hdiutil", "verify", "-quiet", str(image)], check=True)
                 image.replace(dmg)
             print(dmg, flush=True)
+
+
+def copy_media(media, payload, folder, name):
+    path = media / folder / name
+    if path.resolve(strict=True) != path or not path.is_file():
+        raise ValueError(f"Expected a regular media file: {path}")
+    return Path(shutil.copy2(path, payload / folder / name))
 
 
 def main():

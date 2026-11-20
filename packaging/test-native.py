@@ -40,15 +40,21 @@ def api(base, route, body=None):
         raise RuntimeError(f"{route}: HTTP {exc.code}: {exc.read(512).decode(errors='replace')}") from exc
 
 
-def free_ports():
-    # Hold all three until selected so the OS cannot return the same port twice.
-    with contextlib.ExitStack() as stack:
-        ports = []
-        for _ in range(3):
-            sock = stack.enter_context(socket.socket())
-            sock.bind(("127.0.0.1", 0))
-            ports.append(sock.getsockname()[1])
-        return ports
+def free_port_range():
+    for _ in range(100):
+        with contextlib.ExitStack() as stack:
+            first = stack.enter_context(socket.socket())
+            first.bind(("", 0))
+            base = first.getsockname()[1]
+            if base > 65529 or base == 39192:
+                continue
+            try:
+                for port in range(base + 1, base + 7):
+                    stack.enter_context(socket.socket()).bind(("", port))
+            except OSError:
+                continue
+            return base
+    raise RuntimeError("Cannot find seven free consecutive TCP ports")
 
 
 def stop(process):
@@ -196,14 +202,26 @@ def windows_imports(path, arch):
             name = offset(name_rva)
             end = data.find(b"\0", name)
             assert end > name, f"{path.name}: invalid import name"
-            result.append(data[name:end].decode("ascii").lower())
+            dll = data[name:end].decode("ascii").lower()
+            if not re.fullmatch(r"[a-z0-9][a-z0-9_.-]*\.dll", dll):
+                raise ValueError(f"{path.name}: invalid DLL import name {dll!r}")
+            result.append(dll)
             pos += 20
         return result
 
 
+def windows_system_directory():
+    import ctypes
+    directory = ctypes.create_unicode_buffer(32768)
+    size = ctypes.windll.kernel32.GetSystemDirectoryW(directory, len(directory))
+    if not 0 < size < len(directory):
+        raise ctypes.WinError()
+    return Path(directory.value)
+
+
 def check_native_files(package, executables, arch):
     if os.name == "nt":
-        system = Path(os.environ["SystemRoot"]) / "System32"
+        system = windows_system_directory()
         for binary in [*executables, *package.rglob("*.dll")]:
             for name in windows_imports(binary, arch):
                 if name.startswith(("api-ms-", "ext-ms-")) or (binary.parent / name).is_file():
@@ -327,14 +345,14 @@ def set_private_firewall(enabled):
                    check=True, timeout=30)
 
 
-def verify_windows_rule(server):
+def verify_windows_rule(server, admin):
     state = firewall_state()
     assert state["privateEnabled"]
     rule = state["rule"]
     assert rule, "Setup completed with lanfirewall selected, but its named rule is missing"
     assert Path(os.path.expandvars(rule["ApplicationName"])).samefile(server), rule
     assert rule["Enabled"] and rule["Profiles"] == 2 and rule["Direction"] == 1 and rule["Action"] == 1
-    assert rule["Protocol"] == 6 and set(rule["LocalPorts"].split(",")) == {"9192", "9200-9207"}
+    assert rule["Protocol"] == 6 and rule["LocalPorts"] == f"{admin + 1}-{admin + 6}", rule
     scopes = {x.casefold() for x in rule["RemoteAddresses"].split(",")}
     assert scopes and scopes <= {"localsubnet", "localsubnet4", "localsubnet6"}, scopes
 
@@ -343,13 +361,13 @@ def verify_windows_rule(server):
 def installed(archive, root):
     package = root / "Test Applications"
     if archive.suffix == ".zip":
+        package.mkdir()
         with zipfile.ZipFile(archive) as z:
-            z.extractall(package)
-            if platform.system() == "Darwin":
-                # Python drops ZIP permission bits. Finder and macOS unzip retain them.
-                for info in z.infolist():
-                    if not info.is_dir() and info.external_attr >> 16 & 0o111:
-                        (package / info.filename).chmod(0o755)
+            for info in z.infolist():
+                extracted = Path(z.extract(info, package))
+                # Python drops ZIP permission bits. Use its normalised extraction path.
+                if platform.system() == "Darwin" and not info.is_dir() and info.external_attr >> 16 & 0o111:
+                    extracted.chmod(0o755)
         yield package
     elif archive.suffix == ".dmg":
         mount = root / "Mounted image"
@@ -381,6 +399,10 @@ def installed(archive, root):
             raise RuntimeError("Test the installer on a clean Windows user profile; an Antennarr Beta installation exists.")
         package = package.resolve()
         flags = ["/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+        data = root / "Application Data"
+        range_path = data / "config/port-range"
+        install_env = {k: v for k, v in os.environ.items() if not k.upper().startswith("ANTENNARR_")}
+        install_env["ANTENNARR_DATA"] = str(data)
         server = package / "antennarr-server.exe"
         state = firewall_state()
         print("Windows private firewall enabled:", state["privateEnabled"], "active profile mask:", state["activeProfiles"])
@@ -390,15 +412,26 @@ def installed(archive, root):
         if active_firewall_test and not ctypes.windll.shell32.IsUserAnAdmin():
             raise RuntimeError("Testing the private firewall rule requires an elevated disposable runner.")
         try:
+            invalid = subprocess.run([archive, *flags, "/PORTRANGE=40000-40007", "/TASKS=", "/DIR=" + str(package)],
+                                     timeout=60, env=install_env)
+            assert invalid.returncode != 0 and not uninstaller.exists() and not range_path.exists()
             subprocess.run([archive, *flags, "/LOG=" + str(root / "install.log"), "/TASKS=", "/DIR=" + str(package)],
-                           check=True, timeout=120)
+                           check=True, timeout=120, env=install_env)
             assert uninstaller.is_file() and firewall_state()["rule"] is None
+            assert range_path.read_text().strip() == "39192-39198"
             if active_firewall_test:
                 if not state["privateEnabled"]:
                     set_private_firewall(True)
                 subprocess.run([archive, *flags, "/LOG=" + str(root / "lanfirewall.log"), "/TASKS=lanfirewall", "/DIR=" + str(package)],
-                               check=True, timeout=120)
-                verify_windows_rule(server)
+                               check=True, timeout=120, env=install_env)
+                verify_windows_rule(server, 39192)
+            base = free_port_range()
+            selected = f"{base}-{base + 6}"
+            subprocess.run([archive, *flags, "/LOG=" + str(root / "range.log"), "/PORTRANGE=" + selected,
+                            "/DIR=" + str(package)], check=True, timeout=120, env=install_env)
+            assert range_path.read_text().strip() == selected
+            if active_firewall_test:
+                verify_windows_rule(server, base)
             yield package
         finally:
             try:
@@ -421,7 +454,7 @@ def installed(archive, root):
             finally:
                 if active_firewall_test and not state["privateEnabled"]:
                     set_private_firewall(False)
-                for log in (root / "install.log", root / "lanfirewall.log", root / "uninstall.log"):
+                for log in (root / "install.log", root / "lanfirewall.log", root / "range.log", root / "uninstall.log"):
                     if log.exists():
                         raw = log.read_bytes()
                         encoding = "utf-16" if raw.startswith(b"\xff\xfe") else "utf-8-sig"
@@ -469,23 +502,20 @@ def exercise(package, root, os_name, arch):
         assert path.is_file() and os.access(path, os.X_OK), f"Missing executable {path}"
 
     check_native_files(package, [launcher, server, ffmpeg, ffprobe], arch)
-    primary, admin, extra = free_ports()
-    tuner_host = "127.0.0.1"
-    if firewall_requested():
-        # UDP connect selects a local route without sending packets to the destination.
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as route:
-            route.connect(("192.0.2.1", 9))
-            tuner_host = route.getsockname()[0]
-        address = ipaddress.ip_address(tuner_host)
-        assert address.is_private and not address.is_loopback, f"Expected a private runner address: {tuner_host}"
-        primary, admin, extra = 9192, 39192, 9200
-        print("Tuning through the runner's LAN address with the firewall enabled (no off-host Plex client).")
-    base = f"http://{tuner_host}:{primary}"
-    admin_base = f"http://127.0.0.1:{admin}"
     env = {k: v for k, v in os.environ.items() if not k.upper().startswith("ANTENNARR_")}
+    data = root / "Application Data"
+    saved_range = data / "config/port-range"
+    if saved_range.exists():
+        admin = int(saved_range.read_text().split("-", 1)[0])
+    elif firewall_requested():
+        admin = 39192
+    else:
+        admin = free_port_range()
+        env["ANTENNARR_PORT_RANGE"] = f"{admin}-{admin + 6}"
+    admin_base = f"http://127.0.0.1:{admin}"
     if os.name == "nt":
-        windows = Path(env["SystemRoot"])
-        env["PATH"] = os.pathsep.join(map(str, [windows / "System32", windows]))
+        system = windows_system_directory()
+        env["PATH"] = os.pathsep.join(map(str, [system, system.parent]))
     else:
         env["PATH"] = "/usr/bin:/bin"
         env = {k: v for k, v in env.items() if not k.startswith("DYLD_")}
@@ -493,11 +523,7 @@ def exercise(package, root, os_name, arch):
         assert not shutil.which(name, path=env["PATH"]), f"{name} found on isolated test PATH"
     for tool in [ffmpeg, ffprobe]:
         subprocess.run([tool, "-version"], stdout=subprocess.DEVNULL, check=True, timeout=10, env=env)
-    env.update(ANTENNARR_HEADLESS="1", ANTENNARR_DATA=str(root / "Application Data"),
-               ANTENNARR_LISTEN=f"{tuner_host}:{primary}", ANTENNARR_ADMIN_LISTEN=f"127.0.0.1:{admin}",
-               ANTENNARR_TUNER_PORTS=str(extra), ANTENNARR_BASE_URL=base, ANTENNARR_FIXTURES=str(root))
-    if firewall_requested():
-        del env["ANTENNARR_ADMIN_LISTEN"]  # Exercise the desktop launcher’s default loopback administration.
+    env.update(ANTENNARR_HEADLESS="1", ANTENNARR_DATA=str(data), ANTENNARR_FIXTURES=str(root))
     verify_dependency_error(launcher, env, root)
     with running(launcher, env, admin_base, root / "first-run.log"):
         try:
@@ -512,13 +538,18 @@ def exercise(package, root, os_name, arch):
         assert api(admin_base, "/api/settings", {"scans_paused": True})["settings"]["scans_paused"]
         channel = {"id": "mpeg2", "number": "9999", "name": "Native fixture", "enabled": True}
         assert api(admin_base, "/api/profiles") == []
-        profile = api(admin_base, "/api/profiles", {"preset_id": "in-mumbai"})
-        api(admin_base, "/api/profiles/" + profile["id"], {"enabled": True})
-        second = api(admin_base, "/api/profiles", {"preset_id": "de-berlin"})
-        api(admin_base, "/api/profiles/" + second["id"], {"enabled": True})
+        for preset in ("in-mumbai", "de-berlin", "nl-amsterdam", "mx-mexico-city", "us-nyc", "uk-london"):
+            profile = api(admin_base, "/api/profiles", {"preset_id": preset})
+            api(admin_base, "/api/profiles/" + profile["id"], {"enabled": True})
         profiles = api(admin_base, "/api/profiles")
-        saved = next(p for p in profiles if p["id"] == profile["id"])
-        assert {p["tuner_url"] for p in profiles} == {base, f"http://{tuner_host}:{extra}"}
+        saved = profiles[0]
+        tuner_host = urlparse(saved["tuner_url"]).hostname
+        address = ipaddress.IPv4Address(tuner_host)
+        assert address.is_private and (not firewall_requested() or not address.is_loopback), address
+        with socket.socket() as local:
+            local.bind((tuner_host, 0))
+        expected = {f"http://{tuner_host}:{port}" for port in range(admin + 1, admin + 7)}
+        assert {p["tuner_url"] for p in profiles} == expected
         for p in profiles:
             url = p["tuner_url"]
             if os_name == "macos" and firewall_requested():

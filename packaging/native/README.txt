@@ -14,13 +14,13 @@ Start
   Admin, Start at Login to run quietly after you sign in, and Quit to stop.
 
 Connect Plex
-  The tuner uses a private LAN address where available. Allow Plex to reach TCP
-  9192 and 9200–9207 over your private network. Keep these ports off the public
-  Internet. Administration stays on this computer on port 39192.
+  Fresh installations use port 39192 for local web administration and ports
+  39193–39198 for six private LAN tuners. Set ANTENNARR_PORT_RANGE or save
+  a range such as 41000-41006 in config/port-range in the data folder, then
+  restart. The first port opens the web UI. The next six serve Plex tuners.
   @FIREWALL@
-  In Plex Live TV & DVR, enter the address shown in Tuners for the city you chose.
-  To select a particular LAN interface, set ANTENNARR_LISTEN (192.168.1.20:9192)
-  and ANTENNARR_BASE_URL (http://192.168.1.20:9192) before relaunching.
+  In Plex Live TV & DVR, use each tuner's address shown in the web UI.
+  Existing installations keep their original addresses until reconfigured.
 
 Data and updates
   The launcher saves settings, accounts, rosters, and desktop.log here:

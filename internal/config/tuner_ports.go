@@ -10,7 +10,7 @@ import (
 
 // TunerPorts reserves a small, explicit range for additional devices. The
 // primary device keeps its existing URL/listener; offset 1 is the first extra
-// port. Offsets belong to saved profiles and are never recycled on deletion.
+// port. Saved profiles retain their offsets when other tuners change.
 // Keeping published and listening ports equal avoids advertising Docker's
 // internal addresses to a Plex server on another host.
 type TunerPorts struct{ First, Last int }
@@ -42,7 +42,7 @@ func ParseTunerPorts(value string) (TunerPorts, error) {
 
 func (p TunerPorts) Port(offset int) (int, error) {
 	if offset < 1 || offset > p.Last-p.First+1 {
-		return 0, fmt.Errorf("tuner port range is full; expand ANTENNARR_TUNER_PORTS and its private Docker mappings")
+		return 0, fmt.Errorf("tuner port range is full; choose an available tuner slot or expand the legacy listener configuration")
 	}
 	return p.First + offset - 1, nil
 }
@@ -68,11 +68,12 @@ func (p TunerPorts) URL(primary string, offset int) (string, error) {
 }
 
 func (p TunerPorts) ValidateListeners(addresses ...string) error {
+	seen := map[int][]string{}
 	for _, address := range addresses {
 		if address == "" {
 			continue
 		}
-		_, raw, err := net.SplitHostPort(address)
+		host, raw, err := net.SplitHostPort(address)
 		if err != nil {
 			return fmt.Errorf("invalid listener address")
 		}
@@ -80,6 +81,12 @@ func (p TunerPorts) ValidateListeners(addresses ...string) error {
 		if err != nil || port < 1 || port > 65535 {
 			return fmt.Errorf("invalid listener port")
 		}
+		for _, other := range seen[port] {
+			if host == other || host == "" || other == "" || net.ParseIP(host).IsUnspecified() || net.ParseIP(other).IsUnspecified() {
+				return fmt.Errorf("application listeners have overlapping bind addresses")
+			}
+		}
+		seen[port] = append(seen[port], host)
 		if port >= p.First && port <= p.Last {
 			return fmt.Errorf("additional tuner range overlaps another application listener")
 		}

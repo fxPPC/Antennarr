@@ -21,31 +21,41 @@ Use a separate disposable appdata directory. Do not point two containers at the 
 git clone --branch v1.1.0-beta.1 https://github.com/fxPPC/Antennarr.git
 cd Antennarr
 cp portable.env.example .env
-# Edit .env: a separate ANTENNARR_DATA_DIR and an address reachable from Plex.
-ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.1 docker compose -f compose.portable.yaml pull
-ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.1 docker compose -f compose.portable.yaml up -d --no-build
+# In .env, choose a separate ANTENNARR_DATA_DIR. For another Plex host, set
+# ANTENNARR_BIND and ANTENNARR_PLEX_HOST to this server’s private LAN address.
+ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.1 docker compose -f compose.portable.yaml -f compose.range.yaml pull
+ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.1 docker compose -f compose.portable.yaml -f compose.range.yaml up -d --no-build
 ```
 
 These commands pull the published image for Linux amd64 or ARM64. If stable and beta run on the same host, give them separate Compose projects, data directories, and non-overlapping listener and host ports (or run the preview on a separate host).
 
-Open administration on port 39192, sign in with `admin/admin` on a fresh install, and change the login. On a fresh install, the setup wizard opens in **Status**. Choose a city, enable its tuner, and import an authorised source list. Use the tuner address shown in the last step to add it in Plex. You can skip the wizard and reopen it from **Admin**. Add further cities under **Tuners**. An upgraded primary tuner retains its previous enabled state and channels; the new London tuner starts disabled.
+Open the first port in your range (39192 by default), sign in with `admin/admin`, and change the login. The setup wizard opens in **Status** on a fresh installation. Choose a city, enable its tuner, and import an authorised source list. Use the tuner address shown in the last step to add it in Plex. You can skip the wizard and reopen it from **Admin**. Add further cities under **Tuners**. An upgrade preserves saved tuners, their enabled state, and their channels.
 
-## Private ports
+## Web and tuner ports
 
-| Purpose | Default container port | Advertised address example |
-| --- | --- | --- |
-| Existing primary tuner | 9192 | `http://SERVER_LAN_IP:9192` |
-| Administration | 9193 (host 39192) | Browser/proxy only |
-| First additional tuner | 9200 | `http://SERVER_LAN_IP:9200` |
-| Further tuner slots | 9201–9207 | Same hostname, allocated port |
+Choose seven consecutive TCP ports with `ANTENNARR_PORT_RANGE`. The first serves web administration. Each of the following six serves one Plex tuner. For example, `41000-41006` puts administration on 41000 and tuners on 41001–41006. Restart Antennarr after changing the range. A change of tuner address also requires updating Plex.
 
-`ANTENNARR_BASE_URL` supplies the hostname Plex can reach. `ANTENNARR_TUNER_PORTS=9200-9207` reserves eight additional private listeners; a range of 1–64 ports is supported. The supplied Compose files publish that range to `ANTENNARR_BIND`, which defaults to loopback. For Plex on another host, set that bind and the base URL to the Docker server’s LAN address. Keep each additional host port equal to its container port; arbitrary port remapping would make the advertised URL wrong.
+| Fresh-install default | Purpose |
+| --- | --- |
+| 39192 | Web UI and administration API |
+| 39193–39198 | Six tuner slots, with independent device IDs and channel lineups |
 
-A shared user-defined Docker network needs **no published tuner ports**. Use `http://antennarr:9192` as the base URL; the first additional tuner is then `http://antennarr:9200`. Remove the tuner mappings from your local Compose configuration if only network peers need access. Docker documents this distinction in [port publishing](https://docs.docker.com/engine/network/port-publishing/).
+The Compose example above uses Docker Compose 2.24.4 or later. It publishes the selected range to loopback by default. To let Plex connect from another computer, set `ANTENNARR_BIND` to the Docker host’s private LAN IP and `ANTENNARR_PLEX_HOST` to the IP or hostname Plex can reach. This makes the web UI reachable on the same private interface. To keep the UI on the host while serving tuners to the LAN, publish the ports separately. For example:
 
-No public firewall ports are needed. Send an internet-facing HTTPS administration proxy only to port 9193. The additional listeners expose tuner endpoints, never administration or account APIs. Ports for disabled tuners return 503, and unassigned ports return 404. The old port-5004 compatibility endpoint remains primary-only; it cannot distinguish overlapping channel numbers from two markets.
+```sh
+docker run -d --name antennarr-beta --restart unless-stopped \
+  -p 127.0.0.1:41000:41000 \
+  -p YOUR_SERVER_LAN_IP:41001-41006:41001-41006 \
+  -e ANTENNARR_PORT_RANGE=41000-41006 \
+  -e ANTENNARR_BASE_URL=http://YOUR_SERVER_LAN_IP \
+  -v /YOUR/BETA/APPDATA:/data antennarr/antennarr:v1.1.0-beta.1
+```
 
-An added tuner keeps its allocated port and DeviceID across renames and restarts. Deleting a tuner permanently removes that identity; re-adding its preset creates a new identity and the next unused slot, requiring Plex setup again. Removed slots are not recycled. Extend the range’s upper end (keeping its first port unchanged) and matching Compose mappings, then recreate the container if slots are exhausted. Startup rejects a range that overlaps the primary, admin, or compatibility listener.
+For Plex on the same private Docker network, set `ANTENNARR_BASE_URL=http://antennarr` and use `antennarr` as a network alias. The app adds the first tuner port. An HTTPS reverse proxy needs only the administration port. Keep all tuner ports on the private network.
+
+### Upgrading an existing Plex installation
+
+Keep the current Compose file, Docker network name and aliases, port mappings, listener variables, advertised base URL, and appdata. Change the image tag only. Existing installations retain their listener layout, including a primary tuner on 9192, additional tuners beginning at 9200, and the optional primary-only compatibility listener on 5004 when previously configured. Plex can continue using the same addresses and device IDs. Choose the seven-port range explicitly when you are ready to update Plex. The range overlay above is for new or deliberately reconfigured installations.
 
 ## Plex and guides
 

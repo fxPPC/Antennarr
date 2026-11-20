@@ -16,6 +16,7 @@ type Channel struct {
 	Fixture string `json:"fixture,omitempty"`
 }
 type Config struct {
+	PortRange     string                     `json:"port_range,omitempty"`
 	FormatVersion int                        `json:"format_version"`
 	ProfileID     string                     `json:"profile_id"`
 	Extensions    map[string]json.RawMessage `json:"extensions,omitempty"`
@@ -58,7 +59,7 @@ func Load(root string) (Config, error) {
 				sum ^= n
 			}
 		}
-		c = Config{Settings: FreshSettings(), FormatVersion: 1, ProfileID: "primary", DeviceID: fmt.Sprintf("%s%x", id, sum), Tuners: 3, GraceSeconds: 5}
+		c = Config{PortRange: freshPortRange(), Settings: FreshSettings(), FormatVersion: 1, ProfileID: "primary", DeviceID: fmt.Sprintf("%s%x", id, sum), Tuners: 3, GraceSeconds: 5}
 		b, _ = json.MarshalIndent(c, "", "  ")
 		err = os.WriteFile(path, b, 0600)
 	} else if err == nil {
@@ -80,6 +81,11 @@ func Load(root string) (Config, error) {
 	return c, Validate(c)
 }
 func Validate(c Config) error {
+	if c.PortRange != "" {
+		if _, err := firstRangePort(c.PortRange); err != nil {
+			return err
+		}
+	}
 	if c.FormatVersion > 1 || c.FormatVersion < 0 {
 		return fmt.Errorf("configuration requires a newer application")
 	}

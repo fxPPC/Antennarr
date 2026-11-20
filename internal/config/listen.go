@@ -14,11 +14,3 @@ func PrivateIPv4() string {
 	}
 	return ""
 }
-
-func DesktopTunerListen() string {
-	host := PrivateIPv4()
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	return net.JoinHostPort(host, "9192")
-}
