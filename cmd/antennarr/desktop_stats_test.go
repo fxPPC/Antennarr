@@ -32,7 +32,7 @@ func TestDesktopStatsShowViewersAndEnabledChannelsWithFeeds(t *testing.T) {
 	go func() {
 		defer close(done)
 		defer writer.Close()
-		writeDesktopStats(ctx, writer, s, func() stream.Status { return stream.Status{Viewers: 2} })
+		writeDesktopStats(ctx, func(v desktopstats.Counters) error { return json.NewEncoder(writer).Encode(v) }, s, func() stream.Status { return stream.Status{Viewers: 2} })
 	}()
 	var counts desktopstats.Counters
 	err = json.NewDecoder(reader).Decode(&counts)

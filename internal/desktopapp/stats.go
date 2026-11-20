@@ -1,6 +1,6 @@
 //go:build darwin || windows
 
-package main
+package desktopapp
 
 import (
 	"antennarr/internal/desktopstats"
@@ -18,10 +18,15 @@ func (s *session) readStats(reader *os.File) {
 		if d.Decode(&counts) != nil {
 			return
 		}
-		s.mu.Lock()
-		s.counters, s.countedAt = counts, time.Now()
-		s.mu.Unlock()
+		s.recordStats(counts)
 	}
+}
+
+func (s *session) recordStats(counts desktopstats.Counters) error {
+	s.mu.Lock()
+	s.counters, s.countedAt = counts, time.Now()
+	s.mu.Unlock()
+	return nil
 }
 
 func (s *session) stats() (viewers int, channels int, ok bool) {

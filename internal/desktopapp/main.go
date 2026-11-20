@@ -1,7 +1,7 @@
 //go:build darwin || windows
 
-// The desktop launcher and headless mode start exactly the same server.
-package main
+// Package desktopapp runs the native menu and its tuner server.
+package desktopapp
 
 import (
 	"antennarr/internal/config"
@@ -31,6 +31,9 @@ const (
 	stopped
 )
 
+// Server runs the Mac tuner until its context is cancelled.
+type Server func(context.Context, io.Writer, func(desktopstats.Counters) error) error
+
 type session struct {
 	counters  desktopstats.Counters
 	countedAt time.Time
@@ -39,7 +42,7 @@ type session struct {
 	detail    string
 	adminURL  string
 	data      string
-	stopPipe  *os.File
+	stop      func()
 	done      chan struct{}
 }
 
@@ -53,12 +56,6 @@ func (s *session) update(status int, detail string) {
 	defer s.mu.Unlock()
 	s.state, s.detail = status, detail
 }
-func (s *session) stop() {
-	if s.stopPipe != nil {
-		_ = s.stopPipe.Close()
-	}
-}
-
 func defaultEnv(name, value string) string {
 	if existing := os.Getenv(name); existing != "" {
 		return existing
@@ -78,7 +75,7 @@ func privateAddress(listen string) (string, error) {
 	return (&url.URL{Scheme: "http", Host: net.JoinHostPort(host, port)}).String(), nil
 }
 
-func (s *session) start(headless bool) error {
+func (s *session) start(headless bool, serve Server) error {
 	self, err := os.Executable()
 	if err != nil {
 		return err
@@ -101,11 +98,16 @@ func (s *session) start(headless bool) error {
 	}
 	probe := filepath.Join(filepath.Dir(ffmpeg), "ffprobe"+ext)
 	for _, tool := range []string{ffmpeg, probe} {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		// First launch can involve macOS code verification or Rosetta translation.
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 		cmd := exec.CommandContext(ctx, tool, "-version")
 		hideConsole(cmd)
 		err := cmd.Run()
+		timedOut := ctx.Err() == context.DeadlineExceeded
 		cancel()
+		if timedOut {
+			return fmt.Errorf("%s did not start within 45 seconds", filepath.Base(tool))
+		}
 		if err != nil {
 			return fmt.Errorf("%s could not start. Extract the complete download, including its media tools and libraries: %w", filepath.Base(tool), err)
 		}
@@ -152,51 +154,26 @@ func (s *session) start(headless bool) error {
 		return fmt.Errorf("cannot write the desktop log: %w", err)
 	}
 
-	serverPath, err := serverExecutable(dir, !headless)
-	if err != nil {
-		log.Close()
-		return err
-	}
-	server := exec.Command(serverPath)
-	hideConsole(server)
-	server.Env = append(os.Environ(), "ANTENNARR_DESKTOP_CHILD=1")
-	server.Stderr = log
+	var output io.Writer = log
 	if headless {
-		server.Stderr = io.MultiWriter(log, os.Stderr)
+		output = io.MultiWriter(log, os.Stderr)
 	}
-	reader, writer, err := os.Pipe()
+	wait, err := s.startServer(dir, output, serve)
 	if err != nil {
 		log.Close()
 		return err
 	}
-	defer reader.Close()
-	server.Stdin = reader
-	statsReader, statsWriter, err := os.Pipe()
-	if err != nil {
-		writer.Close()
-		log.Close()
-		return err
-	}
-	defer statsWriter.Close()
-	server.Stdout = statsWriter
-	if err = server.Start(); err != nil {
-		statsReader.Close()
-		log.Close()
-		writer.Close()
-		return fmt.Errorf("could not start the Antennarr server: %w", err)
-	}
-	s.stopPipe, s.done = writer, make(chan struct{})
+	s.done = make(chan struct{})
 	go func() {
-		err := server.Wait()
+		err := wait()
 		log.Close()
 		if err != nil {
-			s.update(failed, "Server stopped. Check that the private ports are available and see "+logPath+". "+err.Error())
+			s.update(failed, "Server stopped. Check "+logPath+". "+err.Error())
 		} else {
 			s.update(stopped, "Server stopped.")
 		}
 		close(s.done)
 	}()
-	go s.readStats(statsReader)
 	go s.watchReady()
 	return nil
 }
@@ -221,7 +198,7 @@ func (s *session) watchReady() {
 			if r.StatusCode == http.StatusOK && err == nil && health.Status == "ok" && health.Stage == "ready" {
 				s.mu.Lock()
 				// A different local service may already own this port. Open the
-				// dashboard only after our child also sends its own status.
+				// dashboard only after this server reports its own status.
 				confirmed := !s.countedAt.IsZero()
 				if s.state == starting && confirmed {
 					s.state, s.detail = ready, "Antennarr is running."
@@ -270,7 +247,7 @@ func (s *session) checkMenu() error {
 	}
 }
 
-func run() error {
+func run(serve Server) error {
 	testMenu := os.Getenv("ANTENNARR_MENU_TEST") == "1"
 	headless := testMenu || os.Getenv("ANTENNARR_HEADLESS") == "1"
 	if !headless {
@@ -284,7 +261,7 @@ func run() error {
 		defer release()
 	}
 	s := &session{detail: "Starting Antennarr…"}
-	if err := s.start(headless); err != nil {
+	if err := s.start(headless, serve); err != nil {
 		return err
 	}
 	defer s.stop()
@@ -313,9 +290,8 @@ func run() error {
 	return err
 }
 
-func main() {
-	runtime.LockOSThread()
-	if err := run(); err != nil {
+func Main(serve Server) {
+	if err := run(serve); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		if os.Getenv("ANTENNARR_HEADLESS") != "1" && os.Getenv("ANTENNARR_MENU_TEST") != "1" {
 			showError(err.Error())

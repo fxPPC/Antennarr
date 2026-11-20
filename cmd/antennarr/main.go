@@ -7,6 +7,7 @@ import (
 	"antennarr/internal/budget"
 	"antennarr/internal/catalog"
 	"antennarr/internal/config"
+	"antennarr/internal/desktopstats"
 	"antennarr/internal/engine"
 	"antennarr/internal/media"
 	"antennarr/internal/moderation"
@@ -18,6 +19,8 @@ import (
 	"antennarr/internal/systeminfo"
 	"antennarr/internal/tuner"
 	"context"
+	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net"
@@ -31,13 +34,19 @@ import (
 	"time"
 )
 
-func main() {
+func serverMain() {
 	if len(os.Args) == 2 && os.Args[1] == "healthcheck" {
 		os.Exit(healthcheck())
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	var output io.Writer = os.Stdout
+	var counts func(desktopstats.Counters) error
 	if os.Getenv("ANTENNARR_DESKTOP_CHILD") == "1" {
+		output = os.Stderr
+		encoder := json.NewEncoder(os.Stdout)
+		counts = func(v desktopstats.Counters) error { return encoder.Encode(v) }
+
 		// Only the desktop launcher owns the pipe's write end. EOF also covers
 		// an unexpected launcher exit, including during a maintenance restart.
 		go func() {
@@ -45,50 +54,59 @@ func main() {
 			stop()
 		}()
 	}
-	for ctx.Err() == nil && run(ctx) {
+	if err := serve(ctx, output, counts); err != nil {
+		os.Exit(1)
 	}
 }
 
-func run(parent context.Context) bool {
+// serve owns the complete lifetime of the server, including requested desktop maintenance restarts.
+func serve(ctx context.Context, logOutput io.Writer, report func(desktopstats.Counters) error) error {
+	for ctx.Err() == nil {
+		restart, err := run(ctx, logOutput, report)
+		if err != nil || !restart {
+			return err
+		}
+	}
+	return nil
+}
+
+var errServerStopped = errors.New("Antennarr could not run. See the server log for details.")
+
+func run(parent context.Context, logOutput io.Writer, report func(desktopstats.Counters) error) (bool, error) {
 	var initialLevel slog.Level
 	levelErr := initialLevel.UnmarshalText([]byte(env("ANTENNARR_LOG_LEVEL", "DEBUG")))
 	var level slog.LevelVar
 	level.Set(initialLevel)
-	logOutput := os.Stdout
-	desktopChild := os.Getenv("ANTENNARR_DESKTOP_CHILD") == "1"
-	if desktopChild {
-		logOutput = os.Stderr // stdout carries only the two menu counters.
-	}
 	logger := slog.New(slog.NewJSONHandler(logOutput, &slog.HandlerOptions{Level: &level}))
 	slog.SetDefault(logger)
 	if levelErr != nil {
 		slog.Error("invalid logging level")
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	// Storage/tool locations are trusted deployment configuration, never values
 	// taken from HTTP requests, provider catalogues, or imported lists.
 	root, err := dataDirectory()
 	if err != nil {
 		slog.Error("cannot determine the appdata directory", "error", err)
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	binary, err := ffmpegBinary()
 	if err != nil {
 		slog.Error("media tools unavailable", "error", err)
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	if err := recovery.ApplyReset(root); err != nil {
 		startupError("reset failed", root, err)
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	if err := recovery.ApplyPending(root); err != nil {
 		startupError("pending restore could not be applied", root, err)
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	c, err := config.Load(root)
 	if err != nil {
 		startupError("configuration unavailable", root, err)
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	level.Set(c.Settings.LogLevel())
 	desktop := runtime.GOOS == "darwin" || runtime.GOOS == "windows"
@@ -96,37 +114,37 @@ func run(parent context.Context) bool {
 	ports := listeners.Extra
 	if err != nil {
 		slog.Error("invalid tuner listener configuration", "error", err)
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	login, err := config.OpenAdminLogin(root)
 	if err != nil {
 		startupError("admin credential unavailable", root, err)
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	store, err := catalog.OpenWithDefaults(root)
 	if err != nil {
 		startupError("catalogue unavailable", root, err)
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	defer store.Close()
 	if recovered, e := store.RecoverImportJobs(); e != nil {
 		startupError("import recovery failed", root, e)
-		os.Exit(1)
+		return false, errServerStopped
 	} else if recovered > 0 {
 		slog.Info("interrupted imports recovered", "count", recovered)
 	}
 	if err = store.MigratePlaybackQuality(c.Settings.AllowUHD); err != nil {
 		slog.Error("quality policy setup failed")
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	if err = store.RefreshMatching(); err != nil {
 		slog.Error("channel matching unavailable")
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	base, err := listeners.BaseURL(os.Getenv("ANTENNARR_BASE_URL"), desktop)
 	if err != nil {
 		slog.Error("cannot determine tuner address", "error", err)
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	var m *stream.Manager
 	readChecks := func() config.Settings {
@@ -145,24 +163,24 @@ func run(parent context.Context) bool {
 	checkGateway, err := media.NewGateway(probeClient)
 	if err != nil {
 		slog.Error("check gateway unavailable")
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	defer checkGateway.Close()
 	gateway, err := media.NewGateway(nil)
 	if err != nil {
 		slog.Error("media gateway unavailable")
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	defer gateway.Close()
 	limits := budget.New(c.Settings.GlobalConnections, c.Settings.ProviderConnections)
 	work := activity.New()
 	if err = store.EnableRosters(catalog.RosterPolicy{Target: c.Settings.RosterTarget, Preference: c.Settings.SelectionPreference, Race: c.Settings.StartupRace}); err != nil {
 		slog.Error("roster initialisation failed")
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	if err = store.ReconcileRosters(); err != nil {
 		slog.Error("roster eligibility refresh failed")
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	checks := &roster.Service{Settings: readChecks, Activity: work, Store: store, Budget: limits, Gateway: checkGateway, Client: client, Binary: binary, Live: func() bool { return m != nil && m.Status().Viewers > 0 }}
 	eng := &engine.Engine{Activity: work, RaceSize: c.Settings.StartupRace, Buffer: time.Duration(c.Settings.BufferSeconds) * time.Second, StallTimeout: time.Duration(c.Settings.StallTimeoutMS) * time.Millisecond, Catalogue: checks, Budget: limits, Binary: binary, Preempt: checks.Preempt, Copy: func(ctx context.Context, u string, emit func([]byte)) error {
@@ -218,7 +236,7 @@ func run(parent context.Context) bool {
 	guard, guardErr := access.New(os.Getenv("ANTENNARR_TRUSTED_PROXIES"))
 	if guardErr != nil {
 		slog.Error("trusted proxy configuration invalid")
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	system := systeminfo.New(root, func() (bool, bool) {
 		state := checks.CheckerState().State
@@ -253,13 +271,13 @@ func run(parent context.Context) bool {
 	profiles, err := store.Profiles()
 	if err != nil {
 		slog.Error("tuner profiles unavailable")
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	for _, profile := range profiles {
 		if profile.Enabled {
 			if _, err = ports.URL(base, profile.PortOffset); err != nil {
 				slog.Error("enabled tuner has no configured address", "profile_id", profile.ID, "error", err)
-				os.Exit(1)
+				return false, errServerStopped
 			}
 		}
 	}
@@ -281,8 +299,9 @@ func run(parent context.Context) bool {
 		listener, e := net.Listen("tcp", net.JoinHostPort(bindHost, strconv.Itoa(port)))
 		if e != nil {
 			slog.Error("additional tuner listener unavailable", "port", port, "error", e)
-			os.Exit(1)
+			return false, errServerStopped
 		}
+		defer listener.Close()
 		extra = append(extra, deviceListener{&http.Server{Handler: fleet.Handler(port - ports.First + 1), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}, listener})
 	}
 	var adminServer *http.Server
@@ -291,8 +310,9 @@ func run(parent context.Context) bool {
 		adminListener, err = net.Listen("tcp", addr)
 		if err != nil {
 			slog.Error("administration listener unavailable", "error", err)
-			os.Exit(1)
+			return false, errServerStopped
 		}
+		defer adminListener.Close()
 		adminServer = &http.Server{Handler: s.AdminHandler(), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 2 * time.Minute, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
 	}
 	var compat *http.Server
@@ -301,18 +321,22 @@ func run(parent context.Context) bool {
 		compatListener, err = net.Listen("tcp", addr)
 		if err != nil {
 			slog.Error("compatibility listener unavailable", "error", err)
-			os.Exit(1)
+			return false, errServerStopped
 		}
+		defer compatListener.Close()
 		compat = &http.Server{Handler: fleet.FallbackHandler(), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
 	}
 	primaryListener, err := net.Listen("tcp", srv.Addr)
 	if err != nil {
 		slog.Error("primary tuner listener unavailable", "error", err)
-		os.Exit(1)
+		return false, errServerStopped
 	}
-	if desktopChild {
-		// An initial count also confirms this child owns every requested port.
-		go writeDesktopStats(ctx, os.Stdout, store, m.Status)
+	defer primaryListener.Close()
+	if report != nil {
+		// The first count confirms this server owns every requested listener.
+		done := make(chan struct{})
+		go func() { defer close(done); writeDesktopStats(ctx, report, store, m.Status) }()
+		defer func() { stop(); <-done }()
 	}
 	go system.Run(ctx)
 	for _, device := range extra {
@@ -369,12 +393,12 @@ func run(parent context.Context) bool {
 	slog.Info("tuner starting", "version", "v1.1.0-beta.1", "schema", 9, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
 	if err = srv.Serve(primaryListener); err != nil && err != http.ErrServerClosed {
 		slog.Error("HTTP server failed")
-		os.Exit(1)
+		return false, errServerStopped
 	}
 	<-shutdownDone
 	// Container restarts stay with its supervisor. Standalone applications
 	// close the old store and listeners before applying the staged operation.
-	return restartRequested.Load() && (runtime.GOOS == "darwin" || runtime.GOOS == "windows")
+	return restartRequested.Load() && (runtime.GOOS == "darwin" || runtime.GOOS == "windows"), nil
 }
 func env(k, d string) string {
 	if s := os.Getenv(k); s != "" {

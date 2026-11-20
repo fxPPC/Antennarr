@@ -1,4 +1,4 @@
-package main
+package desktopapp
 
 import (
 	"errors"
@@ -24,10 +24,6 @@ var (
 
 const trayWindowClass = "AntennarrBetaNotificationArea"
 const openApplication = 0x8003 // WM_APP + 3
-
-func serverExecutable(dir string, _ bool) (string, error) {
-	return filepath.Join(dir, "antennarr-server.exe"), nil
-}
 
 func loginLaunch() bool { return len(os.Args) == 2 && os.Args[1] == "--login-item" }
 
