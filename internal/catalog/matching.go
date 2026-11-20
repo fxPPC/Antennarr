@@ -53,7 +53,17 @@ func sourceWords(name string) []string {
 		out[i] = name[l[0]:l[1]]
 		before := strings.TrimSpace(name[:l[0]])
 		after := strings.TrimSpace(name[l[1]:])
-		// Only a complete single-token tag marks an ambiguous country code.
+		// Providers also delimit the Indian tag as "IN | name" or "IN: name".
+		// Keep ordinary "in" in service names and country-like brands such as CW.
+		if strings.EqualFold(out[i], "IN") {
+			prefix := i == 0 && (strings.HasPrefix(after, "|") || strings.HasPrefix(after, ":"))
+			suffix := i == len(locs)-1 && strings.HasSuffix(before, "|")
+			if prefix || suffix {
+				out[i] = "[" + out[i] + "]"
+				continue
+			}
+		}
+		// Only a complete single-token bracketed tag marks an ambiguous country code.
 		// Closing punctuation in (The CW) or [WCBS TV] belongs to the whole
 		// brand, and must not turn CW into Curaçao or TV into Tuvalu.
 		if before != "" && after != "" {

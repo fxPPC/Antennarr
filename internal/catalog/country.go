@@ -42,7 +42,7 @@ func loadCountryAliases() (map[string]string, int) {
 
 // Country tags belong at label boundaries. Never strip ordinary short words
 // from inside channel names ("Made in Chelsea", "It Takes Two", etc.).
-// Ambiguous short codes require explicit brackets in a provider name, but not in the
+// Ambiguous short codes require a delimited tag in a provider name, but not in the
 // explicit Country field. Full names and other codes are case-insensitive.
 func splitCountry(ts, original []string, explicit bool) ([]string, []string, string) {
 	// CW is also a network name; only [CW] or an explicit region means Curaçao.
@@ -83,7 +83,7 @@ func splitCountry(ts, original []string, explicit bool) ([]string, []string, str
 		key := ts[i]
 		code := countryAliases[key]
 		tagged := strings.HasPrefix(original[i], "[")
-		ambiguousWord := strings.Contains(ambiguous, " "+key+" ") || strings.Contains(" can are and ago arm cod fin guy gum jam lie mac mar nor pan per pry sur ton vat ms ", " "+key+" ")
+		ambiguousWord := strings.Contains(ambiguous, " "+key+" ") || strings.Contains(" can are and ago arm cod de fin guy gum jam la lie mac mar nor pan per pry sur ton vat ms ", " "+key+" ")
 		if code != "" && (tagged || (!ambiguousWord && len(key) <= 3)) {
 			if country != "" && country != code {
 				return ts, original, "conflict"

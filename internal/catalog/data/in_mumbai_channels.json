@@ -1,0 +1,399 @@
+[
+  {
+    "number": "001",
+    "name": "DD News",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "DDNews",
+      "Doordarshan News",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "002",
+    "name": "DD National",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "DDNational",
+      "Doordarshan National",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "003",
+    "name": "DD Kisan",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "DDKisan",
+      "Doordarshan Kisan",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "006",
+    "name": "Sun Marathi",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "SunMarathi",
+      "सन मराठी",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "009",
+    "name": "B4U Music",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "B4U Music India",
+      "B4UMusic",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "010",
+    "name": "ABP News",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "ABPNews",
+      "एबीपी न्यूज़",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "012",
+    "name": "B4U Movies",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "B4U Movies India",
+      "B4UMovies",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "016",
+    "name": "Aaj Tak",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "AajTak",
+      "आज तक",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "020",
+    "name": "Star Utsav Movies",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "StarUtsavMovies",
+      "स्टार उत्सव मूवीज",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "023",
+    "name": "DD Sahyadri",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "Doordarshan Sahyadri",
+      "DDSahyadri",
+      "डीडी सह्याद्री",
+      "दूरदर्शन सह्याद्री",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "024",
+    "name": "Fakt Marathi",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "FaktMarathi",
+      "फक्त मराठी",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "025",
+    "name": "Star Utsav",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "StarUtsav",
+      "स्टार उत्सव",
+      "-movies",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "026",
+    "name": "Sansad TV 1",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "Sansad TV1",
+      "SansadTV1",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "027",
+    "name": "Sansad TV 2",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "Sansad TV2",
+      "SansadTV2",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "028",
+    "name": "Shemaroo TV",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "ShemarooTV",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "039",
+    "name": "Sony Pal",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "SonyPal",
+      "सोनी पल",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "049",
+    "name": "Sony Wah",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "SonyWah",
+      "सोनी वाह",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "051",
+    "name": "Zee News",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "ZeeNews",
+      "ज़ी न्यूज़",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "067",
+    "name": "Republic Bharat",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "RepublicBharat",
+      "R Bharat",
+      "रिपब्लिक भारत",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "073",
+    "name": "DD Sports",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "DDSports",
+      "Doordarshan Sports",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "074",
+    "name": "DD Bharati",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "DDBharati",
+      "Doordarshan Bharati",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "148",
+    "name": "TV9 Marathi",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "TV 9 Marathi",
+      "TV9Marathi",
+      "टीव्ही ९ मराठी",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  },
+  {
+    "number": "157",
+    "name": "Republic TV",
+    "region": "IN",
+    "enabled": true,
+    "aliases": [
+      "RepublicTV",
+      "-bharat",
+      "-bangla",
+      "-kannada",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-catch up",
+      "-replay",
+      "-24/7",
+      "-VOD"
+    ]
+  }
+]
