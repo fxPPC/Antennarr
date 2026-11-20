@@ -1,10 +1,14 @@
 # Releases
 
-Releases follow [the versioning and compatibility policy](VERSIONING.md). Stable releases use `vMAJOR.MINOR.PATCH`; opt-in test releases append `-alpha.N`, `-beta.N`, or `-rc.N`. Exact Git and Docker tags are immutable. Stable releases advance their minor Docker tag (`1.0`, `1.1`, etc.); only explicit promotion advances `latest` and GitHub's recommended release. Historical beta tags remain available.
+Releases follow [the versioning and compatibility policy](VERSIONING.md). Stable releases use `vMAJOR.MINOR.PATCH`; opt-in test releases append `-alpha.N`, `-beta.N`, or `-rc.N`. Exact Git and Docker tags are immutable. Stable releases advance their minor Docker tag (`1.0`, `1.1`, etc.); only explicit promotion advances `latest` and GitHub's recommended release. Historical release source is available on GitHub. Check Docker Hub for available image tags.
 
 ## GitHub-only source previews
 
 For an explicitly requested source-only alpha such as `v1.1.0-alpha.2`, merge the reviewed PR after Source checks pass, then create a GitHub prerelease against that exact commit. Attach the clean source archive and its SHA-256 checksum while the release is still a draft. Mark it as a prerelease and not latest. Do **not** run Approved release: that workflow publishes Docker images. Source previews do not change Docker Hub tags, its overview, or running installations. State the tests completed and the remaining real-Plex gates in the notes.
+
+## Publish an existing ARM64 alpha
+
+Run **Publish ARM64 preview** from `main` with the exact immutable GitHub prerelease tag. The workflow builds the tagged source on ARM64, runs permission and media tests, and checks the scan against the findings approved for that version. Approving the release job publishes only the exact alpha tag. Verify the published revision and digest before deploying.
 
 ## Checks and candidates
 

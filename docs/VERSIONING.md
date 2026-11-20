@@ -1,6 +1,6 @@
 # Versioning and data compatibility
 
-Antennarr uses [Semantic Versioning 2.0.0](https://semver.org/): compatible fixes increment PATCH, compatible features increment MINOR, and incompatible public-interface changes increment MAJOR. Git and Docker release tags add the conventional `v` prefix. Published version tags and assets are immutable.
+Antennarr uses [Semantic Versioning 2.0.0](https://semver.org/): compatible fixes increment PATCH, compatible features increment MINOR, and incompatible public-interface changes increment MAJOR. Git and Docker release tags add the conventional `v` prefix. Exact version tags identify a single release. Historical source remains on GitHub. Older Docker images may be removed from Docker Hub.
 
 ## Public compatibility contract
 
@@ -39,9 +39,9 @@ These are release acceptance requirements. They are not implemented or proven me
 
 | Tag | Meaning |
 | --- | --- |
-| `v1.0.4` | Immutable exact stable release |
+| `v1.0.7` | Immutable exact stable release |
 | `1.0` | Most recent published stable 1.0 patch |
-| `v1.1.0-alpha.1`, `v1.1.0-beta.1`, `v1.1.0-rc.1` | Immutable, opt-in prereleases |
+| `v1.1.0-alpha.8` | Opt-in ARM64 preview |
 | `1.1` | Most recent published stable 1.1 patch; absent until a stable release |
 | `latest` | Explicitly promoted recommended stable release |
 

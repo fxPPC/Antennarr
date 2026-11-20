@@ -11,8 +11,11 @@ git clone --branch v1.1.0-alpha.8 https://github.com/fxPPC/Antennarr.git
 cd Antennarr
 cp portable.env.example .env
 # Edit .env: a separate ANTENNARR_DATA_DIR and an address reachable from Plex.
-docker compose -f compose.portable.yaml up -d --build
+ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-alpha.8 docker compose -f compose.portable.yaml pull
+ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-alpha.8 docker compose -f compose.portable.yaml up -d --no-build
 ```
+
+These commands use the published ARM64 image. On amd64, build the same checkout locally with `ANTENNARR_IMAGE=antennarr:local docker compose -f compose.portable.yaml up -d --build`. If stable and alpha run on the same host, give them separate Compose projects, data directories, and non-overlapping listener and host ports (or run the preview on a separate host).
 
 Open administration on port 39192, sign in with `admin/admin` on a fresh install, and change the login. In first-time setup, choose the tuners you want and enable them, import authorised sources, and wait for suitable streams to fill their rosters. An upgraded primary tuner retains its previous enabled state and channels; the new London tuner starts disabled.
 
@@ -27,7 +30,7 @@ Open administration on port 39192, sign in with `admin/admin` on a fresh install
 
 `ANTENNARR_BASE_URL` supplies the hostname Plex can reach. `ANTENNARR_TUNER_PORTS=9200-9207` reserves eight additional private listeners; a range of 1–64 ports is supported. The supplied Compose files publish that range to `ANTENNARR_BIND`, which defaults to loopback. For Plex on another host, set that bind and the base URL to the Docker server’s LAN address. Keep each additional host port equal to its container port; arbitrary port remapping would make the advertised URL wrong.
 
-A shared user-defined Docker network needs **no published tuner ports**. Use `http://antennarr:9192` as the base URL; London is then `http://antennarr:9200`. Remove the tuner mappings from your local Compose configuration if only network peers need access. Docker documents this distinction in [port publishing](https://docs.docker.com/engine/network/port-publishing/).
+A shared user-defined Docker network needs **no published tuner ports**. Use `http://antennarr:9192` as the base URL; the first additional tuner is then `http://antennarr:9200`. Remove the tuner mappings from your local Compose configuration if only network peers need access. Docker documents this distinction in [port publishing](https://docs.docker.com/engine/network/port-publishing/).
 
 No public firewall ports are needed. Send an internet-facing HTTPS administration proxy only to port 9193. The additional listeners expose tuner endpoints, never administration or account APIs. Ports for disabled tuners return 503, and unassigned ports return 404. The old port-5004 compatibility endpoint remains primary-only; it cannot distinguish overlapping channel numbers from two markets.
 

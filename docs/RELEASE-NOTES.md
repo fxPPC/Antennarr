@@ -9,7 +9,7 @@
 - Each tuner has a single preferred playback quality setting: Automatic, 720p, 1080p, or UHD (4K). All tuners share the outgoing stream limit. Viewers watching the same channel share its upstream feeds.
 - Opening a 1.0 data directory upgrades it from schema 8 to 9. The primary tuner keeps its identity, channel edits, and rosters. Existing 1.1 installations reopen their saved lineup. Make a manual backup before upgrading if you need a route back to 1.0.
 
-This is an opt-in alpha. Use v1.0.7 for the stable release. Multi-market Plex recordings with overlapping channel numbers still need wider testing.
+The ARM64 Docker image is `antennarr/antennarr:v1.1.0-alpha.8`. Stable tags `1.0` and `latest` point to v1.0.7. Multi-market Plex recordings with overlapping channel numbers still need wider testing.
 
 # v1.1.0-alpha.7
 
