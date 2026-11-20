@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create synthetic upgrade-test appdata with the published v1.0.0 image.
+"""Create synthetic upgrade-test appdata from the v1.0.0 release source.
 
 Usage: python3 scripts/make-upgrade-fixture.py /tmp/antennarr-upgrade-fixture
 Requires Docker. Refuses an existing output directory. Never reads live appdata.
@@ -14,7 +14,7 @@ import time
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('output', type=Path)
-parser.add_argument('--image', default='antennarr/antennarr@sha256:6387c9ad3ddad3653d67e98d0eaa4e7be595cd94f9617dd40eb6515ddb196695')
+parser.add_argument('--image', help='Use an existing v1.0.0 image instead of building it')
 args = parser.parse_args()
 root = args.output.resolve()
 if root.exists():
@@ -33,9 +33,15 @@ def docker(*parts):
 
 
 try:
+    image = args.image
+    if not image:
+        revision = '4f948cca0f4395bbe8aad109558e1fe151775827'
+        image = f'antennarr-fixture:{revision}'
+        subprocess.run(['docker', 'build', '--tag', image,
+                        f'https://github.com/fxPPC/Antennarr.git#{revision}'], check=True)
     docker('run', '-d', '--name', name, '--network', 'none', '--user', f'{uid}:{gid}',
            '--mount', f'type=bind,src={data},dst=/data',
-           '-e', 'ANTENNARR_ADMIN_LISTEN=:9193', '-e', 'ANTENNARR_BASE_URL=http://fixture:9192', args.image)
+           '-e', 'ANTENNARR_ADMIN_LISTEN=:9193', '-e', 'ANTENNARR_BASE_URL=http://fixture:9192', image)
 
     def get(path, admin=True):
         auth = ['-u', 'admin:admin'] if admin else []
@@ -49,7 +55,7 @@ try:
         except subprocess.CalledProcessError:
             time.sleep(0.2)
     else:
-        raise RuntimeError('Published image failed to initialise')
+        raise RuntimeError('Baseline image failed to initialise')
     channels = json.loads(get('/api/channels'))
     channel = next(c['id'] for c in channels if c['name'] == 'CNN')
     expected = {path: get(path, False) for path in ['/discover.json', '/lineup.json', '/device.xml']}
