@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: '1.27.4'
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -39,7 +39,7 @@ jobs:
       - run: ANTENNARR_TEST_IMAGE=antennarr:source-check python3 packaging/test-permissions.py
       - run: ANTENNARR_TEST_IMAGE=antennarr:source-check ANTENNARR_TEST_FIXTURES=/tmp/antennarr-fixtures sh packaging/test-runtime-media.sh
       - name: Scan runtime packages
-        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with:
           image: antennarr:source-check
           grype-version: v0.121.3

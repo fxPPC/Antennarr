@@ -8,10 +8,10 @@ Antennarr turns authorised Xtream account lists into HDHomeRun-compatible tuners
 
 | Release | Docker Hub tag | Linux platforms | Fresh installation |
 | --- | --- | --- | --- |
-| Stable 1.0 | `1.0` or `latest`; pin `v1.0.7` for the exact release | amd64, ARM64 | One US tuner with 150 editable channels |
-| 1.1 preview | `v1.1.0-alpha.8` | ARM64 | Starts empty. Choose New York City (150 channels), London (110), or both |
+| Stable 1.0 | `1.0` or `latest`; pin `v1.0.8` for the exact release | amd64, ARM64 | One US tuner with 150 editable channels |
+| 1.1 previews | See the [current preview](https://github.com/fxPPC/Antennarr/blob/main/README.md) for its exact tag and platforms | Varies by release | Starts empty. Add city tuners during setup |
 
-**Most users should install stable 1.0.** For the alpha, follow [multi-tuner setup](https://github.com/fxPPC/Antennarr/blob/main/docs/MULTI-TUNER.md). Use a separate data directory. Opening 1.0 data in the alpha migrates it to schema 9. Returning to 1.0 requires a pre-upgrade backup.
+**Most users should install stable 1.0.** For a preview, follow [multi-tuner setup](https://github.com/fxPPC/Antennarr/blob/main/docs/MULTI-TUNER.md). Use a separate data directory. Opening 1.0 data in a preview migrates it to schema 9. Returning to 1.0 requires a pre-upgrade backup.
 
 ## Install stable 1.0
 

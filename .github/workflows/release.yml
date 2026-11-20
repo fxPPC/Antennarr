@@ -6,7 +6,7 @@ on:
       version:
         description: New version (vMAJOR.MINOR.PATCH, optionally -alpha.N, -beta.N, or -rc.N)
         required: true
-        default: v1.0.7
+        default: v1.0.8
       promote_latest:
         description: Make this stable release the recommended version (never for prereleases or older maintenance lines)
         type: boolean
@@ -84,7 +84,7 @@ jobs:
           sudo apt-get install -y skopeo
           skopeo copy oci-archive:/tmp/candidate.tar docker-daemon:antennarr:candidate
           ANTENNARR_TEST_IMAGE=antennarr:candidate python3 packaging/test-permissions.py
-      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: '1.27.4'
       - run: |
@@ -99,7 +99,7 @@ jobs:
           upload-artifact: false
           upload-release-assets: false
       - name: Scan runtime packages
-        uses: anchore/scan-action@e1165082ffb1fe366ebaf02d8526e7c4989ea9d2 # v7
+        uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439 # v7.4.2
         with:
           image: antennarr:candidate
           grype-version: v0.121.3
