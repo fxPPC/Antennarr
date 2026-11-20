@@ -146,9 +146,27 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
 	if e != nil {
 		return out, e
 	}
-	for _, mode := range []bool{false, true} {
+	cacheRows, err := tx.Query("SELECT name FROM settings WHERE name GLOB 'roster_cache_uhd_*'")
+	if err != nil {
+		return out, err
+	}
+	var cacheKeys []string
+	for cacheRows.Next() {
+		var k string
+		if err = cacheRows.Scan(&k); err != nil {
+			cacheRows.Close()
+			return out, err
+		}
+		cacheKeys = append(cacheKeys, k)
+	}
+	err = cacheRows.Err()
+	cacheRows.Close()
+	if err != nil {
+		return out, err
+	}
+	for _, key := range cacheKeys {
 		var raw string
-		if err = tx.QueryRow("SELECT value FROM settings WHERE name=?", qualityCacheKey(mode)).Scan(&raw); err != nil {
+		if err = tx.QueryRow("SELECT value FROM settings WHERE name=?", key).Scan(&raw); err != nil {
 			if err == sql.ErrNoRows {
 				continue
 			}
@@ -156,7 +174,7 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
 		}
 		var cache qualityRosterCache
 		if json.Unmarshal([]byte(raw), &cache) != nil {
-			if _, err = tx.Exec("DELETE FROM settings WHERE name=?", qualityCacheKey(mode)); err != nil {
+			if _, err = tx.Exec("DELETE FROM settings WHERE name=?", key); err != nil {
 				return out, err
 			}
 			continue
@@ -191,7 +209,7 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
 			if e != nil {
 				return out, e
 			}
-			if _, err = tx.Exec("UPDATE settings SET value=? WHERE name=?", string(b), qualityCacheKey(mode)); err != nil {
+			if _, err = tx.Exec("UPDATE settings SET value=? WHERE name=?", string(b), key); err != nil {
 				return out, err
 			}
 		}

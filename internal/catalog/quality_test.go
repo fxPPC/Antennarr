@@ -176,3 +176,44 @@ func TestCompactESPNUHDUsesESPNQualityPolicy(t *testing.T) {
 		t.Fatal("toggle deleted input streams")
 	}
 }
+
+func TestTunerPlaybackQualityIsIndependent(t *testing.T) {
+	s, us, cs := rosterFixture(t, 3)
+	addTestProfile(t, s, "gb", "GB")
+	gb := saveProfileTestChannel(t, s, "gb", "BBC One", "GB")
+	if err := s.EnableRosters(RosterPolicy{30, "stability", 5}); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range cs {
+		s.Record(c.StreamID, Result{Success: true})
+	}
+	before, err := s.RosterMembers(us)
+	if err != nil || len(before) == 0 {
+		t.Fatal(before, err)
+	}
+	p, err := s.Profile("gb")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p.PreferredHeight = 2160
+	if _, err = s.SaveProfile(p); err != nil {
+		t.Fatal(err)
+	}
+	after, err := s.RosterMembers(us)
+	if err != nil || len(after) != len(before) || s.PreferredHeight(gb.ID) != 2160 || s.PreferredHeight(us) != 0 {
+		t.Fatal(after, err)
+	}
+	if err = s.MigratePlaybackQuality(true); err != nil {
+		t.Fatal(err)
+	}
+	p.PreferredHeight = 720
+	if _, err = s.SaveProfile(p); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.MigratePlaybackQuality(true); err != nil {
+		t.Fatal(err)
+	}
+	if s.PreferredHeight(gb.ID) != 720 || s.PreferredHeight(us) != 2160 {
+		t.Fatal("legacy preference overwrote tuner edit or missed existing tuner")
+	}
+}

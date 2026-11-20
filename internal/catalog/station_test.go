@@ -141,6 +141,7 @@ func TestFreshBroadcastStationDefaultsAndReset(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
+	addTestPresets(t, s, "us-nyc", "uk-london")
 	for pass := 0; pass < 3; pass++ {
 		channels, err := s.ChannelsForProfile("primary")
 		if err != nil {

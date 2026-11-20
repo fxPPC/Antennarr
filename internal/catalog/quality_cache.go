@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-const expireQualityCacheSQL = `DELETE FROM settings WHERE name IN ('roster_cache_uhd_false','roster_cache_uhd_true') AND CASE WHEN json_valid(value) THEN coalesce(json_extract(value,'$.saved_at'),0) ELSE 0 END<=?`
+const expireQualityCacheSQL = `DELETE FROM settings WHERE name GLOB 'roster_cache_uhd_*' AND CASE WHEN json_valid(value) THEN coalesce(json_extract(value,'$.saved_at'),0) ELSE 0 END<=?`
 
 type cachedRosterEntry struct {
 	Channel                                  string `json:"channel"`
@@ -18,10 +18,22 @@ type qualityRosterCache struct {
 	Entries []cachedRosterEntry `json:"entries"`
 }
 
-func qualityCacheKey(uhd bool) string { return "roster_cache_uhd_" + strconv.FormatBool(uhd) }
-func (s *Store) saveQualityRoster(tx *sql.Tx, mode bool, now int64) error {
+func qualityCacheKey(uhd bool, profile ...string) string {
+	key := "roster_cache_uhd_" + strconv.FormatBool(uhd)
+	if len(profile) > 0 {
+		key += ":" + profile[0]
+	}
+	return key
+}
+func (s *Store) saveQualityRoster(tx *sql.Tx, mode bool, now int64, profile ...string) error {
 	cache := qualityRosterCache{SavedAt: now, Entries: []cachedRosterEntry{}}
-	rows, e := tx.Query("SELECT r.channel_id,r.stream_id,r.account_id,r.admitted,r.verified,r.due,s.failures FROM roster r JOIN streams s ON s.id=r.stream_id ORDER BY r.verified DESC,r.stream_id")
+	query := "SELECT r.channel_id,r.stream_id,r.account_id,r.admitted,r.verified,r.due,s.failures FROM roster r JOIN streams s ON s.id=r.stream_id"
+	var args []any
+	if len(profile) > 0 {
+		query += " WHERE r.channel_id IN (SELECT id FROM channels WHERE profile_id=?)"
+		args = append(args, profile[0])
+	}
+	rows, e := tx.Query(query+" ORDER BY r.verified DESC,r.stream_id", args...)
 	if e != nil {
 		return e
 	}
@@ -42,12 +54,12 @@ func (s *Store) saveQualityRoster(tx *sql.Tx, mode bool, now int64) error {
 	if e != nil {
 		return e
 	}
-	_, e = tx.Exec("INSERT INTO settings(name,value) VALUES(?,?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", qualityCacheKey(mode), string(raw))
+	_, e = tx.Exec("INSERT INTO settings(name,value) VALUES(?,?) ON CONFLICT(name) DO UPDATE SET value=excluded.value", qualityCacheKey(mode, profile...), string(raw))
 	return e
 }
-func (s *Store) restoreQualityRoster(tx *sql.Tx, mode bool, now int64) error {
+func (s *Store) restoreQualityRoster(tx *sql.Tx, mode bool, now int64, profile ...string) error {
 	var raw string
-	e := tx.QueryRow("SELECT value FROM settings WHERE name=?", qualityCacheKey(mode)).Scan(&raw)
+	e := tx.QueryRow("SELECT value FROM settings WHERE name=?", qualityCacheKey(mode, profile...)).Scan(&raw)
 	if e == sql.ErrNoRows {
 		return nil
 	}

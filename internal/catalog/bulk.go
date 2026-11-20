@@ -93,6 +93,9 @@ func clearProfileChannels(tx *sql.Tx, profile string) error {
 	// Cached quality-mode memberships use JSON references, so remove just this
 	// tuner's deleted channel IDs rather than flushing another tuner's snapshot.
 	for _, mode := range []bool{false, true} {
+		if _, err := tx.Exec("DELETE FROM settings WHERE name=?", qualityCacheKey(mode, profile)); err != nil {
+			return err
+		}
 		var raw string
 		e := tx.QueryRow("SELECT value FROM settings WHERE name=?", qualityCacheKey(mode)).Scan(&raw)
 		if e == sql.ErrNoRows {

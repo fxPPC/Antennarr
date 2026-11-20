@@ -25,7 +25,9 @@ def identity(want):
  out=run('exec',name,'cat','/proc/1/status').stdout
  assert next(x for x in out.splitlines() if x.startswith('Uid:')).split()[1]==str(want),out
 try:
- start();ready();identity(10001);channels=json.loads(request('/api/channels').stdout);assert len(channels)==260
+ start();ready();identity(10001);assert not json.loads(request('/api/channels').stdout);assert not json.loads(request('/api/profiles').stdout)
+ for preset in ('us-nyc','uk-london'):update('/api/profiles',{'preset_id':preset})
+ channels=json.loads(request('/api/channels').stdout);assert len(channels)==260
  profiles=json.loads(request('/api/profiles').stdout);assert len(profiles)==2 and not any(p['enabled'] for p in profiles)
  assert sorted(p['channel_count'] for p in profiles)==[110,150]
  london=next(p for p in profiles if p['preset_id']=='uk-london')

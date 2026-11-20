@@ -2,7 +2,7 @@
 
 # Antennarr
 
-**v1.1.0-alpha.7 — GitHub source preview.** Output now offers independently enabled **USA - New York City** and **UK - London** tuners. Alpha Docker images use explicit preview tags. Stable tags remain on 1.0. Use separate disposable appdata for alpha testing. See [multi-tuner setup](docs/MULTI-TUNER.md), [remaining acceptance work](docs/V1.1-PLAN.md), and [compatibility](docs/VERSIONING.md).
+**v1.1.0-alpha.8 — GitHub source preview.** Output now offers independently enabled **USA - New York City** and **UK - London** tuners. Alpha Docker images use explicit preview tags. Stable tags remain on 1.0. Use separate disposable appdata for alpha testing. See [multi-tuner setup](docs/MULTI-TUNER.md), [remaining acceptance work](docs/V1.1-PLAN.md), and [compatibility](docs/VERSIONING.md).
 
 **Stick your antenna into the Internet.** · by **fxPPC**
 
@@ -59,7 +59,7 @@ Those projects helped establish the territory. Antennarr's reason to exist is th
 
 Go, SQLite, and FFmpeg in one Linux container. One container, one persistent `/data` directory, and a built-in web interface. Antennarr presents an HDHomeRun-compatible tuner, supports simultaneous channels and configurable viewer limits, and provides manual full backup/restore, shareable channel lineups, and Docker logging.
 
-**No provider accounts, passwords, or playable streams are supplied.** Bring account lists you are authorised to use. This preview includes **150 editable US channels** and **110 editable UK channels**, in separate tuners. Fresh installations list both tuners disabled; enable the ones you want under Output. Supported page formats are handled automatically; locked, script-only, or unsupported pages may need another source URL.
+**No provider accounts, passwords, or playable streams are supplied.** Bring account lists you are authorised to use. This preview includes **150 editable US channels** and **110 editable UK channels**, in separate tuners. Fresh installations start empty. Choose a preset in first-time setup, then enable your tuner. Supported page formats are handled automatically; locked, script-only, or unsupported pages may need another source URL.
 
 ## Install the stable Docker release
 

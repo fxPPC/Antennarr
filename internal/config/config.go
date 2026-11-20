@@ -58,11 +58,7 @@ func Load(root string) (Config, error) {
 				sum ^= n
 			}
 		}
-		c = Config{Settings: FreshSettings(), FormatVersion: 1, ProfileID: "primary", DeviceID: fmt.Sprintf("%s%x", id, sum), Tuners: 3, GraceSeconds: 5, Channels: []Channel{
-			{"test-1", "901", "Antennarr Test 720p", "720"},
-			{"test-2", "902", "Antennarr Test 480p", "480"},
-			{"test-3", "903", "Antennarr Test MPEG-2", "mpeg2"},
-		}}
+		c = Config{Settings: FreshSettings(), FormatVersion: 1, ProfileID: "primary", DeviceID: fmt.Sprintf("%s%x", id, sum), Tuners: 3, GraceSeconds: 5}
 		b, _ = json.MarshalIndent(c, "", "  ")
 		err = os.WriteFile(path, b, 0600)
 	} else if err == nil {

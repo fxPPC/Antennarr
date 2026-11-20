@@ -1,20 +1,20 @@
-# Two tuners, one Antennarr
+# Setting up Plex tuners
 
-This **v1.1.0-alpha.2 GitHub source preview** adds USA - New York City (150 channels) and UK - London (110 channels). It has not been published to Docker Hub. Stable 1.0 installations remain unchanged.
+One installation can serve several markets. The New York City preset contains 150 editable channels and the London preset contains 110. You choose which tuners to add.
 
 ## Try the preview
 
 Use a separate disposable appdata directory. Do not point two containers at the same directory, or let an alpha open your live 1.0 data. To test an upgrade, restore a **manually created** backup into the disposable directory first.
 
 ```sh
-git clone --branch v1.1.0-alpha.2 https://github.com/fxPPC/Antennarr.git
+git clone --branch v1.1.0-alpha.8 https://github.com/fxPPC/Antennarr.git
 cd Antennarr
 cp portable.env.example .env
 # Edit .env: a separate ANTENNARR_DATA_DIR and an address reachable from Plex.
 docker compose -f compose.portable.yaml up -d --build
 ```
 
-Open administration on port 39192, sign in with `admin/admin` on a fresh install, and change the login. Under Output, both tuner cards are present. Enable the tuners you want, import authorised sources, and wait for suitable streams to fill their rosters. An upgraded primary tuner retains its previous enabled state and channels; the new London tuner starts disabled.
+Open administration on port 39192, sign in with `admin/admin` on a fresh install, and change the login. In first-time setup, choose the tuners you want and enable them, import authorised sources, and wait for suitable streams to fill their rosters. An upgraded primary tuner retains its previous enabled state and channels; the new London tuner starts disabled.
 
 ## Private ports
 
@@ -22,7 +22,7 @@ Open administration on port 39192, sign in with `admin/admin` on a fresh install
 | --- | --- | --- |
 | Existing primary tuner | 9192 | `http://SERVER_LAN_IP:9192` |
 | Administration | 9193 (host 39192) | Browser/proxy only |
-| First additional tuner, initially London | 9200 | `http://SERVER_LAN_IP:9200` |
+| First additional tuner | 9200 | `http://SERVER_LAN_IP:9200` |
 | Further tuner slots | 9201–9207 | Same hostname, allocated port |
 
 `ANTENNARR_BASE_URL` supplies the hostname Plex can reach. `ANTENNARR_TUNER_PORTS=9200-9207` reserves eight additional private listeners; a range of 1–64 ports is supported. The supplied Compose files publish that range to `ANTENNARR_BIND`, which defaults to loopback. For Plex on another host, set that bind and the base URL to the Docker server’s LAN address. Keep each additional host port equal to its container port; arbitrary port remapping would make the advertised URL wrong.
@@ -43,7 +43,7 @@ All devices share the configured maximum outgoing streams and account/provider l
 
 ## Data and future markets
 
-Each profile owns its channels, aliases, exclusions, policies, and rosters. Accounts, source catalogues, and resource budgets remain shared. Output settings such as UHD are global: changing quality mode rebuilds every tuner’s eligible roster, including disabled tuners, with the existing one-hour mode cache. Imports, exports, clear, and reset actions apply only to the selected tuner. Disabling retains saved data, stops background work for that tuner, and blocks new sessions; existing sessions may finish. Removing is a separate confirmed action.
+Each profile owns its channels, aliases, exclusions, policies, and rosters. Accounts, source catalogues, and resource budgets remain shared. Each tuner has one preferred playback quality: Automatic, 720p, 1080p, or UHD (4K). Choosing or leaving UHD rebuilds that tuner’s rosters, or restores assignments saved within the last hour. The other modes exclude streams labelled UHD. Imports, exports, clear, and reset actions apply only to the selected tuner. Disabling retains saved data, stops background work for that tuner, and blocks new sessions; existing sessions may finish. Removing is a separate confirmed action.
 
 Presets are versioned definitions copied when added. They contain no source accounts, passwords, or playable URLs, and an update does not overwrite your edits. A new market can be added through the preset registry and its own matching tests without creating another streaming engine or database. UK/US lookalikes with uncertain country evidence remain unassigned.
 

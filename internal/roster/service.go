@@ -78,6 +78,9 @@ func (s *Service) RequestDiscovery(ch string) {
 	}
 }
 func (s *Service) Prepare(ctx context.Context, ch string) {
+	if s.settings().ScansPaused {
+		return
+	}
 	deadline := time.NewTimer(12 * time.Second)
 	defer deadline.Stop()
 	tick := time.NewTicker(250 * time.Millisecond)
@@ -134,15 +137,7 @@ func (s *Service) RaceSize(ch string) int {
 	}
 	return p.Race
 }
-func (s *Service) UHDAllowed() bool { return s.Store.UHDAllowed() }
-func (s *Service) PreferredHeight(channel string) int {
-	var height int
-	err := s.Store.DB.QueryRow(`SELECT coalesce(json_extract(p.extensions,'$.preferred_height'),0) FROM output_profiles p JOIN channels c ON c.profile_id=p.id WHERE c.id=?`, channel).Scan(&height)
-	if err != nil {
-		return 0
-	}
-	return height
-}
+func (s *Service) PreferredHeight(channel string) int { return s.Store.PreferredHeight(channel) }
 func (s *Service) PreferDiversity(ch string) bool {
 	p, e := s.Store.EffectivePolicy(ch)
 	return e == nil && p.Preference == "diversity"
@@ -255,6 +250,11 @@ func (s *Service) step(parent context.Context) {
 		s.state("paused", 0)
 		return
 	}
+	v := s.settings()
+	if v.ScansPaused {
+		s.state("scans_off", 0)
+		return
+	}
 	s.state("selecting", 0)
 	ctx, release, e := checkcpu.Enter(parent)
 	if e != nil {
@@ -265,7 +265,6 @@ func (s *Service) step(parent context.Context) {
 	defer s.pruneFailedAccounts()
 	s.flushFailures()
 	live := (s.Live != nil && s.Live()) || s.Budget.Snapshot().Live > 0
-	v := s.settings()
 	now := time.Now().Unix()
 	var active map[string]bool
 	if live && s.ActiveChannels != nil {

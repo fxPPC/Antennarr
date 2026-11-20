@@ -1,3 +1,16 @@
+# v1.1.0-alpha.8
+
+## Changes since v1.0.x
+
+- A single installation can serve several Plex tuners, each with its own guide, channel numbers, channel rules, and rosters. New York City and London are available as editable presets. You can also run with one tuner or none.
+- Fresh installs start with zero tuners, channels, and accounts. First-time setup lets you choose a market. Adding a preset creates a disabled tuner so you can check its guide and address before enabling it.
+- The **Scans active** switch in Sources pauses background checks and saves your choice across restarts. Existing rosters remain available for playback.
+- Status links each coverage count to the affected channels. Open a tuner to search and edit its channels or find its Plex address. Sources shows how many accounts an import added and how many were already present.
+- Each tuner has a single preferred playback quality setting: Automatic, 720p, 1080p, or UHD (4K). All tuners share the outgoing stream limit. Viewers watching the same channel share its upstream feeds.
+- Opening a 1.0 data directory upgrades it from schema 8 to 9. The primary tuner keeps its identity, channel edits, and rosters. Existing 1.1 installations reopen their saved lineup. Make a manual backup before upgrading if you need a route back to 1.0.
+
+This is an opt-in alpha. Use v1.0.7 for the stable release. Multi-market Plex recordings with overlapping channel numbers still need wider testing.
+
 # v1.1.0-alpha.7
 
 - Output counts channels across all saved tuners in one query. Plex reads only the selected tuner’s enabled lineup.

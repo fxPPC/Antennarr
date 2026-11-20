@@ -124,9 +124,6 @@ func (s *Service) discover(parent context.Context, v config.Settings, urgent boo
 	return
 }
 func (s *Service) probe(parent context.Context, c catalog.Candidate, v config.Settings) {
-	if c.UHD && !s.UHDAllowed() {
-		return
-	}
 	releaseLive, ok := s.ClaimPlayback(c.StreamID)
 	if !ok {
 		return
@@ -177,10 +174,6 @@ func (s *Service) probe(parent context.Context, c catalog.Candidate, v config.Se
 	if moderation.ProbeDeferred(ctx) || s.Store.ProviderDeferred(c.Provider, time.Now().UnixMilli()) {
 		outcome = "deferred"
 		// Provider pacing leaves this pass item pending.
-		return
-	}
-	if v.AllowUHD != s.UHDAllowed() {
-		outcome = "paused"
 		return
 	}
 	if !result.Success {

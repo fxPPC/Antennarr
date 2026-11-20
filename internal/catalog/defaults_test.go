@@ -5,12 +5,22 @@ import (
 	"testing"
 )
 
+func addTestPresets(t *testing.T, s *Store, presets ...string) {
+	t.Helper()
+	for _, preset := range presets {
+		if _, err := s.AddProfilePreset(preset); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestFreshUSDefaultsPreserveEdits(t *testing.T) {
 	root := t.TempDir()
 	s, err := OpenWithDefaults(root)
 	if err != nil {
 		t.Fatal(err)
 	}
+	addTestPresets(t, s, "us-nyc")
 	ch, err := s.ChannelsForProfile("primary")
 	if err != nil || len(ch) != 150 {
 		t.Fatalf("channels=%d err=%v", len(ch), err)

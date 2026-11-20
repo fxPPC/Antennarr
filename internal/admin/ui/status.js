@@ -1,5 +1,5 @@
 import { compactNumber } from './core.js';
-import { linkedText } from './navigation.js';
+import { linkedText, pageURL } from './navigation.js';
 import {
   $,
   el,
@@ -10,6 +10,30 @@ import {
 } from './core.js';
 let names = new Map(),
   ready = false;
+function setupGuide(db, profiles) {
+  const guide = $('#setup-guide');
+  const enabled = profiles.find(p => p.enabled);
+  const hasSources = Object.entries(db.queue).some(([key,value]) => key !== 'streams' && value > 0);
+  const visited = localStorage.getItem('setup-started') === 'yes';
+  guide.hidden = !db.collected || localStorage.getItem('setup-skipped') === 'yes' || (!visited && !!enabled && hasSources);
+  if(!guide.hidden && !visited) localStorage.setItem('setup-started','yes');
+  if (guide.hidden) return;
+  const steps = el('ol');
+  for (const [label, href, done] of [
+    ['Choose a tuner', profiles.length ? '#output' : pageURL('output', {add:1}), !!enabled],
+    ['Import a source list', '#input', hasSources],
+    ['Connect to Plex', enabled ? pageURL('output',{tuner:enabled.id,connect:1}) : '', false]
+  ]) {
+    const item = el('li');
+    if (href) { const a=el('a',label); a.href=href; item.append(a); }
+    else item.append(el('span',label+' · enable a tuner first'));
+    if(done) item.append(el('small','Complete'));
+    steps.append(item);
+  }
+  guide.replaceChildren(el('h3','Set up live TV'),steps,button(enabled && hasSources ? 'Finish setup' : 'Skip for now',()=>{
+    localStorage.setItem('setup-skipped','yes'); guide.hidden=true;
+  }));
+}
 export async function init() {
   if (ready) return;
   const cs = await api('/api/channels');
@@ -17,8 +41,9 @@ export async function init() {
   ready = true
 }
 const age = t => t ? date(t) : 'No saved result yet';
-const stat = (root, value, label, cls = '') => {
-  const box = el('article', undefined, 'status-metric ' + cls);
+const stat = (root, value, label, cls = '', group = '') => {
+  const box = el(group?'a':'article', undefined, 'status-metric ' + cls);
+  if(group) box.href=pageURL('output',{coverage:group});
   box.append(el('strong', value == null ? '…' : compactNumber(value)), el('span', label)); root.append(box)
 };
 function taskLabel(j, result=false) {
@@ -29,18 +54,19 @@ function taskLabel(j, result=false) {
  return text;
 }
 export async function refresh() {
-  const [snapshot, events] = await Promise.all([api('/api/monitor'), api('/api/events')]);
+  const [snapshot, events, profiles] = await Promise.all([api('/api/monitor'), api('/api/events'), api('/api/profiles')]);
   const { playback: status, live: liveData, work, checker, database: db } = snapshot;
   const live = liveData || [];
+  setupGuide(db,profiles);
   const c = db.coverage, q = db.queue, p = db.progress;
   for (const [id, name] of Object.entries(db.channels)) names.set(id, name);
   const need = c.vacancies ?? Math.max(0, c.target - c.verified);
   $('#status-hero').replaceChildren(el('span', status.viewers ? 'PLAYBACK NOW' : 'NO ACTIVE VIEWERS'), el('h3', `${status.viewers} / ${status.max_outgoing_streams} viewers · ${status.active_channels} channel${status.active_channels === 1 ? '' : 's'} streaming`));
   const coverage = $('#channel-coverage'); coverage.replaceChildren();
   const partial = Math.max(0, c.total - c.empty - c.full);
-  stat(coverage, db.collected ? c.empty : null, 'Roster empty', c.empty ? 'bad' : '');
-  stat(coverage, db.collected ? partial : null, 'Partial roster', partial ? 'warning' : '');
-  stat(coverage, db.collected ? c.full : null, 'Full roster', 'good');
+  stat(coverage, db.collected ? c.empty : null, 'Roster empty', c.empty ? 'bad' : '', 'empty');
+  stat(coverage, db.collected ? partial : null, 'Partial roster', partial ? 'warning' : '', 'partial');
+  stat(coverage, db.collected ? c.full : null, 'Full roster', 'good', 'full');
   const root = $('#live-streams'); root.replaceChildren();
   let unprotected = 0;
   for (const out of status.outgoing_streams || []) {
@@ -56,7 +82,7 @@ export async function refresh() {
   const tasks = $('#current-work'); tasks.replaceChildren();
   const labels = { checks_waiting: 'Remaining roster checks are waiting for provider retry windows or connection slots.', paused: 'Checks paused for an administration operation.', playback_priority: 'Background media checks yield to playback.', probe_cooldown: 'Waiting for the global media-check interval.', rosters_full: 'Rosters full; recruitment paused.', waiting_candidates: 'Waiting for eligible candidates or provider cooldowns.', selecting: 'Selecting the next eligible task.', checking: 'Checking a stream.', discovering: 'Checking an account and its channel catalogue.' };
   for (const j of work.active || []) tasks.append(linkedText(taskLabel(j)));
-  tasks.append(el('p', status.viewers ? (checker.mode==='live_replenishment'?'Playing-channel replenishment enabled; routine checks remain paused.':labels.playback_priority) : labels[checker.state] || 'Checker starting.'));
+  tasks.append(el('p', checker.state==='scans_off' ? 'Background scans are off. Manage scans in Sources.' : status.viewers ? (checker.mode==='live_replenishment'?'Playing-channel replenishment enabled; routine checks remain paused.':labels.playback_priority) : labels[checker.state] || 'Checker starting.'));
   if (checker.next && !status.viewers) tasks.append(el('small', 'Next eligible check ' + countdown(checker.next)));
   tasks.append(el('small', 'Last saved media result: ' + age(p.last_check)), el('small', 'Last successful media result: ' + age(p.last_success)), el('small', 'Last channel discovery: ' + age(p.last_discovery)), el('small','Last account access check: '+age(p.last_access)));
   const recruitment = $('#recruitment'), queueExpanded = recruitment.querySelector('details')?.open || false; recruitment.replaceChildren();
@@ -81,7 +107,7 @@ export async function refresh() {
   const completedChecks=(work.recent||[]).filter(j=>['stream_check','account_check','account_discovery'].includes(j.kind)).map(j=>j.finished||0);
   const lastResult = Math.max(p.last_check, p.last_discovery,p.last_access||0,...completedChecks);
   if(checker.state==='checks_waiting' && pass.remaining)attention.append(el('p',`${compactNumber(pass.remaining)} pending checks are waiting for providers.${checker.next?' Earliest retry '+countdown(checker.next)+'.':''}`));
-  if (!status.viewers && (db.eligible_media || (need>0 && db.eligible_discovery>0)) && lastResult && snapshot.collected - lastResult > 3600 && checker.state !== 'paused') attention.append(el('p', 'Eligible work remains, but no media result or catalogue discovery has been saved for over an hour. The checker needs investigation.', 'warning-text'));
+  if (!status.viewers && (db.eligible_media || (need>0 && db.eligible_discovery>0)) && lastResult && snapshot.collected - lastResult > 3600 && !['paused','scans_off'].includes(checker.state)) attention.append(el('p', 'Eligible work remains, but no media result or catalogue discovery has been saved for over an hour. The checker needs investigation.', 'warning-text'));
   if (!attention.childNodes.length) attention.append(el('p', 'No additional operational warnings. This is not a guarantee that every source is working.'));
   $('#status-collected').textContent = 'Updated ' + date(snapshot.collected) + ' · catalogue snapshot ' + date(db.collected);
   const next = $('#upcoming'); next.replaceChildren();

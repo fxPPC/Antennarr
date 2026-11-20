@@ -29,7 +29,10 @@ func TestPersistentIdentityAndSecret(t *testing.T) {
 	if st.Mode().Perm() != 0600 {
 		t.Fatal("secret permissions")
 	}
-	b.Channels[1].Number = b.Channels[0].Number
+	if len(b.Channels) != 0 {
+		t.Fatal("fresh configuration contains channels")
+	}
+	b.Channels = []Channel{{ID: "one", Name: "One", Number: "1"}, {ID: "two", Name: "Two", Number: "1"}}
 	if Validate(b) == nil {
 		t.Fatal("duplicate number accepted")
 	}
@@ -44,12 +47,13 @@ func TestSettingsDefaultsAndSavedRestartConfiguration(t *testing.T) {
 	if c.Settings.StartupRace != 5 {
 		t.Fatal(c.Settings)
 	}
+	c.Settings.ScansPaused = true
 	c.Settings.StallTimeoutMS = 1000
 	if e = Save(root, c); e != nil {
 		t.Fatal(e)
 	}
 	next, e := Load(root)
-	if e != nil || next.Settings.StallTimeoutMS != 1000 || next.DeviceID != c.DeviceID {
+	if e != nil || !next.Settings.ScansPaused || next.Settings.StallTimeoutMS != 1000 || next.DeviceID != c.DeviceID {
 		t.Fatal(next, e)
 	}
 	next.Settings.GlobalConnections = 1

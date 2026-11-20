@@ -27,6 +27,16 @@ func TestProfileAPIIsolationAndConfirmation(t *testing.T) {
 	}
 	w := call("GET", "/api/profiles", "")
 	var ps []profileView
+	if json.Unmarshal(w.Body.Bytes(), &ps) != nil || len(ps) != 0 {
+		t.Fatal(w.Body.String())
+	}
+	for _, preset := range []string{"us-nyc", "uk-london"} {
+		resp := call("POST", "/api/profiles", `{"preset_id":"`+preset+`"}`)
+		if resp.Code >= 300 {
+			t.Fatal(resp.Body.String())
+		}
+	}
+	w = call("GET", "/api/profiles", "")
 	if json.Unmarshal(w.Body.Bytes(), &ps) != nil || len(ps) != 2 {
 		t.Fatal(w.Body.String())
 	}

@@ -15,6 +15,7 @@ func TestCurrentSchemaReopenPreservesCatalogue(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	addTestPresets(t, s, "us-nyc", "uk-london")
 	channels, e := s.Channels()
 	if e != nil || len(channels) != 260 {
 		t.Fatal(len(channels), e)

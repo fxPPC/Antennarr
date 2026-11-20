@@ -82,7 +82,7 @@ func main() {
 	} else if recovered > 0 {
 		slog.Info("interrupted imports recovered", "count", recovered)
 	}
-	if err = store.SetUHDAllowed(c.Settings.AllowUHD); err != nil {
+	if err = store.MigratePlaybackQuality(c.Settings.AllowUHD); err != nil {
 		slog.Error("quality policy setup failed")
 		os.Exit(1)
 	}
@@ -103,7 +103,9 @@ func main() {
 	readChecks := func() config.Settings {
 		saved, e := config.Load(root)
 		if e != nil {
-			return c.Settings
+			fallback := c.Settings
+			fallback.ScansPaused = true
+			return fallback
 		}
 		return saved.Settings
 	}
@@ -201,16 +203,17 @@ func main() {
 	}, Activity: work, ReadSettings: func() (config.Settings, error) { v, e := config.Load(root); return v.Settings, e }, SaveSettings: func(v config.Settings) error {
 		copy := c
 		copy.Settings = v
-		e := config.Save(root, copy)
+		save := func() error { return config.Save(root, copy) }
+		var e error
+		if v.ScansPaused {
+			e = checks.WithPaused(save)
+		} else {
+			e = save()
+		}
 		if e == nil {
 			checks.Preempt()
 			if e = store.EnableRosters(catalog.RosterPolicy{Target: v.RosterTarget, Preference: v.SelectionPreference, Race: v.StartupRace}); e != nil {
 				return e
-			}
-			if v.AllowUHD != store.UHDAllowed() {
-				if e = store.SetUHDAllowed(v.AllowUHD); e != nil {
-					return e
-				}
 			}
 			level.Set(v.LogLevel())
 			m.SetLimit(v.MaxOutgoingStreams)
@@ -328,7 +331,7 @@ func main() {
 		}
 		_ = srv.Shutdown(shutdown)
 	}()
-	slog.Info("tuner starting", "version", "v1.1.0-alpha.7", "schema", 9, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
+	slog.Info("tuner starting", "version", "v1.1.0-alpha.8", "schema", 9, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
 	if err = srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("HTTP server failed")
 		os.Exit(1)
