@@ -21,6 +21,8 @@ func TestSourceCountryEvidenceAgrees(t *testing.T) {
 
 func TestLondonRecognises5SelectRenameWithoutSisterOrDelayedFeeds(t *testing.T) {
 	_, channels := londonPresetMatchers(t)
+	// An upgraded lineup can still contain its original 5DRAMA definition.
+	channels = append(channels, compileChannel(Channel{ID: "saved-drama", Name: "5DRAMA", Region: "GB", Aliases: []string{"5 Drama", "Five Drama", "5SELECT", "5 Select", "Five Select", "-+1", "-ireland"}}))
 	for _, tc := range []struct {
 		name, guide string
 		want        bool

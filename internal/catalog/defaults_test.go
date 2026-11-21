@@ -45,7 +45,7 @@ func TestFreshUSDefaultsPreserveEdits(t *testing.T) {
 	}
 	addTestPresets(t, s, "us-nyc")
 	ch, err := s.ChannelsForProfile("primary")
-	if err != nil || len(ch) != 150 {
+	if err != nil || len(ch) != 149 {
 		t.Fatalf("channels=%d err=%v", len(ch), err)
 	}
 	var accounts int
@@ -127,11 +127,11 @@ func TestApplyUSPresetAlignsGuideAndPreservesIDs(t *testing.T) {
 		}
 	}
 	result, e := s.ApplyUSPreset()
-	if e != nil || result.Added != 147 || result.Updated != 3 {
+	if e != nil || result.Added != 146 || result.Updated != 3 {
 		t.Fatal(result, e)
 	}
 	channels, e := s.Channels()
-	if e != nil || len(channels) != 150 {
+	if e != nil || len(channels) != 149 {
 		t.Fatal(len(channels), e)
 	}
 	found := map[string]Channel{}
@@ -145,7 +145,7 @@ func TestApplyUSPresetAlignsGuideAndPreservesIDs(t *testing.T) {
 		t.Fatal("guide numbers not used")
 	}
 	result, e = s.ApplyUSPreset()
-	if e != nil || result.Added != 0 || result.Updated != 150 {
+	if e != nil || result.Added != 0 || result.Updated != 149 {
 		t.Fatal("preset not idempotent", result, e)
 	}
 }
