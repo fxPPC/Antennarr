@@ -12,7 +12,8 @@ import (
 	"time"
 )
 
-func TestRealMediaProbe(t *testing.T) {
+func mediaProbeFixture(t *testing.T) (*Gateway, string) {
+	t.Helper()
 	dir := os.Getenv("ANTENNARR_TEST_FIXTURES")
 	if dir == "" {
 		t.Skip("set ANTENNARR_TEST_FIXTURES to generated fixture directory")
@@ -32,12 +33,37 @@ func TestRealMediaProbe(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	defer g.Close()
+	t.Cleanup(func() { g.Close() })
+	return g, binary
+}
+
+func TestRealMediaProbe(t *testing.T) {
+	g, binary := mediaProbeFixture(t)
 	result := g.Probe(context.Background(), binary, "https://authorised-fixture.example/test.ts", 3*time.Second)
 	if !result.Success || result.Codec != "h264" || result.Height != 720 {
 		t.Fatalf("%+v", result)
 	}
 	t.Logf("validated media: %+v", result)
+}
+
+// A check must release the upstream process and provider connection before it
+// starts either local inspection process.
+func TestProbeFinishesCaptureBeforeInspection(t *testing.T) {
+	g, binary := mediaProbeFixture(t)
+	result, sample := g.captureProbeSample(context.Background(), binary, "https://fixture.example/sample.ts", 3*time.Second)
+	if !result.Success || len(sample) == 0 || len(sample)%188 != 0 {
+		t.Fatal(result, len(sample))
+	}
+	g.mu.Lock()
+	connections := len(g.sessions)
+	g.mu.Unlock()
+	if connections != 0 {
+		t.Fatalf("local inspection would overlap %d upstream copies", connections)
+	}
+	info, err := Inspect(context.Background(), binary, sample)
+	if err != nil || info.Height != 720 {
+		t.Fatal(info, err)
+	}
 }
 
 // Broadcast TS can advertise audio in its PMT before an audio packet arrives.

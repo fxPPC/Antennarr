@@ -5,7 +5,6 @@ import (
 	"antennarr/internal/activity"
 	"antennarr/internal/budget"
 	"antennarr/internal/catalog"
-	"antennarr/internal/checkcpu"
 	"antennarr/internal/config"
 	"antennarr/internal/media"
 	"context"
@@ -22,7 +21,7 @@ type Service struct {
 	loggedWaitNext  int64
 	health          CheckerState
 	pauseMu         sync.Mutex
-	workMu          sync.Mutex
+	workMu          sync.Mutex // Serialises account discovery, auditions, and scheduled or live replenishment.
 	paused          atomic.Bool
 	Store           *catalog.Store
 	Settings        func() config.Settings
@@ -236,7 +235,7 @@ func (s *Service) WithPaused(fn func() error) error {
 	defer func() { s.workMu.Unlock(); s.paused.Store(false) }()
 	return fn()
 }
-func (s *Service) step(parent context.Context) {
+func (s *Service) step(ctx context.Context) {
 	if s.paused.Load() {
 		s.state("paused", 0)
 		return
@@ -253,12 +252,6 @@ func (s *Service) step(parent context.Context) {
 		return
 	}
 	s.state("selecting", 0)
-	ctx, release, e := checkcpu.Enter(parent)
-	if e != nil {
-		s.report("CPU affinity unavailable", e)
-		return
-	}
-	defer release()
 	defer s.pruneFailedAccounts()
 	s.flushFailures()
 	live := (s.Live != nil && s.Live()) || s.Budget.Snapshot().Live > 0

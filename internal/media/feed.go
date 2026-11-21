@@ -1,12 +1,11 @@
 package media
 
 import (
-	"antennarr/internal/checkcpu"
 	"context"
 	"errors"
 	"io"
+	"os/exec"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -114,7 +113,7 @@ func (g *Gateway) Copy(ctx context.Context, binary, raw string, emit func([]byte
 	// FFmpeg stops probing when satisfied; the caller's startup deadline still
 	// caps slow sources. Video and audio remain codec-copy at this input stage.
 	args := []string{"-nostdin", "-hide_banner", "-loglevel", "error", "-protocol_whitelist", "http,tcp,crypto", "-format_whitelist", "mpegts,hls,mov,aac,mp3,ac3,eac3", "-rw_timeout", "10000000", "-threads", "1", "-re", "-probesize", "4194304", "-analyzeduration", "5000000", "-fflags", "+genpts+discardcorrupt", "-i", local, "-map", "0:v:0", "-map", "0:a:0", "-c", "copy", "-streamid", "0:256", "-streamid", "1:257", "-mpegts_flags", "+resend_headers+initial_discontinuity", "-f", "mpegts", "pipe:1"}
-	cmd := checkcpu.Command(ctx, binary, args...)
+	cmd := exec.CommandContext(ctx, binary, args...)
 	var diagnostic processDiagnostic
 	cmd.Stderr = &diagnostic
 	pipe, e := cmd.StdoutPipe()
@@ -164,27 +163,52 @@ func (g *Gateway) Probe(ctx context.Context, binary, raw string, duration time.D
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second+duration)
 	defer cancel()
 	defer func() {
+		result.DurationMS = time.Since(start).Milliseconds()
 		if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			result.TimedOut = true
 			result.Success = false
 			result.Reason = "media check timed out"
 		}
 	}()
-	var a Analyzer
-	var invalid atomic.Bool
-	var sampleMu sync.Mutex
+	result, sample := g.captureProbeSample(ctx, binary, raw, duration)
+	if !result.Success {
+		return result
+	}
+	info, err := Inspect(ctx, binary, sample)
+	if err != nil {
+		result.Success = false
+		result.Reason = "media sample failed decoding"
+		if errors.Is(err, context.DeadlineExceeded) {
+			result.TimedOut = true
+			result.Reason = "media inspection timed out"
+		}
+		return result
+	}
+	result.Codec, result.Width, result.Height = info.Codec, info.Width, info.Height
+	result.Reason = "progressing and decodable video and audio"
+	return result
+}
+
+// Complete the upstream copy and release its connection before inspecting local media.
+// Only the copy goroutine writes the sample; closing done hands it to the caller.
+func (g *Gateway) captureProbeSample(parent context.Context, binary, raw string, duration time.Duration) (ProbeResult, []byte) {
+	ctx, cancel := context.WithCancel(parent)
+	defer cancel()
+	start := time.Now()
+	var analyzer Analyzer
+	var invalid bool
+	var copyErr error
 	sample := make([]byte, 0, 512<<10)
 	first := make(chan time.Time, 1)
-	done := make(chan error, 1)
+	done := make(chan struct{})
 	go func() {
-		done <- g.Copy(ctx, binary, raw, func(b []byte) {
-			sampleMu.Lock()
-			if len(sample) < 4<<20 {
-				sample = append(sample, b...)
-			}
-			sampleMu.Unlock()
-			if a.Push(b) != nil {
-				invalid.Store(true)
+		defer close(done)
+		copyErr = g.Copy(ctx, binary, raw, func(b []byte) {
+			const maxSample = (4 << 20) / 188 * 188 // Keep complete transport packets.
+			n := min(len(b), maxSample-len(sample))
+			sample = append(sample, b[:n]...)
+			if analyzer.Push(b) != nil {
+				invalid = true
 				cancel()
 				return
 			}
@@ -194,69 +218,38 @@ func (g *Gateway) Probe(ctx context.Context, binary, raw string, duration time.D
 			}
 		})
 	}()
-	result = ProbeResult{Reason: "no progressing media"}
+	result := ProbeResult{Reason: "no progressing media"}
 	select {
 	case at := <-first:
 		result.StartupMS = at.Sub(start).Milliseconds()
-	case err := <-done:
-		result.Reason = probeEndReason(err, invalid.Load())
-		result.DurationMS = time.Since(start).Milliseconds()
-		return result
-	case <-ctx.Done():
-		result.DurationMS = time.Since(start).Milliseconds()
-		<-done
-		if invalid.Load() {
-			result.Reason = "invalid transport packet"
-		}
-		return result
+	case <-done:
+		result.Reason = probeEndReason(copyErr, invalid)
+		return result, nil
 	}
 	timer := time.NewTimer(duration)
 	defer timer.Stop()
 	select {
 	case <-timer.C:
-	case err := <-done:
-		result.Reason = probeEndReason(err, invalid.Load())
-		result.DurationMS = time.Since(start).Milliseconds()
-		return result
-	case <-ctx.Done():
+		cancel()
+		<-done
+	case <-done:
+		result.Reason = probeEndReason(copyErr, invalid)
+		return result, nil
 	}
-	stats := a.Snapshot()
-	result.Success = stats.VideoChanges >= 3 && stats.AudioChanges >= 3 && time.Since(stats.LastVideo) < 2*time.Second && time.Since(stats.LastAudio) < 2*time.Second
-	if !result.Success {
-		switch {
-		case invalid.Load():
-			result.Reason = "invalid transport packet"
-		case stats.VideoChanges < 3:
-			result.Reason = "video timestamps did not progress"
-		case stats.AudioChanges < 3:
-			result.Reason = "audio timestamps did not progress"
-		default:
-			result.Reason = "media stalled during sample"
-		}
+	stats := analyzer.Snapshot()
+	switch {
+	case invalid:
+		result.Reason = "invalid transport packet"
+	case stats.VideoChanges < 3:
+		result.Reason = "video timestamps did not progress"
+	case stats.AudioChanges < 3:
+		result.Reason = "audio timestamps did not progress"
+	case time.Since(stats.LastVideo) >= 2*time.Second || time.Since(stats.LastAudio) >= 2*time.Second:
+		result.Reason = "media stalled during sample"
+	default:
+		result.Success = true
 	}
-	if result.Success {
-		sampleMu.Lock()
-		snapshot := append([]byte(nil), sample...)
-		sampleMu.Unlock()
-		info, e := Inspect(ctx, binary, snapshot)
-		if e != nil {
-			result.Success = false
-			result.Reason = "media sample failed decoding"
-			if errors.Is(e, context.DeadlineExceeded) {
-				result.TimedOut = true
-				result.Reason = "media inspection timed out"
-			}
-		} else {
-			result.Codec = info.Codec
-			result.Width = info.Width
-			result.Height = info.Height
-			result.Reason = "progressing and decodable video and audio"
-		}
-	}
-	cancel()
-	<-done
-	result.DurationMS = time.Since(start).Milliseconds()
-	return result
+	return result, sample
 }
 
 // Keep diagnostic categories fixed: subprocess/network errors may contain URLs.

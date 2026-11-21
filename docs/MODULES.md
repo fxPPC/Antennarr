@@ -12,7 +12,7 @@ The application is a modular monolith. `cmd/antennarr` is the composition root: 
 - `monitor`: read-only collection boundary. Caches a consistent SQLite read snapshot for five seconds; live playback/work state is sampled on every response. It never causes checks or opens sources.
 - `systeminfo`: bounded host diagnostics and in-memory load samples, classified by actual streaming/checking activity. No subprocess arguments come from requests, and idle time is not presented as background-check load.
 - `admin`: authenticated HTTP/UI, validated settings, and explicit operations. It delegates work rather than implementing alternate media pipelines.
-- `netguard`, `moderation`, `budget`, `checkcpu`, `access`: shared security and resource policies. New inputs/outputs must not bypass them.
+- `netguard`, `moderation`, `budget`, `access`: shared security and resource policies. New inputs/outputs must not bypass them.
 - `recovery`: bounded, validated, explicit manual backups/restores, and staged factory reset before SQLite opens. Reset retains manual archives. No automatic backups.
 
 ## Future-compatible data
