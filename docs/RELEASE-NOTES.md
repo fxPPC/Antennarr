@@ -1,9 +1,12 @@
 # v1.1.0-beta.2
 
 - Choose from 16 city presets. The new choices are Toronto, Madrid, Paris, Rome, Warsaw, Lisbon, São Paulo, Stockholm, Copenhagen, and Oslo. Each preset uses a Plex guide for its city. On a fresh installation, six tuner slots share the same account and viewer limits.
+- Removing a tuner frees its port on both legacy and range-based installations. Previously removed tuners stop counting against capacity on upgrade. Saved tuners keep their ports and device IDs.
 - New York City and London have 149 and 109 channels respectively in new presets. This release removes Flix and 5DRAMA from the defaults. Existing installations retain their saved channel selections and numbers.
 - The operating system chooses which CPUs run background scans. Media checks close the capture connection before decoding a sample, so the provider connection is available for other work.
 - The Linux image is available under `antennarr/antennarr:v1.1.0-beta.2` and `testing`. The macOS and Windows downloads include FFmpeg and FFprobe for both Intel/AMD and ARM64 processors.
+
+The Linux runtime has two known, unfixed findings in glibc 2.44-r24, CVE-2026-115819 (medium) and CVE-2026-100290 (low). The amd64 and ARM64 scan reports accompany the release.
 
 # v1.1.0-beta.1
 

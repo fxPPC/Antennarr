@@ -38,7 +38,7 @@ func (a *API) listeners(w http.ResponseWriter, _ *http.Request) {
 	for port := p.First; port <= p.Last; port++ {
 		ports = append(ports, port)
 	}
-	available, err := a.Store.AvailableProfileSlots(len(ports)-1, a.PortRange != "")
+	available, err := a.Store.AvailableProfileSlots(len(ports)-1)
 	if err != nil {
 		failure(w, 500, "Tuner listeners unavailable")
 		return
@@ -103,7 +103,7 @@ func (a *API) addProfile(w http.ResponseWriter, r *http.Request) {
 	var out catalog.Profile
 	apply := func() error {
 		var err error
-		out, err = a.Store.AddProfileForListeners(v.PresetID, p.Last-p.First+1, a.PortRange != "")
+		out, err = a.Store.AddProfilePreset(v.PresetID, p.Last-p.First+1)
 		return err
 	}
 	var err error
