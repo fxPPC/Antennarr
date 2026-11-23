@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -110,7 +111,7 @@ func TestFleetDistinctDevicesAndScopedLineups(t *testing.T) {
 	w = httptest.NewRecorder()
 	f.Handler(p.PortOffset).ServeHTTP(w, httptest.NewRequest("GET", "/discover.json", nil))
 	var replacement struct{ DeviceID string }
-	if err := json.Unmarshal(w.Body.Bytes(), &replacement); err != nil || w.Code != 200 || replacement.DeviceID != next.DeviceID {
+	if err := json.Unmarshal(w.Body.Bytes(), &replacement); err != nil || w.Code != 200 || replacement.DeviceID != strings.ToUpper(next.DeviceID) {
 		t.Fatal("freed listener did not serve the replacement device", w.Code, replacement, err)
 	}
 }
