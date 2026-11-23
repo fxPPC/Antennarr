@@ -12,10 +12,15 @@ import (
 	"time"
 )
 
+type allowance struct {
+	credit float64
+	at     time.Time
+}
+
 type entry struct {
-	failures                                              int
-	blocked, last, creditAt, heavyAt, backupAt, restoreAt time.Time
-	credit                                                float64
+	failures                                    int
+	blocked, last, heavyAt, backupAt, restoreAt time.Time
+	api, assets                                 allowance
 }
 type Guard struct {
 	mu      sync.Mutex
@@ -85,7 +90,8 @@ func (g *Guard) get(key string, now time.Time) *entry {
 				break
 			}
 		}
-		v = &entry{credit: 60, creditAt: now}
+		initial := allowance{credit: 60, at: now}
+		v = &entry{api: initial, assets: initial}
 		g.entries[key] = v
 	}
 	if now.Sub(v.last) > 30*time.Minute {
@@ -121,17 +127,21 @@ func (g *Guard) Success(key string) {
 	v.failures = 0
 	v.blocked = time.Time{}
 }
-func (g *Guard) Allow(key string) time.Duration {
+func (g *Guard) Allow(key string, dashboardAsset bool) time.Duration {
 	g.mu.Lock()
 	defer g.mu.Unlock()
 	now := g.now()
 	v := g.get(key, now)
-	v.credit = math.Min(60, v.credit+now.Sub(v.creditAt).Seconds()*10)
-	v.creditAt = now
-	if v.credit < 1 {
+	budget := &v.api
+	if dashboardAsset {
+		budget = &v.assets
+	}
+	budget.credit = math.Min(60, budget.credit+now.Sub(budget.at).Seconds()*10)
+	budget.at = now
+	if budget.credit < 1 {
 		return 100 * time.Millisecond
 	}
-	v.credit--
+	budget.credit--
 	return 0
 }
 

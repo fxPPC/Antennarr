@@ -13,8 +13,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -38,6 +40,19 @@ var logoHash = fmt.Sprintf("\"%x\"", sha256.Sum256(logo))
 
 //go:embed index.html
 var page []byte
+
+// IsDashboardAsset recognises only files embedded in the authenticated web UI.
+func IsDashboardAsset(path string) bool {
+	switch path {
+	case "/", "/admin", "/admin/app.js", "/admin/style.css", "/admin/favicon.png", "/admin/logo.png":
+		return true
+	}
+	if !strings.HasPrefix(path, "/admin/ui/") || !strings.HasSuffix(path, ".js") {
+		return false
+	}
+	_, err := fs.Stat(uiFiles, strings.TrimPrefix(path, "/admin/"))
+	return err == nil
+}
 
 type API struct {
 	SystemInfo            func() systeminfo.Snapshot

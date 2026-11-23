@@ -94,7 +94,10 @@ func (s *Server) auth(next http.HandlerFunc) http.HandlerFunc {
 		if s.Guard != nil {
 			key := s.Guard.Key(r)
 			s.Guard.Success(key)
-			if wait := s.Guard.Allow(key); wait > 0 {
+			// A hard refresh requests the entire module graph at once. Give bundled
+			// files a separate bounded allowance from API reads and edits.
+			asset := s.Admin != nil && r.Method == http.MethodGet && admin.IsDashboardAsset(r.URL.Path)
+			if wait := s.Guard.Allow(key, asset); wait > 0 {
 				access.Limited(w, wait)
 				return
 			}
