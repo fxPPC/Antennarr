@@ -1,3 +1,7 @@
+# v1.0.9
+
+Docker now checks the configured tuner listener. Automatic Plex discovery uses the configured address and port when no public base URL is set. This fixes incorrect discovery URLs and false unhealthy reports on custom ports.
+
 # v1.0.8
 
 Stable maintenance release for Linux amd64 and ARM64. Updates the Wolfi runtime base and CI tooling. Existing 1.0 settings, channels, rosters, and Plex tuner identities use the same schema.

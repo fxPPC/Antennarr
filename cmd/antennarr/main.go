@@ -28,6 +28,10 @@ import (
 )
 
 func main() {
+	listen := env("ANTENNARR_LISTEN", ":9192")
+	if len(os.Args) == 2 && os.Args[1] == "healthcheck" {
+		os.Exit(healthcheck(listen))
+	}
 	// stdout is the operational log sink; Docker owns rotation and retention.
 	var initialLevel slog.Level
 	levelErr := initialLevel.UnmarshalText([]byte(env("ANTENNARR_LOG_LEVEL", "DEBUG")))
@@ -83,12 +87,20 @@ func main() {
 	}
 	base := os.Getenv("ANTENNARR_BASE_URL")
 	if base == "" {
-		ip := privateIP()
+		host, port, err := net.SplitHostPort(listen)
+		if err != nil {
+			slog.Error("invalid tuner listen address")
+			os.Exit(1)
+		}
+		ip := host
+		if ip == "" || net.ParseIP(ip).IsUnspecified() {
+			ip = privateIP()
+		}
 		if ip == "" {
 			slog.Error("no private interface address")
 			os.Exit(1)
 		}
-		base = "http://" + net.JoinHostPort(ip, "9192")
+		base = "http://" + net.JoinHostPort(ip, port)
 	}
 	var m *stream.Manager
 	readChecks := func() config.Settings {
@@ -209,7 +221,7 @@ func main() {
 		}
 		return e
 	}, Store: store, Client: client}, Config: c, Streams: m, BaseURL: base, ReadLogin: login.Current}
-	srv := http.Server{Addr: env("ANTENNARR_LISTEN", ":9192"), Handler: s.Handler(), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
+	srv := http.Server{Addr: listen, Handler: s.Handler(), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 16384}
 	var adminServer *http.Server
 	var adminListener net.Listener
 	if addr := os.Getenv("ANTENNARR_ADMIN_LISTEN"); addr != "" {
@@ -278,7 +290,7 @@ func main() {
 		}
 		_ = srv.Shutdown(shutdown)
 	}()
-	slog.Info("tuner starting", "version", "v1.0.8", "schema", 8, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "tuners", c.Settings.MaxOutgoingStreams)
+	slog.Info("tuner starting", "version", "v1.0.9", "schema", 8, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "tuners", c.Settings.MaxOutgoingStreams)
 	if err = srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		slog.Error("HTTP server failed")
 		os.Exit(1)

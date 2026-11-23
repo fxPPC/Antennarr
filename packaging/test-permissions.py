@@ -29,6 +29,15 @@ try:
  start(puid=12345,pgid=12346);ready();identity(12345);assert json.loads(request('/api/channels').stdout)==channels;stop();print('PASS custom PUID/PGID adjusts existing ownership and preserves channels',flush=True)
  start(uid='12345:12346',extra=('--cap-drop','ALL','--read-only','--tmpfs','/tmp'));ready();identity(12345);stop();print('PASS explicit --user and no capabilities',flush=True)
  start(puid=12345,pgid=12346,extra=('--cap-drop','ALL','--cap-add','CHOWN','--cap-add','DAC_OVERRIDE','--cap-add','SETUID','--cap-add','SETGID','--read-only','--tmpfs','/tmp','--security-opt','no-new-privileges:true'));ready();identity(12345);stop();print('PASS hardened initialisation',flush=True)
+ # A custom tuner listener must be used for discovery and the image health check.
+ start(extra=('-e','ANTENNARR_LISTEN=127.0.0.1:9492','-e','ANTENNARR_BASE_URL='))
+ ready()
+ discovery=json.loads(run('exec',name,'curl','-fsS','http://127.0.0.1:9492/discover.json').stdout)
+ assert discovery['BaseURL']=='http://127.0.0.1:9492',discovery
+ probe=json.loads(run('inspect','--format','{{json .Config.Healthcheck.Test}}',name).stdout)
+ assert probe[0]=='CMD',probe
+ run('exec',name,*probe[1:])
+ stop();print('PASS custom tuner discovery and health check',flush=True)
  start(uid='22222:22222');time.sleep(.5);logs=run('logs',name).stdout+run('logs',name).stderr;assert 'permission denied' in logs,logs;stop();print('PASS wrong ownership diagnostic',flush=True)
  start(uid='12345:12346',puid=5);time.sleep(.5);logs=run('logs',name).stdout+run('logs',name).stderr;assert 'differ from Docker --user' in logs,logs;stop();print('PASS conflicting IDs rejected',flush=True)
  start(puid='not-a-number');time.sleep(.5);logs=run('logs',name).stdout+run('logs',name).stderr;assert 'positive numeric' in logs,logs;stop();print('PASS invalid IDs rejected',flush=True)
