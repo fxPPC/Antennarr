@@ -29,6 +29,8 @@ func TestCityPresetIdentities(t *testing.T) {
 				{ch.Name, "", embeddedCountry == strings.ToLower(ch.Region)},
 				{ch.Region + " | " + ch.Name, "UnrelatedStation." + strings.ToLower(ch.Region), false},
 				{ch.Region + " | " + ch.Name, "foreignservice.us", false},
+				{ch.Region + " | " + ch.Name, ".us", false},
+				{ch.Region + " | " + ch.Name, "???", false},
 				{ch.Region + " | " + ch.Name + " +1", id, false},
 			} {
 				got := resolveChannel([]channelMatcher{m}, sourceLabelWithID(tc.name, "", tc.guide), tc.guide, nil)

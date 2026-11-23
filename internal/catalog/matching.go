@@ -188,6 +188,7 @@ var indianCategory = regexp.MustCompile(`(?i)^\s*(?:hindi|marathi)\s*[-|:]\s*(?:
 type sourceLabel struct {
 	channelLabel
 	guide         channelLabel
+	hasGuide      bool
 	indianService channelLabel
 	words         string
 	ambiguous     bool
@@ -210,6 +211,7 @@ func sourceLabelWithID(name, region, id string) sourceLabel {
 	label := parseSourceLabel(name, region)
 	k, country := guideKey(id)
 	label.guide = channelLabel{k, country}
+	label.hasGuide = strings.TrimSpace(id) != ""
 	// Separate fields with two spaces so a phrase cannot straddle name and ID.
 	if id != "" {
 		label.words += " " + strings.Join(exclusionWords(id), " ") + " "
@@ -253,7 +255,7 @@ func (m channelMatcher) excludes(label sourceLabel) bool {
 		if label.country == "" && label.guide.country == "" {
 			return true
 		}
-		if label.guide.key != "" && !m.identifiesGuide(label.guide) {
+		if label.hasGuide && !m.identifiesGuide(label.guide) {
 			return true
 		}
 	}
