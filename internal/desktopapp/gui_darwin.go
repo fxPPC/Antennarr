@@ -23,6 +23,12 @@ var windowSession *session
 //export desktopState
 func desktopState() C.int { n, _ := windowSession.status(); return C.int(n) }
 
+//export desktopStopAndWait
+func desktopStopAndWait() {
+	windowSession.stop()
+	<-windowSession.done
+}
+
 //export desktopDetail
 func desktopDetail() *C.char { _, detail := windowSession.status(); return C.CString(detail) }
 

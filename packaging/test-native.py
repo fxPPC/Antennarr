@@ -138,14 +138,25 @@ def running(executable, env, base, logfile, foreground=False):
             raise
         finally:
             if finder:
-                # open -W waits for the app but signals sent to open do not reach it.
-                for pid in mac_app_pids(executable):
-                    os.kill(pid, signal.SIGTERM)
+                # Ask the running app to quit through AppKit. A cancelled request
+                # can leave a menu-only application blocking logout or restart.
                 try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    pass
-            stop(process)
+                    for pid in mac_app_pids(executable):
+                        subprocess.run(["/usr/bin/swift", "-e", """
+import AppKit
+guard let app = NSRunningApplication(processIdentifier: Int32(CommandLine.arguments[1])!),
+      app.terminate() else { exit(1) }
+""", str(pid)], check=True, timeout=90)
+                    process.wait(timeout=20)
+                finally:
+                    for pid in mac_app_pids(executable):
+                        try:
+                            os.kill(pid, signal.SIGTERM)
+                        except ProcessLookupError:
+                            pass
+                    stop(process)
+            else:
+                stop(process)
 
 
 def verify_dependency_error(launcher, env, root):
