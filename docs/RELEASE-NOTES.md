@@ -1,3 +1,10 @@
+# v1.1.0-beta.2
+
+- Choose from 16 city presets. The new choices are Toronto, Madrid, Paris, Rome, Warsaw, Lisbon, São Paulo, Stockholm, Copenhagen, and Oslo. Each preset uses a Plex guide for its city. On a fresh installation, six tuner slots share the same account and viewer limits.
+- New York City and London have 149 and 109 channels respectively in new presets. This release removes Flix and 5DRAMA from the defaults. Existing installations retain their saved channel selections and numbers.
+- The operating system chooses which CPUs run background scans. Media checks close the capture connection before decoding a sample, so the provider connection is available for other work.
+- The Linux image is available under `antennarr/antennarr:v1.1.0-beta.2` and `testing`. The macOS and Windows downloads include FFmpeg and FFprobe for both Intel/AMD and ARM64 processors.
+
 # v1.1.0-beta.1
 
 ## What changes when you upgrade from 1.0
