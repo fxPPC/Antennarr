@@ -31,6 +31,8 @@ These commands pull the published image for Linux amd64 or ARM64. If stable and 
 
 Open the first port in your range (39192 by default), sign in with `admin/admin`, and change the login. The setup wizard opens in **Status** on a fresh installation. Choose a city, enable its tuner, and import an authorised source list. Use the tuner address shown in the last step to add it in Plex. You can skip the wizard and reopen it from **Admin**. Add further cities under **Tuners**. An upgrade preserves saved tuners, their enabled state, and their channels.
 
+Removing a tuner frees its port immediately. The next tuner takes the lowest available slot and receives a new Plex device ID. Disabled tuners keep their slots.
+
 ## Web and tuner ports
 
 Choose seven consecutive TCP ports with `ANTENNARR_PORT_RANGE`. The first serves web administration. Each of the following six serves one Plex tuner. For example, `41000-41006` puts administration on 41000 and tuners on 41001–41006. Restart Antennarr after changing the range. A change of tuner address also requires updating Plex.
