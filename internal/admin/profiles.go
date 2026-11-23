@@ -38,7 +38,7 @@ func (a *API) listeners(w http.ResponseWriter, _ *http.Request) {
 	for port := p.First; port <= p.Last; port++ {
 		ports = append(ports, port)
 	}
-	available, err := a.Store.AvailableProfileSlots(len(ports)-1)
+	available, err := a.Store.AvailableProfileSlots(len(ports) - 1)
 	if err != nil {
 		failure(w, 500, "Tuner listeners unavailable")
 		return
