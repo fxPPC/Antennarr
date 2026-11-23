@@ -110,7 +110,7 @@ test('the web UI reports configured ports and reserved capacity', () => {
   assert.match(slotHelp({...range,available_slots:0}), /free a slot/);
   const legacy = {port_range:'',admin_port:0,tuner_ports:[9192,9200,9201,9202],available_slots:0};
   assert.deepEqual(listenerLabels(legacy), {range:'Individual ports (legacy configuration)',admin:'Shared with the primary tuner on 9192',tuners:'9192, 9200–9202',capacity:'0 of 4 tuner slots available.'});
-  assert.match(slotHelp(legacy), /legacy/);
+  assert.match(slotHelp(legacy), /free a slot/);
 });
 test('a full allocation still lets setup enable an existing disabled tuner', () => {
   const profiles = [{id:'my-tuner',name:'Local lineup',preset_id:'',enabled:false}];

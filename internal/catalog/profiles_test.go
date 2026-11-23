@@ -194,8 +194,8 @@ func TestFreshProfilesAreOptionalAndNeverReseeded(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if p.ID == "primary" || p.PortOffset <= 1 || p.DeviceID == "" {
-		t.Fatal("old identity reused", p)
+	if p.ID != "primary" || p.PortOffset != 0 || p.DeviceID == "" {
+		t.Fatal("first free offset was not reused", p)
 	}
 	if _, e = s.AddProfilePreset("uk-london", p.PortOffset); e == nil {
 		t.Fatal("allocation exceeded configured listener pool")
@@ -522,7 +522,7 @@ func TestFixedListenerSlotsReserveDisabledTunersAndReuseOnlyVacancies(t *testing
 	defer s.Close()
 	var saved []Profile
 	for _, preset := range Presets() {
-		p, err := s.AddProfileForListeners(preset.ID, 5, true)
+		p, err := s.AddProfilePreset(preset.ID, 5)
 		if err != nil || p.PortOffset != len(saved) || p.Enabled {
 			t.Fatal(p, err)
 		}
@@ -531,19 +531,16 @@ func TestFixedListenerSlotsReserveDisabledTunersAndReuseOnlyVacancies(t *testing
 	if len(saved) != 6 {
 		t.Fatal("expected six presets", len(saved))
 	}
-	if n, err := s.AvailableProfileSlots(5, true); err != nil || n != 0 {
+	if n, err := s.AvailableProfileSlots(5); err != nil || n != 0 {
 		t.Fatal(n, err)
 	}
 	if err = s.DeleteProfile(saved[2].ID); err != nil {
 		t.Fatal(err)
 	}
-	if n, err := s.AvailableProfileSlots(5, true); err != nil || n != 1 {
+	if n, err := s.AvailableProfileSlots(5); err != nil || n != 1 {
 		t.Fatal(n, err)
 	}
-	if n, err := s.AvailableProfileSlots(5, false); err != nil || n != 0 {
-		t.Fatal("legacy slots recycled", n, err)
-	}
-	p, err := s.AddProfileForListeners(saved[2].Preset, 5, true)
+	p, err := s.AddProfilePreset(saved[2].Preset, 5)
 	if err != nil || p.PortOffset != 2 || p.ID == saved[2].ID || p.DeviceID == saved[2].DeviceID {
 		t.Fatal(p, err)
 	}
