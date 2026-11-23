@@ -1,0 +1,451 @@
+[
+  {
+    "name": "TV Brasil",
+    "number": "004",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Record News",
+    "number": "014",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "SBT",
+    "number": "017",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Globo São Paulo",
+    "number": "018",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "Globo Sao Paulo",
+      "Globo SP",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RedeTV!",
+    "number": "020",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "Rede TV",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "sportv3",
+    "number": "037",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "SporTV 3",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "sportv2",
+    "number": "038",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "SporTV 2",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "GloboNews",
+    "number": "040",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "Globo News",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "GNT",
+    "number": "041",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Multishow",
+    "number": "042",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "MULTI SHOW",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ESPN",
+    "number": "070",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ESPN 2",
+    "number": "071",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "ESPN 4",
+    "number": "073",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "ESPN4",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "BandSports",
+    "number": "075",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "Band Sports",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "CNN Brasil",
+    "number": "077",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "BandNews",
+    "number": "079",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "Band News",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Discovery Channel",
+    "number": "081",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Animal Planet",
+    "number": "082",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Discovery Kids",
+    "number": "100",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Gloob",
+    "number": "101",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Cartoon Network",
+    "number": "104",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "AXN",
+    "number": "135",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TNT",
+    "number": "151",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Megapix",
+    "number": "152",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "MEGA PIX",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Telecine Premium",
+    "number": "161",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "TELE CINE PREMIUM",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Telecine Action",
+    "number": "162",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "TELE CINE ACTION",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "HBO",
+    "number": "171",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "HBO2",
+    "number": "172",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "HBO 2",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Premiere Clubes",
+    "number": "721",
+    "region": "BR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  }
+]
