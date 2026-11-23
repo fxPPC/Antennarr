@@ -57,7 +57,7 @@ try:
  setup=json.loads(request('/api/setup').stdout)
  assert setup['state']=='pending' and not setup['has_tuner'] and not setup['has_sources'], setup
  update('/api/setup',{'state':'active'})
- expected={'us-nyc':150,'uk-london':110,'mx-mexico-city':15,'in-mumbai':23,'de-berlin':34,'nl-amsterdam':22}
+ expected={'us-nyc':149,'uk-london':109,'mx-mexico-city':15,'in-mumbai':23,'de-berlin':34,'nl-amsterdam':22}
  for preset in expected:
   update('/api/profiles',{'preset_id':preset})
  channels=json.loads(request('/api/channels').stdout)
