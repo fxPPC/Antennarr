@@ -1,0 +1,41 @@
+name: Update Docker testing tag
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Approved release"]
+    types: [completed]
+permissions:
+  contents: read
+concurrency:
+  group: docker-testing-tag
+  cancel-in-progress: false
+jobs:
+  promote:
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-24.04
+    environment: release
+    env:
+      IMAGE: antennarr/antennarr
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Point testing at the most recently published preview
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases?per_page=100" |
+            jq -er 'flatten | map(select(.prerelease and (.draft | not))) | max_by(.published_at).tag_name')
+          [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc)\.[0-9]+$ ]]
+          gh release download "$version" -R "$GITHUB_REPOSITORY" -p IMAGE-DIGEST.txt
+          ref=$(cat IMAGE-DIGEST.txt)
+          digest=${ref#"$IMAGE@"}
+          [[ "$ref" == "$IMAGE@$digest" && "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          inspect() { docker buildx imagetools inspect "$1" --format '{{json .Manifest}}' | jq -er .digest; }
+          test "$(inspect "$IMAGE:$version")" = "$digest"
+          docker buildx imagetools create --tag "$IMAGE:testing" "$ref"
+          test "$(inspect "$IMAGE:testing")" = "$digest"
+          docker pull "$IMAGE:testing"
