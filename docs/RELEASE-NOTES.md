@@ -1,5 +1,3 @@
-The latest public preview is v1.1.0-beta.1. The v1.1.0-beta.2 entry describes source changes being prepared for the next preview.
-
 # v1.1.0-beta.2
 
 - Choose from 16 city presets. The new choices are Toronto, Madrid, Paris, Rome, Warsaw, Lisbon, São Paulo, Stockholm, Copenhagen, and Oslo. The 261 new channels each matched at least eight distinct provider catalogues in the test sample. Each preset uses a Plex guide for its city. On a fresh installation, six tuner slots share the same account and viewer limits.
