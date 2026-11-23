@@ -1,6 +1,6 @@
 # Setting up Plex tuners
 
-Fresh installs start empty. Add any of these presets, review its channels, then enable it. Each tuner has its own lineup and Plex address.
+Fresh installations start empty. The table describes the upcoming beta 2 source. The published beta 1 includes the first six cities, with 150 channels in New York and 110 in London. Each saved tuner has its own lineup and Plex address.
 
 | City | Editable channels | Guide location | Verified Plex lineup |
 | --- | ---: | --- | --- |
@@ -42,6 +42,8 @@ ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.1 docker compose -f compose.port
 These commands pull the published image for Linux amd64 or ARM64. If stable and beta run on the same host, give them separate Compose projects, data directories, and non-overlapping listener and host ports (or run the preview on a separate host).
 
 Open the first port in your range (39192 by default), sign in with `admin/admin`, and change the login. The setup wizard opens in **Status** on a fresh installation. Choose a city, enable its tuner, and import an authorised source list. Use the tuner address shown in the last step to add it in Plex. You can skip the wizard and reopen it from **Admin**. Add further cities under **Tuners**. An upgrade preserves saved tuners, their enabled state, and their channels.
+
+In the beta 2 source, removing a tuner frees its port immediately. The next tuner takes the lowest available slot and receives a new Plex device ID. Disabled tuners keep their slots.
 
 ## Web and tuner ports
 

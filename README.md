@@ -11,6 +11,8 @@ Antennarr turns authorised Xtream account lists into HDHomeRun-compatible tuners
 | Stable 1.0 | `1.0` or `latest`; pin `v1.0.8` for the exact release | amd64, ARM64 | One US tuner with 150 editable channels |
 | 1.1 preview | `testing` (newest preview), `v1.1.0-beta.1` (pinned) | amd64, ARM64 | Starts empty. Choose from six optional city presets |
 
+The unpublished beta 2 source adds ten city presets and reuses a removed tuner’s port.
+
 **Docker is the best-supported installation.** The [1.1 beta downloads](https://github.com/fxPPC/Antennarr/releases/tag/v1.1.0-beta.1) also include standalone macOS and Windows apps for ARM64 and amd64, with FFmpeg and FFprobe bundled. [Native installation and firewall settings](docs/NATIVE.md)
 
 **Most users should install stable 1.0.** For the beta, follow [multi-tuner setup](docs/MULTI-TUNER.md). Use a separate data directory. Opening 1.0 data in the beta migrates it to schema 9. Returning to 1.0 requires a pre-upgrade backup.

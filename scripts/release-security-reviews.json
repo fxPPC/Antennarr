@@ -2381,5 +2381,24 @@
         "severity": "Medium"
       }
     ]
+  },
+  "v1.1.0-beta.2": {
+    "reviewed_on": "2026-11-23",
+    "decision": "The maintainer approved these two unfixed findings for beta 2 on amd64 and ARM64 if no patched runtime is available and each complete final scan matches this list. Publish both reports with the release.",
+    "require_exact": true,
+    "findings": [
+      {
+        "id": "CVE-2026-100290",
+        "package": "glibc-2.44",
+        "version": "2.44-r24",
+        "severity": "Low"
+      },
+      {
+        "id": "CVE-2026-115819",
+        "package": "glibc-2.44",
+        "version": "2.44-r24",
+        "severity": "Medium"
+      }
+    ]
   }
 }

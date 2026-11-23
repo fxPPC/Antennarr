@@ -2,6 +2,7 @@
 #include <stdlib.h>
 
 extern int desktopState(void);
+extern void desktopStopAndWait(void);
 extern char *desktopDetail(void);
 extern char *desktopViewers(void);
 extern char *desktopCoverage(void);
@@ -15,7 +16,7 @@ static NSString *take(char *s) {
 @property NSMenu *menu;
 @property NSMenuItem *status, *viewers, *coverage, *settings, *admin, *login, *quit;
 @property NSURL *url, *settingsURL, *folder, *agent;
-@property BOOL opened, shownError, testing, settingsOpened, quitRequested;
+@property BOOL opened, shownError, testing, settingsOpened, quitRequested, terminating;
 @end
 
 @implementation AntennarrMenu
@@ -55,7 +56,16 @@ static NSString *take(char *s) {
     }
 }
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender {
-    [self quitApp:nil]; return NSTerminateCancel;
+    if (!self.terminating) {
+        self.terminating = YES;
+        dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0), ^{
+            desktopStopAndWait();
+            dispatch_async(dispatch_get_main_queue(), ^{
+                [sender replyToApplicationShouldTerminate:YES];
+            });
+        });
+    }
+    return NSTerminateLater;
 }
 - (BOOL)applicationShouldHandleReopen:(NSApplication *)sender hasVisibleWindows:(BOOL)flag {
     if (desktopState() == 1) [self openAdmin:nil]; return NO;
@@ -84,6 +94,7 @@ static NSString *take(char *s) {
     self.login.state = [self loginEnabled] ? NSControlStateValueOn : NSControlStateValueOff;
 }
 - (void)tick:(NSTimer *)timer {
+    if (self.terminating) return;
     int state = desktopState();
     if (state == 1 && !self.opened) { self.opened = YES; [self openAdmin:nil]; }
     if (state == 2 && !self.shownError) {

@@ -1,5 +1,3 @@
-// The server counts available slots. Disabled tuners and retired legacy ports
-// mean the number of enabled tuners cannot determine how many remain.
 export function listenerLabels(listeners) {
   const ports = listeners.tuner_ports;
   const groups = [];
@@ -18,8 +16,7 @@ export function listenerLabels(listeners) {
 
 export function slotHelp(listeners) {
   if (listeners.available_slots > 0) return 'Each saved tuner uses one slot, even when disabled.';
-  return listeners.port_range ? 'Choose an existing tuner, or remove an unused one in Tuners to free a slot.'
-    : 'Choose an existing tuner, or review the legacy allocation in Network ports.';
+  return 'Choose an existing tuner, or remove an unused one in Tuners to free a slot.';
 }
 
 export function tunerSlotSummary(listeners) {
