@@ -39,9 +39,9 @@ These are release acceptance requirements. They are not implemented or proven me
 
 | Tag | Meaning |
 | --- | --- |
-| `v1.0.8` | Immutable exact stable release |
+| `v1.0.9` | Immutable exact stable release |
 | `1.0` | Most recent published stable 1.0 patch |
-| `v1.1.0-beta.1` | Opt-in amd64 and ARM64 beta |
+| `v1.1.0-beta.2` | Opt-in amd64 and ARM64 beta |
 | `1.1` | Most recent published stable 1.1 patch; absent until a stable release |
 | `latest` | Explicitly promoted recommended stable release |
 

@@ -8,7 +8,7 @@ Antennarr turns authorised Xtream account lists into HDHomeRun-compatible tuners
 
 | Release | Docker Hub tag | Linux platforms | Fresh installation |
 | --- | --- | --- | --- |
-| Stable 1.0 | `1.0` or `latest`; pin `v1.0.8` for the exact release | amd64, ARM64 | One US tuner with 150 editable channels |
+| Stable 1.0 | `1.0` or `latest`; pin `v1.0.9` for the exact release | amd64, ARM64 | One US tuner with 150 editable channels |
 | 1.1 preview | `testing` (newest preview), `v1.1.0-beta.2` (pinned) | amd64, ARM64 | Starts empty. Choose from 16 optional city presets |
 
 The next 1.1 beta adds Buenos Aires and Bogotá.

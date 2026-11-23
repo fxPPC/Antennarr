@@ -3,7 +3,7 @@
 Start on each build machine with the same release tag. Keep build output outside the checkout so it stays out of the Docker build context.
 
 ```sh
-git clone --branch v1.1.0-beta.1 --depth 1 https://github.com/fxPPC/Antennarr.git
+git clone --branch v1.1.0-beta.2 --depth 1 https://github.com/fxPPC/Antennarr.git
 cd Antennarr
 version=$(git describe --tags --exact-match)
 revision=$(git rev-parse HEAD)
