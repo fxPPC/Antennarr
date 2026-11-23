@@ -52,10 +52,10 @@ func sourceWords(name string) []string {
 		out[i] = name[l[0]:l[1]]
 		before := strings.TrimSpace(name[:l[0]])
 		after := strings.TrimSpace(name[l[1]:])
-		// Providers also delimit the Indian tag as "IN | name" or "IN: name".
-		// Keep ordinary "in" in service names and country-like brands such as CW.
-		if strings.EqualFold(out[i], "IN") {
-			prefix := i == 0 && (strings.HasPrefix(after, "|") || strings.HasPrefix(after, ":"))
+		// IN, IT, NO, and LA also occur as ordinary words. Require provider tag
+		// punctuation and leave hyphenated brands such as In-N-Out intact.
+		if strings.EqualFold(out[i], "IN") || strings.EqualFold(out[i], "NO") || strings.EqualFold(out[i], "IT") || strings.EqualFold(out[i], "LA") {
+			prefix := i == 0 && (strings.HasPrefix(after, "|") || strings.HasPrefix(after, ":") || strings.HasPrefix(name[l[1]:], " - "))
 			suffix := i == len(locs)-1 && strings.HasSuffix(before, "|")
 			if prefix || suffix {
 				out[i] = "[" + out[i] + "]"
@@ -177,6 +177,7 @@ type channelMatcher struct {
 	negativeIDs []string
 	guideKeys   map[string]bool
 	stationKey  string
+	strictGuide bool
 	networkKey  string
 }
 
@@ -187,6 +188,7 @@ var indianCategory = regexp.MustCompile(`(?i)^\s*(?:hindi|marathi)\s*[-|:]\s*(?:
 type sourceLabel struct {
 	channelLabel
 	guide         channelLabel
+	hasGuide      bool
 	indianService channelLabel
 	words         string
 	ambiguous     bool
@@ -209,6 +211,7 @@ func sourceLabelWithID(name, region, id string) sourceLabel {
 	label := parseSourceLabel(name, region)
 	k, country := guideKey(id)
 	label.guide = channelLabel{k, country}
+	label.hasGuide = strings.TrimSpace(id) != ""
 	// Separate fields with two spaces so a phrase cannot straddle name and ID.
 	if id != "" {
 		label.words += " " + strings.Join(exclusionWords(id), " ") + " "
@@ -218,8 +221,12 @@ func sourceLabelWithID(name, region, id string) sourceLabel {
 func compileChannel(c Channel) channelMatcher {
 	network, _ := channelKey(c.Name, c.Region)
 	m := channelMatcher{channel: c, guideKeys: map[string]bool{}, stationKey: compactIdentity(c.Station), networkKey: compactIdentity(network)}
-	for _, alias := range append([]string{c.Name}, c.Aliases...) {
+	for i, alias := range append([]string{c.Name}, c.Aliases...) {
 		alias = strings.TrimSpace(alias)
+		if i > 0 && alias == "@guide" {
+			m.strictGuide = true
+			continue
+		}
 		if strings.HasPrefix(alias, "-") {
 			phrase := strings.Join(exclusionWords(strings.TrimSpace(strings.TrimPrefix(alias, "-"))), " ")
 			if phrase != "" {
@@ -241,6 +248,17 @@ func compileChannel(c Channel) channelMatcher {
 	return m
 }
 func (m channelMatcher) excludes(label sourceLabel) bool {
+	// A city preset can require explicit market evidence and reject a supplied
+	// guide ID unless it agrees with a configured name. A country tag alone
+	// cannot make an unrelated or unrecognised guide service trustworthy.
+	if m.strictGuide {
+		if label.country == "" && label.guide.country == "" {
+			return true
+		}
+		if label.hasGuide && !m.identifiesGuide(label.guide) {
+			return true
+		}
+	}
 	if label.ambiguous {
 		return true
 	}

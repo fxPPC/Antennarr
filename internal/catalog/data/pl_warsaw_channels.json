@@ -1,0 +1,460 @@
+[
+  {
+    "name": "TVN",
+    "number": "005",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVN 24",
+    "number": "006",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "TVN24",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Polsat",
+    "number": "007",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TV6",
+    "number": "008",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "TV 6",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVN 7",
+    "number": "009",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Polsat 2",
+    "number": "010",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "POLSAT2",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVP1",
+    "number": "011",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "TVP 1",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVP2",
+    "number": "012",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "TVP 2",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVP Info",
+    "number": "013",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVP Seriale",
+    "number": "014",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Polsat Film",
+    "number": "018",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TTV",
+    "number": "020",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TV Puls",
+    "number": "023",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "PULS 2",
+    "number": "024",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Kino Polska",
+    "number": "047",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVN 24 BIS",
+    "number": "051",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "TVN24 BIS",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Polsat News",
+    "number": "052",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TV4",
+    "number": "068",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "TV 4",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "HBO",
+    "number": "075",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "HBO2",
+    "number": "076",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "HBO 2",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVP Kultura",
+    "number": "093",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVP Historia",
+    "number": "134",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVP ABC",
+    "number": "155",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Disney Channel",
+    "number": "157",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Nickelodeon",
+    "number": "159",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Eleven Sports 1",
+    "number": "178",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Eleven Sports 2",
+    "number": "179",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVP Sport",
+    "number": "183",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Eurosport 1",
+    "number": "184",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Eurosport 2",
+    "number": "185",
+    "region": "PL",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  }
+]

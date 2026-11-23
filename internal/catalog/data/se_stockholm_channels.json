@@ -1,0 +1,312 @@
+[
+  {
+    "name": "SVT1",
+    "number": "001",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "SVT 1",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "SVT2",
+    "number": "002",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "SVT 2",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TV4",
+    "number": "004",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "TV 4",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Sjuan",
+    "number": "007",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Kanal 9",
+    "number": "009",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "kanal9",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TV10",
+    "number": "010",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "TV 10",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Kanal 11",
+    "number": "011",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "Kanal11",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TV12",
+    "number": "012",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "TV 12",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TLC",
+    "number": "014",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Viasat Nature",
+    "number": "044",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Viasat History",
+    "number": "045",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TV4 Fakta",
+    "number": "054",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "TV 4 Fakta",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Kunskapskanalen",
+    "number": "062",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Eurosport 1",
+    "number": "091",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Eurosport 2",
+    "number": "092",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TV4 Film",
+    "number": "122",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "TV 4 Film",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TV4 Guld",
+    "number": "125",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "TV 4 Guld",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Cartoon Network",
+    "number": "140",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Nick Jr.",
+    "number": "142",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Nickelodeon",
+    "number": "144",
+    "region": "SE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  }
+]
