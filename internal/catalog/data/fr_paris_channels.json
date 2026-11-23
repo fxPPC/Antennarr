@@ -236,8 +236,6 @@
     "aliases": [
       "TF1 SERIES & FILMS",
       "TF1 SERIES / FILMS",
-      "TF1 SERIES FILMS",
-      "TF1 SERIES-FILMS",
       "@guide",
       "-+1",
       "-timeshift",
@@ -269,7 +267,6 @@
     "region": "FR",
     "enabled": true,
     "aliases": [
-      "RMC STORY .",
       "@guide",
       "-+1",
       "-timeshift",
@@ -286,7 +283,6 @@
     "enabled": true,
     "aliases": [
       "RMC DECOUVERTE .",
-      "RMC Decouverte",
       "@guide",
       "-+1",
       "-timeshift",
@@ -393,7 +389,6 @@
     "region": "FR",
     "enabled": true,
     "aliases": [
-      "CANAL+ FOOT .",
       "@guide",
       "-+1",
       "-timeshift",
@@ -424,7 +419,6 @@
     "region": "FR",
     "enabled": true,
     "aliases": [
-      "CARTOON NETWORK .",
       "@guide",
       "-+1",
       "-timeshift",

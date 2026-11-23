@@ -37,7 +37,6 @@
     "region": "SE",
     "enabled": true,
     "aliases": [
-      ". TV4",
       "TV 4",
       "@guide",
       "-+1",
@@ -286,7 +285,6 @@
     "region": "SE",
     "enabled": true,
     "aliases": [
-      "Nick Jr",
       "@guide",
       "-+1",
       "-timeshift",
