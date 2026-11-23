@@ -521,15 +521,15 @@ func TestFixedListenerSlotsReserveDisabledTunersAndReuseOnlyVacancies(t *testing
 	}
 	defer s.Close()
 	var saved []Profile
-	for _, preset := range Presets() {
+	for _, preset := range Presets()[:6] {
 		p, err := s.AddProfileForListeners(preset.ID, 5, true)
 		if err != nil || p.PortOffset != len(saved) || p.Enabled {
 			t.Fatal(p, err)
 		}
 		saved = append(saved, p)
 	}
-	if len(saved) != 6 {
-		t.Fatal("expected six presets", len(saved))
+	if _, err := s.AddProfileForListeners(Presets()[6].ID, 5, true); err == nil {
+		t.Fatal("added a seventh tuner to six occupied listener slots")
 	}
 	if n, err := s.AvailableProfileSlots(5, true); err != nil || n != 0 {
 		t.Fatal(n, err)

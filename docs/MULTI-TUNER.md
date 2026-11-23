@@ -2,14 +2,26 @@
 
 Fresh installs start empty. Add any of these presets, review its channels, then enable it. Each tuner has its own lineup and Plex address.
 
-| City | Editable channels | Guide location |
-| --- | ---: | --- |
-| New York City | 150 | 10001 |
-| London | 110 | SW1A 1AA |
-| Mexico City | 15 | 06000 |
-| Mumbai | 23 | 400001 |
-| Berlin | 34 | 10115 |
-| Amsterdam | 22 | 1012 JS |
+| City | Editable channels | Guide location | Verified Plex lineup |
+| --- | ---: | --- | --- |
+| New York City | 150 | 10001 | — |
+| London | 110 | SW1A 1AA | — |
+| Mexico City | 15 | 06000 | — |
+| Mumbai | 23 | 400001 | — |
+| Berlin | 34 | 10115 | — |
+| Amsterdam | 22 | 1012 JS | — |
+| Toronto | 28 | M5V 2T6 | Bell Fibe TV |
+| Madrid | 28 | 28001 | Movistar TV |
+| Paris | 30 | 75001 | Free |
+| Rome | 26 | 00184 | Sky Q |
+| Warsaw | 30 | 00-001 | Canal+ |
+| Lisbon | 29 | 1100 | MEO Fibra |
+| São Paulo | 29 | 01001 | Net TV |
+| Stockholm | 20 | 11120 | Tele2 |
+| Copenhagen | 22 | 1050 | Norlys |
+| Oslo | 19 | 0150 | Telenor |
+
+Each installation can choose among these 16 presets. The default port range accommodates six tuners at once.
 
 Guide locations are starting points for Plex setup. Check the station and local edition when mapping each channel.
 

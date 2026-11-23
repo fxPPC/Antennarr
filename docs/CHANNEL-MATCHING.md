@@ -12,6 +12,8 @@ Stable 1.0 starts with 150 editable US channels. In 1.1, fresh installations sta
 
 The US preset includes CBS (002/WCBS), NBC (004/WNBC), FOX (005/WNYW), ABC (007/WABC), MyNetworkTV (009/WWOR), The CW (011/WPIX), and PBS (013/WNET). Each requires its New York station ID. A generic network or “New York” label alone is insufficient. A name identifying WNBC with a guide ID identifying KNBC is rejected. For example `US NBC HD` with guide ID `nbcwnbc.us` qualifies, but the same name with no ID, `cnbc.us`, or a different affiliate does not. Related news, sports, children's services, and explicitly labelled western feeds are excluded.
 
+The Toronto, Madrid, Paris, Rome, Warsaw, Lisbon, São Paulo, Stockholm, Copenhagen, and Oslo presets use the optional `@guide` matching rule in the aliases field. A feed must identify its country in its name, country field, or guide ID. When the provider supplies a guide ID, its service name must also match the channel or a configured alias. A missing guide ID is acceptable if the labelled service and country agree.
+
 The **Required station ID** field in the channel editor is optional and works with any lineup. It requires the station in the source name or guide ID. Names use complete tokens; guide IDs also recognise a combined network/station label. Exclusions and country rules still apply. Primary and standby feeds come from the same constrained roster. Tightening a rule removes incompatible memberships without adding failure strikes; accounts are retained. The field is included in channel exports and manual full backups, as persistent channel metadata.
 
 Provider labels can be false. These checks do not inspect programme content or recognise holding screens. Verify the picture and local guide mapping before relying on a channel for recordings. A strict roster may be empty when none of the available feeds identifies the required station.
@@ -21,3 +23,5 @@ Updating Antennarr does not add these channels to a saved lineup. In 1.1, open t
 ## Multiple markets
 
 Each tuner has separate channel rules and rosters. Matching considers saved market identities before assigning an unlabelled shared brand: a bare Discovery label cannot establish US versus UK when both are configured. Disabling a tuner does not erase that ambiguity. Bundled US and London service identities also veto contradictory guide IDs even when their sister channels have been removed. Manual mappings cannot bypass country, station, or exclusion checks. See the [London preset review](UK-LONDON.md).
+
+The ten additional city presets inherit the installation's roster target, source preference, and startup race settings. Each included channel matched at least eight separate provider catalogues with the default UHD filter in the November 2026 sample. A catalogue match identifies a candidate. Stream checks still determine admission to its roster.

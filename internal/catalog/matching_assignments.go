@@ -8,7 +8,7 @@ import (
 
 // Bump this marker whenever matching semantics change. Existing v1 catalogues
 // receive one full refresh; subsequent starts reuse committed assignments.
-const matchingRevision = "v1.1-six-markets-1"
+const matchingRevision = "v1.1-sixteen-markets-1"
 
 func autoMap(tx *sql.Tx) error {
 	if e := autoMapStreams(tx, nil); e != nil {
