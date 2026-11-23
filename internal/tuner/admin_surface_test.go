@@ -111,3 +111,66 @@ func TestWebKitPreviewDoesNotConsumeDashboardAllowance(t *testing.T) {
 		t.Fatal("dashboard unavailable after previews", w.Code)
 	}
 }
+
+func TestDashboardReloadHasSeparateAuthenticatedAssetBudget(t *testing.T) {
+	s := testServer(t)
+	s.Admin = &admin.API{}
+	h := s.AdminHandler()
+	get := func(path, password string) int {
+		r := httptest.NewRequest("GET", path, nil)
+		if password != "" {
+			r.SetBasicAuth("admin", password)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w.Code
+	}
+	for i := 0; i < 5; i++ {
+		want := 401
+		if i == 4 {
+			want = 429
+		}
+		if got := get("/admin/ui/core.js", "wrong"); got != want {
+			t.Fatalf("wrong password for asset: got %d, want %d", got, want)
+		}
+	}
+	if got := get("/admin", ""); got != 401 {
+		t.Fatalf("anonymous page: %d", got)
+	}
+	if got := get("/api/status", s.Password); got != 200 {
+		t.Fatalf("initial API request: %d", got)
+	}
+	// Drive each budget to its limit, then check the other class still works.
+	for i := 0; ; i++ {
+		code := get("/api/status", s.Password)
+		if code == 429 {
+			break
+		}
+		if code != 200 || i > 1000 {
+			t.Fatalf("API burst failed to reach its limit: %d", code)
+		}
+	}
+	if got := get("/admin/ui/missing.js", s.Password); got != 429 {
+		t.Fatalf("unrecognised module used the asset budget: %d", got)
+	}
+	for _, path := range []string{"/", "/admin", "/admin/app.js", "/admin/style.css", "/admin/logo.png", "/admin/favicon.png", "/admin/ui/core.js"} {
+		if got := get(path, s.Password); got != 200 {
+			t.Fatalf("dashboard reload after API burst: %s returned %d", path, got)
+		}
+	}
+	s = testServer(t)
+	s.Admin = &admin.API{}
+	h = s.AdminHandler()
+	for i := 0; ; i++ {
+		code := get("/admin/ui/core.js", s.Password)
+		if code == 429 {
+			break
+		}
+		if code != 200 || i > 1000 {
+			t.Fatalf("asset burst failed to reach its limit: %d", code)
+		}
+	}
+	if got := get("/api/status", s.Password); got != 200 {
+		t.Fatalf("API unavailable after asset burst: %d", got)
+	}
+}
