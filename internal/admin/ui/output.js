@@ -347,13 +347,7 @@ async function renderProfiles() {
       updateToolScope();
     });
     settings.append(nameForm, el('p', 'Removing this tuner deletes its channels and rosters. Re-adding its preset creates a new device that must be set up again in Plex.', 'muted'));
-    const remove = button('Remove tuner', async () => {
-      if (!await confirmAction('Remove ' + profile.name + ' and its channels and rosters? Other tuners and shared accounts are kept. Re-adding creates a new Plex device. No backup is created.')) return;
-      await api('/api/profiles/' + encodeURIComponent(profile.id), 'DELETE', {confirmed: true});
-      await loadChannels();
-    });
-    remove.className = 'danger';
-    settings.append(remove);
+    settings.append(removeTunerButton(profile));
     tuner.append(settings);
     profileCards.set(profile.id, tuner);
     root.append(tuner);
@@ -384,6 +378,15 @@ function appendTunerLinks(root, profile) {
   if (!count) root.append(el('p', 'Tuner address unavailable. Check the listening address and Docker port mappings.'));
   if (profile.listen_port) root.append(el('p', 'TCP port ' + profile.listen_port + '. Plex must reach this port on the shared Docker network or through a private LAN port mapping.', 'muted'));
 }
+function removeTunerButton(profile) {
+  const remove = button('Remove ' + profile.name, async () => {
+    if (!await confirmAction('Remove ' + profile.name + ' and its channels and rosters? Other tuners and shared accounts are kept. Re-adding creates a new Plex device. No backup is created.')) return;
+    await api('/api/profiles/' + encodeURIComponent(profile.id), 'DELETE', {confirmed: true});
+    await loadChannels();
+  });
+  remove.className = 'danger';
+  return remove;
+}
 function renderPresets() {
   const root = $('#output-presets');
   root.replaceChildren();
@@ -392,7 +395,7 @@ function renderPresets() {
     const added = profiles.find(profile => profile.preset_id === id);
     const row = el('article', undefined, 'preset-card');
     row.append(el('h3', preset.name), el('p', preset.channels + (preset.channels === 1 ? ' editable channel' : ' editable channels')), el('p', preset.guide_location || '', 'muted'));
-    if (added) row.append(el('p', 'Already added · ' + (added.enabled ? 'enabled' : 'disabled'), 'muted'));
+    if (added) row.append(el('p', 'Already added · ' + (added.enabled ? 'enabled' : 'disabled'), 'muted'), removeTunerButton(added));
     else {
       const add = button('Add ' + preset.name, async () => {
         await api('/api/profiles', 'POST', {preset_id: id});
