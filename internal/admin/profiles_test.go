@@ -93,12 +93,12 @@ func TestProfileAPIIsolationAndConfirmation(t *testing.T) {
 		t.Fatal(w.Code, w.Body.String())
 	}
 	chs, _ = s.ChannelsForProfile(id)
-	if len(chs) != 110 {
+	if len(chs) != 109 {
 		t.Fatal(len(chs))
 	}
 	w = call("GET", "/api/roster?profile_id="+id, "")
 	var summary catalog.RosterSummary
-	if json.Unmarshal(w.Body.Bytes(), &summary) != nil || len(summary.Channels) != 110 {
+	if json.Unmarshal(w.Body.Bytes(), &summary) != nil || len(summary.Channels) != 109 {
 		t.Fatal(w.Body.String())
 	}
 	w = call("GET", "/api/lineup?profile_id=missing", "")

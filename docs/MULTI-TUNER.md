@@ -4,8 +4,8 @@ Fresh installs start empty. Add any of these presets, review its channels, then 
 
 | City | Editable channels | Guide location |
 | --- | ---: | --- |
-| New York City | 150 | 10001 |
-| London | 110 | SW1A 1AA |
+| New York City | 149 | 10001 |
+| London | 109 | SW1A 1AA |
 | Mexico City | 15 | 06000 |
 | Mumbai | 23 | 400001 |
 | Berlin | 34 | 10115 |

@@ -451,16 +451,16 @@ func TestLondonReferencesStillVetoDeletedSisterChannel(t *testing.T) {
 	}
 	var target channelMatcher
 	for _, ch := range channels {
-		if ch.Name == "5DRAMA" {
+		if ch.Name == "5STAR" {
 			target = compileChannel(ch)
-			target.channel.ID = "5drama"
+			target.channel.ID = "5star"
 		}
 	}
 	if target.channel.ID == "" {
-		t.Fatal("5Drama missing")
+		t.Fatal("5STAR missing")
 	}
-	label := sourceLabelWithID("UK 5 Drama HD", "", "5star.uk")
-	if got := resolveChannel([]channelMatcher{target}, label, "5star.uk", nil); got != nil {
+	label := sourceLabelWithID("UK 5STAR HD", "", "5drama.uk")
+	if got := resolveChannel([]channelMatcher{target}, label, "5drama.uk", nil); got != nil {
 		t.Fatal("deleted sister channel no longer vetoes conflicting identity")
 	}
 }

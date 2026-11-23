@@ -483,35 +483,6 @@
     ]
   },
   {
-    "name": "5DRAMA",
-    "number": "117",
-    "region": "GB",
-    "enabled": true,
-    "aliases": [
-      "5 Drama",
-      "Five Drama",
-      "5SELECT",
-      "5 Select",
-      "Five Select",
-      "-+1",
-      "-+2",
-      "-+3",
-      "-timeshift",
-      "-time shift",
-      "-catchup",
-      "-catch up",
-      "-replay",
-      "-24/7",
-      "-vod",
-      "-on demand",
-      "-loop",
-      "-ireland",
-      "-irish",
-      "-roi",
-      "-eire"
-    ]
-  },
-  {
     "name": "5STAR",
     "number": "118",
     "region": "GB",

@@ -33,8 +33,8 @@ func londonPresetMatchers(t *testing.T) ([]Channel, []channelMatcher) {
 
 func TestLondonPresetAliasesAreUnambiguous(t *testing.T) {
 	channels, matchers := londonPresetMatchers(t)
-	if len(channels) != 110 {
-		t.Fatalf("got %d London channels, want 110", len(channels))
+	if len(channels) != 109 {
+		t.Fatalf("got %d London channels, want 109", len(channels))
 	}
 	for i, c := range channels {
 		for _, alias := range append([]string{c.Name}, c.Aliases...) {

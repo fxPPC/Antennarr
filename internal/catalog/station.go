@@ -245,6 +245,7 @@ var referenceGuideMatchers = sync.OnceValue(func() []channelMatcher {
 	// output channels nor assign a feed by its guide ID alone. These services
 	// appeared under unrelated names in provider catalogues.
 	for _, c := range []Channel{
+		{Name: "Flix", Region: "US", Aliases: []string{"Flix East", "Flix US", "Flix Eastern", "Flix E", "East Flix", "Flix US East", "Flix US Eastern", "Flix US E", "East Flix US"}},
 		{Name: "NBC News Now", Region: "US"},
 		{Name: "360 North", Region: "US", Aliases: []string{"360 North Anchorage"}},
 		{Name: "A3 Cine", Region: "US"},
