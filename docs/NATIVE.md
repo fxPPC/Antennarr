@@ -4,17 +4,17 @@ Docker on Linux remains the best-supported installation. The standalone apps are
 
 | Computer | Download |
 | --- | --- |
-| Mac with Apple silicon | [macOS ARM64 disk image](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.2/antennarr-v1.1.0-beta.2-macos-arm64.dmg) |
-| Intel Mac | [macOS Intel disk image](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.2/antennarr-v1.1.0-beta.2-macos-amd64.dmg) |
-| Windows PC with an Intel or AMD processor | [Windows x64 installer](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.2/antennarr-v1.1.0-beta.2-windows-amd64-setup.exe) |
-| Windows on ARM | [Windows ARM64 installer](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.2/antennarr-v1.1.0-beta.2-windows-arm64-setup.exe) |
+| Mac with Apple silicon | [macOS ARM64 disk image](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.1/antennarr-v1.1.0-beta.1-macos-arm64.dmg) |
+| Intel Mac | [macOS Intel disk image](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.1/antennarr-v1.1.0-beta.1-macos-amd64.dmg) |
+| Windows PC with an Intel or AMD processor | [Windows x64 installer](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.1/antennarr-v1.1.0-beta.1-windows-amd64-setup.exe) |
+| Windows on ARM | [Windows ARM64 installer](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.1/antennarr-v1.1.0-beta.1-windows-arm64-setup.exe) |
 
 ## Install and set up
 
 - **Mac:** Open the disk image, drag **Antennarr** onto **Applications**, eject the disk image, and open Antennarr from Applications. Its icon appears in the menu bar.
 - **Windows:** Run the installer for your processor. Open **Antennarr Beta** from Start. Its icon appears in the notification area, sometimes under hidden icons.
 
-The beta has no Apple notarisation or Windows publisher signature. The release includes SHA-256 checksums for each installer. [GitHub release and checksums](https://github.com/fxPPC/Antennarr/releases/tag/v1.1.0-beta.2)
+The beta has no Apple notarisation or Windows publisher signature. The release includes SHA-256 checksums for each installer. [GitHub release and checksums](https://github.com/fxPPC/Antennarr/releases/tag/v1.1.0-beta.1)
 
 On first run, open **Status** in the web interface. Sign in with `admin` / `admin`, change the password under **Admin**, and use the wizard to add a tuner, import an authorised list, and find the address for Plex. The desktop menu shows active viewers and how many enabled channels have a feed. **Settings** opens web administration. **Start at Login** controls automatic launch for your account. **Quit** stops Antennarr and any active streams.
 
