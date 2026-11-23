@@ -845,5 +845,24 @@
         "severity": "Medium"
       }
     ]
+  },
+  "v1.0.9": {
+    "reviewed_on": "2026-11-23",
+    "decision": "Release approval is conditional on both final architecture scans matching these two unfixed glibc findings exactly. A changed finding or available fix blocks publication.",
+    "require_exact": true,
+    "findings": [
+      {
+        "id": "CVE-2026-100290",
+        "package": "glibc-2.44",
+        "version": "2.44-r24",
+        "severity": "Low"
+      },
+      {
+        "id": "CVE-2026-115819",
+        "package": "glibc-2.44",
+        "version": "2.44-r24",
+        "severity": "Medium"
+      }
+    ]
   }
 }
