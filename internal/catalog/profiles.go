@@ -59,6 +59,16 @@ var tunerPresets = []presetDefinition{
 	{Profile{Kind: "hdhomerun", Name: "India - Mumbai", Market: "Mumbai", Country: "IN", Timezone: "Asia/Kolkata", GuideLocation: "400001", Preset: "in-mumbai"}, "in_mumbai_channels.json"},
 	{Profile{Kind: "hdhomerun", Name: "Germany - Berlin", Market: "Berlin", Country: "DE", Timezone: "Europe/Berlin", GuideLocation: "10115", Preset: "de-berlin"}, "de_berlin_channels.json"},
 	{Profile{Kind: "hdhomerun", Name: "Netherlands - Amsterdam", Market: "Amsterdam", Country: "NL", Timezone: "Europe/Amsterdam", GuideLocation: "1012 JS", Preset: "nl-amsterdam"}, "nl_amsterdam_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Canada - Toronto", Market: "Toronto", Country: "CA", Timezone: "America/Toronto", GuideLocation: "M5V 2T6", Preset: "ca-toronto"}, "ca_toronto_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Spain - Madrid", Market: "Madrid", Country: "ES", Timezone: "Europe/Madrid", GuideLocation: "28001", Preset: "es-madrid"}, "es_madrid_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "France - Paris", Market: "Paris", Country: "FR", Timezone: "Europe/Paris", GuideLocation: "75001", Preset: "fr-paris"}, "fr_paris_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Italy - Rome", Market: "Rome", Country: "IT", Timezone: "Europe/Rome", GuideLocation: "00184", Preset: "it-rome"}, "it_rome_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Poland - Warsaw", Market: "Warsaw", Country: "PL", Timezone: "Europe/Warsaw", GuideLocation: "00-001", Preset: "pl-warsaw"}, "pl_warsaw_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Portugal - Lisbon", Market: "Lisbon", Country: "PT", Timezone: "Europe/Lisbon", GuideLocation: "1100", Preset: "pt-lisbon"}, "pt_lisbon_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Brazil - São Paulo", Market: "São Paulo", Country: "BR", Timezone: "America/Sao_Paulo", GuideLocation: "01001", Preset: "br-sao-paulo"}, "br_sao_paulo_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Sweden - Stockholm", Market: "Stockholm", Country: "SE", Timezone: "Europe/Stockholm", GuideLocation: "11120", Preset: "se-stockholm"}, "se_stockholm_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Denmark - Copenhagen", Market: "Copenhagen", Country: "DK", Timezone: "Europe/Copenhagen", GuideLocation: "1050", Preset: "dk-copenhagen"}, "dk_copenhagen_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Norway - Oslo", Market: "Oslo", Country: "NO", Timezone: "Europe/Oslo", GuideLocation: "0150", Preset: "no-oslo"}, "no_oslo_channels.json"},
 }
 
 func presetProfile(id string) (Profile, error) {
