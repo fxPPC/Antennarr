@@ -66,15 +66,15 @@ func TestAuthenticatedBurstAndCostLimits(t *testing.T) {
 	now := time.Now()
 	g.now = func() time.Time { return now }
 	for i := 0; i < 60; i++ {
-		if g.Allow("client") != 0 {
+		if g.Allow("client", false) != 0 {
 			t.Fatal("burst prematurely limited")
 		}
 	}
-	if g.Allow("client") == 0 {
+	if g.Allow("client", false) == 0 {
 		t.Fatal("unlimited API requests")
 	}
 	now = now.Add(time.Second)
-	if g.Allow("client") != 0 {
+	if g.Allow("client", false) != 0 {
 		t.Fatal("API credit did not refill")
 	}
 	done, wait := g.Cost("client", "/api/import", "POST")
