@@ -1,4 +1,4 @@
-# v1.0.9 (in preparation)
+# v1.0.9
 
 Docker now checks the configured tuner listener. Automatic Plex discovery uses the configured address and port when no public base URL is set. This fixes incorrect discovery URLs and false unhealthy reports on custom ports.
 

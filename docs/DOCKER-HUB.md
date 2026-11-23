@@ -4,7 +4,7 @@
 
 **Stick your antenna into the Internet**
 
-**v1.0.8 · 20 November build · by fxPPC**
+**v1.0.9 · by fxPPC**
 
 An IPTV-to-Plex tuner I'm building because apparently watching television needed another software project. Import account-list URLs (plain or Base64), choose your channels, and let it maintain a roster of checked feeds. Viewers share a primary stream and live backup; failed feeds get replaced automatically, mid-session, (hopefully) without interrupting playback. That's the idea. Still testing the awkward bits.
 
@@ -37,7 +37,7 @@ Open `http://YOUR_SERVER_LAN_IP:39192`. Fresh login: **admin / admin**; change i
 
 **Upgrading hardened containers:** if you previously used `--cap-drop ALL`, keep the old non-root mode with `--user 10001:10001`, or add `CHOWN`, `DAC_OVERRIDE`, `SETUID`, and `SETGID` for ownership setup. Existing channels and logins are preserved.
 
-Tags: `1.0`, `latest`, or pinned `v1.0.8`. For opt-in 1.1 builds and their exact tags, see the [GitHub releases](https://github.com/fxPPC/Antennarr/releases). Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Runtime package sources](https://github.com/wolfi-dev/os).
+Tags: `1.0`, `latest`, or pinned `v1.0.9`. For opt-in 1.1 builds and their exact tags, see the [GitHub releases](https://github.com/fxPPC/Antennarr/releases). Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Runtime package sources](https://github.com/wolfi-dev/os).
 
 **Data compatibility:** The 1.0 series uses a stable data format. The 1.1 beta upgrades the data format. Test with a separate data directory and keep a pre-upgrade backup to return to 1.0. Updates within each series preserve your settings, channels, accounts, login, and tuner identity. Backups are manual.
 
@@ -45,6 +45,6 @@ Debug-level JSON logs go to Docker by default. Choose None, Normal (warnings/err
 
 GPL-3.0-or-later. The image includes buildable source at `/usr/share/doc/antennarr/source.tar.gz`; the source is also available on GitHub. Extract it with `docker cp antennarr:/usr/share/doc/antennarr/source.tar.gz .`.
 
-## New in v1.0.8
+## New in v1.0.9
 
-Refreshes the Wolfi base image and build tooling. Uses the same data format, single US tuner, and roster behaviour as v1.0.7.
+Docker health checks and Plex discovery follow the configured tuner port. Dashboard reloads have a separate request allowance for bundled files. Existing 1.0 data and tuner identities are compatible.
