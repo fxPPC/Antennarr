@@ -113,6 +113,10 @@ func TestAllMarketsResolveIndependently(t *testing.T) {
 		{"IN | DD News HD", "ddnews.in", "in-mumbai", "DD News"},
 		{"DE | RTL HD", "rtl.de", "de-berlin", "RTL"},
 		{"NL | RTL 4 HD", "rtl4.nl", "nl-amsterdam", "RTL 4"},
+		{"ARG | ESPN 3 HD", "espn3.ar", "ar-buenos-aires", "ESPN3"},
+		{"CO | Canal Uno", "", "co-bogota", "Canal Uno"},
+		{"AR | Cartoon Network", "", "", ""},
+		{"COL | Citytv", "Citytv.ca", "", ""},
 		{"DE | RTL HD", "rtl4.nl", "", ""},
 		{"UK | CNN HD", "cnn.us", "", ""},
 	} {

@@ -187,16 +187,20 @@ var indianCategory = regexp.MustCompile(`(?i)^\s*(?:hindi|marathi)\s*[-|:]\s*(?:
 
 type sourceLabel struct {
 	channelLabel
-	guide         channelLabel
-	hasGuide      bool
-	indianService channelLabel
-	words         string
-	ambiguous     bool
+	guide               channelLabel
+	hasGuide            bool
+	argentinaIdentified bool
+	indianService       channelLabel
+	words               string
+	ambiguous           bool
 }
 
 func parseSourceLabel(name, region string) sourceLabel {
 	k, c := channelKey(name, region)
 	label := sourceLabel{channelLabel: channelLabel{k, c}, ambiguous: catalogueHeading.MatchString(name), words: " " + strings.Join(exclusionWords(name), " ") + " "}
+	if c == "ar" {
+		label.argentinaIdentified = regionCountry(region) == "ar" || strings.Contains(label.words, " argentina ") || strings.Contains(label.words, " arg ")
+	}
 	if prefix := indianCategory.FindStringIndex(name); prefix != nil {
 		label.indianService.key, label.indianService.country = channelKey(name[prefix[1]:], region)
 	}
@@ -212,6 +216,9 @@ func sourceLabelWithID(name, region, id string) sourceLabel {
 	k, country := guideKey(id)
 	label.guide = channelLabel{k, country}
 	label.hasGuide = strings.TrimSpace(id) != ""
+	if country == "ar" && strings.HasSuffix(strings.ToLower(strings.TrimSpace(id)), ".ar") {
+		label.argentinaIdentified = true
+	}
 	// Separate fields with two spaces so a phrase cannot straddle name and ID.
 	if id != "" {
 		label.words += " " + strings.Join(exclusionWords(id), " ") + " "
@@ -253,6 +260,11 @@ func (m channelMatcher) excludes(label sourceLabel) bool {
 	// cannot make an unrelated or unrecognised guide service trustworthy.
 	if m.strictGuide {
 		if label.country == "" && label.guide.country == "" {
+			return true
+		}
+		// Providers also use AR for Arabic-language feeds. The two-letter
+		// display tag alone cannot establish the Argentine edition.
+		if (label.country == "ar" || label.guide.country == "ar") && !label.argentinaIdentified {
 			return true
 		}
 		if label.hasGuide && !m.identifiesGuide(label.guide) {

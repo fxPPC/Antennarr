@@ -1,6 +1,6 @@
 # Setting up Plex tuners
 
-Fresh installations start empty. The table describes the upcoming beta 2 source. The published beta 1 includes the first six cities, with 150 channels in New York and 110 in London. Each saved tuner has its own lineup and Plex address.
+Fresh installations start empty. Beta 2 includes the first 16 cities below. Buenos Aires and Bogotá are new in the next 1.1 beta. Each saved tuner has its own lineup and Plex address.
 
 | City | Editable channels | Guide location | Verified Plex lineup |
 | --- | ---: | --- | --- |
@@ -20,8 +20,10 @@ Fresh installations start empty. The table describes the upcoming beta 2 source.
 | Stockholm | 20 | 11120 | Tele2 |
 | Copenhagen | 22 | 1050 | Norlys |
 | Oslo | 19 | 0150 | Telenor |
+| Buenos Aires | 13 | C1064 | Cablevisión - Capital Federal |
+| Bogotá | 14 | 110111 | Claro TV Colombia (DTH) |
 
-Each installation can choose among these 16 presets. The default port range accommodates six tuners at once.
+The default port range accommodates six tuners at once.
 
 Guide locations are starting points for Plex setup. Check the station and local edition when mapping each channel.
 
@@ -30,20 +32,20 @@ Guide locations are starting points for Plex setup. Check the station and local 
 Use a separate disposable appdata directory. Do not point two containers at the same directory, or let a beta open your live 1.0 data. To test an upgrade, restore a **manually created** backup into the disposable directory first.
 
 ```sh
-git clone --branch v1.1.0-beta.1 https://github.com/fxPPC/Antennarr.git
+git clone --branch v1.1.0-beta.2 https://github.com/fxPPC/Antennarr.git
 cd Antennarr
 cp portable.env.example .env
 # In .env, choose a separate ANTENNARR_DATA_DIR. For another Plex host, set
 # ANTENNARR_BIND and ANTENNARR_PLEX_HOST to this server’s private LAN address.
-ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.1 docker compose -f compose.portable.yaml -f compose.range.yaml pull
-ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.1 docker compose -f compose.portable.yaml -f compose.range.yaml up -d --no-build
+ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.2 docker compose -f compose.portable.yaml -f compose.range.yaml pull
+ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0-beta.2 docker compose -f compose.portable.yaml -f compose.range.yaml up -d --no-build
 ```
 
 These commands pull the published image for Linux amd64 or ARM64. If stable and beta run on the same host, give them separate Compose projects, data directories, and non-overlapping listener and host ports (or run the preview on a separate host).
 
 Open the first port in your range (39192 by default), sign in with `admin/admin`, and change the login. The setup wizard opens in **Status** on a fresh installation. Choose a city, enable its tuner, and import an authorised source list. Use the tuner address shown in the last step to add it in Plex. You can skip the wizard and reopen it from **Admin**. Add further cities under **Tuners**. An upgrade preserves saved tuners, their enabled state, and their channels.
 
-In the beta 2 source, removing a tuner frees its port immediately. The next tuner takes the lowest available slot and receives a new Plex device ID. Disabled tuners keep their slots.
+As of beta 2, removing a tuner frees its port immediately. The next tuner takes the lowest available slot and receives a new Plex device ID. Disabled tuners keep their slots.
 
 ## Web and tuner ports
 
@@ -62,7 +64,7 @@ docker run -d --name antennarr-beta --restart unless-stopped \
   -p YOUR_SERVER_LAN_IP:41001-41006:41001-41006 \
   -e ANTENNARR_PORT_RANGE=41000-41006 \
   -e ANTENNARR_BASE_URL=http://YOUR_SERVER_LAN_IP \
-  -v /YOUR/BETA/APPDATA:/data antennarr/antennarr:v1.1.0-beta.1
+  -v /YOUR/BETA/APPDATA:/data antennarr/antennarr:v1.1.0-beta.2
 ```
 
 For Plex on the same private Docker network, set `ANTENNARR_BASE_URL=http://antennarr` and use `antennarr` as a network alias. The app adds the first tuner port. An HTTPS reverse proxy needs only the administration port. Keep all tuner ports on the private network.

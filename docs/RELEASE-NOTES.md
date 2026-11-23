@@ -1,4 +1,6 @@
-The latest public preview is v1.1.0-beta.1. The v1.1.0-beta.2 entry describes source changes being prepared for the next preview.
+# Next 1.1 beta
+
+- Buenos Aires and Bogotá are available under **Tuners → Add tuner**. In Plex, choose Cablevisión – Capital Federal for Buenos Aires (`C1064`) or Claro TV Colombia (DTH) for Bogotá (`110111`).
 
 # v1.1.0-beta.2
 
