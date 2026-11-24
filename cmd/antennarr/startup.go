@@ -1,11 +1,15 @@
 package main
 
 import (
+	"antennarr/internal/catalog"
 	"antennarr/internal/media"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,9 +76,14 @@ func dataDirectory() (string, error) {
 
 // Explain common startup failures without dumping configuration or credentials.
 func startupReason(err error) string {
+	var se *sqlite.Error
 	var syntax *json.SyntaxError
 	var value *json.UnmarshalTypeError
 	switch {
+	case errors.As(err, &se) && se.Code()&0xff == sqlite3.SQLITE_BUSY:
+		return "database is busy; check for another process using the catalogue"
+	case errors.Is(err, context.DeadlineExceeded):
+		return "startup operation timed out"
 	case errors.Is(err, os.ErrPermission):
 		return "permission denied: the account running Antennarr needs read/write access to the appdata directory and its existing contents"
 	case errors.Is(err, syscall.EROFS):
@@ -91,6 +100,18 @@ func startupReason(err error) string {
 }
 func startupError(message, root string, err error) {
 	attrs := []any{"reason", startupReason(err), "data_directory", root}
+	var stage *catalog.StartupError
+	if errors.As(err, &stage) {
+		attrs = append(attrs, "stage", stage.Stage)
+	}
+	var se *sqlite.Error
+	var errno syscall.Errno
+	if errors.As(err, &se) {
+		attrs = append(attrs, "sqlite_code", se.Code())
+	}
+	if errors.As(err, &errno) {
+		attrs = append(attrs, "errno", uint64(errno))
+	}
 	if runtime.GOOS != "windows" {
 		attrs = append(attrs, "uid", os.Getuid(), "gid", os.Getgid())
 	}
