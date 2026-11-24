@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"antennarr/internal/ingest"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"database/sql"
@@ -21,7 +22,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	_ "modernc.org/sqlite"
+	"modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 //go:embed schema.sql
@@ -86,28 +88,63 @@ func openCatalogueDir(path string) (*os.Root, error) {
 	return parent.OpenRoot(name)
 }
 
+// StartupError identifies the catalogue operation without exposing database contents.
+type StartupError struct {
+	Stage string
+	cause error
+}
+
+func (e *StartupError) Error() string { return e.Stage + ": " + e.cause.Error() }
+func (e *StartupError) Unwrap() error { return e.cause }
+
+// WAL persists in the database. Set it once at startup, before schema changes.
+// SQLite can return BUSY without invoking its busy handler during a lock upgrade.
+func enableWAL(db *sql.DB, wait time.Duration) error {
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+	for {
+		var mode string
+		err := db.QueryRowContext(ctx, "PRAGMA journal_mode=WAL").Scan(&mode)
+		if err == nil {
+			if mode != "wal" {
+				return errors.New("WAL mode unavailable")
+			}
+			return nil
+		}
+		var se *sqlite.Error
+		if !errors.As(err, &se) || se.Code()&0xff != sqlite3.SQLITE_BUSY {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(100 * time.Millisecond):
+		}
+	}
+}
+
 func open(root string, defaults bool) (*Store, error) {
 	absolute, err := filepath.Abs(root)
 	if err != nil {
-		return nil, err
+		return nil, &StartupError{"resolve appdata", err}
 	}
 	data, err := openCatalogueDir(absolute)
 	if err != nil {
-		return nil, err
+		return nil, &StartupError{"open appdata", err}
 	}
 	defer data.Close()
 	for _, dir := range []string{"database", "secrets", "backups"} {
 		if err := data.MkdirAll(dir, 0700); err != nil {
-			return nil, err
+			return nil, &StartupError{"prepare " + dir + " directory", err}
 		}
 		// SQLite reopens its directory by name for the WAL and its sidecars.
 		// Require an ordinary directory so those files stay in appdata.
 		info, err := data.Lstat(dir)
 		if err != nil {
-			return nil, err
+			return nil, &StartupError{"prepare " + dir + " directory", err}
 		}
 		if !info.IsDir() {
-			return nil, fmt.Errorf("catalogue %s must be a directory under appdata", dir)
+			return nil, &StartupError{"prepare " + dir + " directory", fmt.Errorf("catalogue %s must be a directory under appdata", dir)}
 		}
 	}
 	dbpath := filepath.Join(absolute, "database", "antennarr.db")
@@ -119,7 +156,6 @@ func open(root string, defaults bool) (*Store, error) {
 	u := url.URL{Scheme: "file", Path: uriPath}
 	q := url.Values{}
 	q.Set("_txlock", "immediate")
-	q.Add("_pragma", "journal_mode(WAL)")
 	q.Add("_pragma", "foreign_keys(1)")
 	// Catalogue sorting must not exhaust a container's small /tmp tmpfs.
 	// Working sets shrink after bounded reserve cleanup; no video is stored here.
@@ -128,31 +164,37 @@ func open(root string, defaults bool) (*Store, error) {
 	u.RawQuery = q.Encode()
 	db, e := sql.Open("sqlite", u.String())
 	if e != nil {
-		return nil, e
+		return nil, &StartupError{"open database", e}
 	}
 	db.SetMaxOpenConns(4)
-	fail := func(err error) (*Store, error) { db.Close(); return nil, err }
+	fail := func(stage string, err error) (*Store, error) {
+		db.Close()
+		return nil, &StartupError{stage, err}
+	}
+	if e = enableWAL(db, 30*time.Second); e != nil {
+		return fail("enable WAL", e)
+	}
 	var version int
 	if e = db.QueryRow("PRAGMA user_version").Scan(&version); e != nil {
-		return fail(e)
+		return fail("read schema version", e)
 	}
 	if version > 9 {
-		return fail(errors.New("database requires a newer application"))
+		return fail("check schema compatibility", errors.New("database requires a newer application"))
 	}
 	if version > 0 && version < 8 {
-		return fail(errors.New("database predates v1; upgrade it with Beta 2 before opening it here"))
+		return fail("check schema compatibility", errors.New("database predates v1; upgrade it with Beta 2 before opening it here"))
 	}
 	if version == 0 {
 		var existing int
 		if e = db.QueryRow("SELECT count(*) FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'").Scan(&existing); e != nil {
-			return fail(e)
+			return fail("inspect existing schema", e)
 		}
 		if existing != 0 {
-			return fail(errors.New("unversioned database contains existing objects; refusing to replace it"))
+			return fail("check unversioned schema", errors.New("unversioned database contains existing objects; refusing to replace it"))
 		}
 		tx, err := db.Begin()
 		if err != nil {
-			return fail(err)
+			return fail("create schema", err)
 		}
 		if _, err = tx.Exec(schema); err == nil && defaults {
 			// Only the new schema contains this placeholder. Setup creates the first real tuner.
@@ -171,55 +213,55 @@ func open(root string, defaults bool) (*Store, error) {
 		}
 		if err != nil {
 			tx.Rollback()
-			return fail(err)
+			return fail("create schema", err)
 		}
 		if err = tx.Commit(); err != nil {
-			return fail(err)
+			return fail("commit schema", err)
 		}
 	}
 
 	if version == 8 {
 		if e = migrateProfiles(db); e != nil {
-			return fail(e)
+			return fail("migrate profiles", e)
 		}
 	}
 	// Reverse mapping lookups drive stream scheduling. Without this index the
 	// correlated schedule queries scan the entire catalogue for every stream.
 	if _, e = db.Exec("CREATE INDEX IF NOT EXISTS mappings_stream ON mappings(stream_id,enabled,channel_id)"); e != nil {
-		return fail(e)
+		return fail("create indexes", e)
 	}
 	for _, q := range []string{"CREATE INDEX IF NOT EXISTS validations_stream ON validations(stream_id)", "CREATE INDEX IF NOT EXISTS events_source ON events(source_id)"} {
 		if _, e = db.Exec(q); e != nil {
-			return fail(e)
+			return fail("create indexes", e)
 		}
 	}
 	if e = os.Chmod(dbpath, 0600); e != nil {
-		return fail(e)
+		return fail("set database permissions", e)
 	}
 	store := &Store{DB: db, root: root}
 	if e = store.ensureAccountDiagnostics(); e != nil {
-		return fail(e)
+		return fail("initialise account diagnostics", e)
 	}
 	if e = store.checkIntegrity(); e != nil {
-		return fail(e)
+		return fail("check integrity", e)
 	}
 	if e = store.ensureRetention(); e != nil {
-		return fail(e)
+		return fail("initialise retention", e)
 	}
 	if e = store.seedInitialChannels(); e != nil {
-		return fail(e)
+		return fail("seed initial channels", e)
 	}
 	if e = store.seedLondonProfile(); e != nil {
-		return fail(e)
+		return fail("seed London profile", e)
 	}
 	if e = store.ensureCheckPass(); e != nil {
-		return fail(e)
+		return fail("initialise check pass", e)
 	}
 	if e = store.ensureQueuePositions(); e != nil {
-		return fail(e)
+		return fail("initialise queue positions", e)
 	}
 	if _, e = store.PruneDeadProviders(); e != nil {
-		return fail(e)
+		return fail("prune dead providers", e)
 	}
 	return store, nil
 }
