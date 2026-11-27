@@ -2,6 +2,7 @@ package admin
 
 import (
 	"antennarr/internal/catalog"
+	"antennarr/internal/config"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -135,5 +136,34 @@ func TestProfileAPIIsolationAndConfirmation(t *testing.T) {
 	}
 	if after[0].DeviceID != ps[0].DeviceID || after[0].TunerURL != ps[0].TunerURL || after[1].ListenPort != 9200 {
 		t.Fatal(after)
+	}
+}
+
+func TestDashboardPollDoesNotRejectTunerCreation(t *testing.T) {
+	store, err := catalog.OpenWithDefaults(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	started, release, done := make(chan struct{}), make(chan struct{}), make(chan struct{})
+	a := API{Store: store, ReadSettings: func() (config.Settings, error) {
+		close(started)
+		<-release
+		return config.FreshSettings(), nil
+	}}
+	mux := http.NewServeMux()
+	a.Register(mux, func(h http.HandlerFunc) http.HandlerFunc { return h })
+	go func() {
+		defer close(done)
+		mux.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/api/settings", nil))
+	}()
+	<-started
+	defer func() { close(release); <-done }()
+	r := httptest.NewRequest("POST", "/api/profiles", strings.NewReader(`{"preset_id":"us-nyc"}`))
+	r.Header.Set("X-Antennarr-Request", "1")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("add during poll: %d %s", w.Code, w.Body.String())
 	}
 }
