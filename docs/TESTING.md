@@ -22,6 +22,16 @@ ANTENNARR_V109_UPGRADE_FIXTURE=/tmp/antennarr-v109-upgrade-fixture go test ./int
 
 This fixture edits an existing channel and adds a disabled custom channel through the old version's API. The test additionally compares the complete portable channel definitions, including permanent IDs, numbers, station constraints, aliases, policies, and enabled states, after upgrade and backup/restore.
 
+## Same-minor patch compatibility
+
+Build the server executable from each release checkout with `go build -o /tmp/antennarr-baseline ./cmd/antennarr` or `go build -o /tmp/antennarr-candidate ./cmd/antennarr`. Run the two binaries on the same host with Python 3.8+ and FFmpeg/FFprobe available.
+
+```sh
+python3 scripts/test-patch-compatibility.py /tmp/antennarr-baseline /tmp/antennarr-candidate
+```
+
+Use the 1.1.0 candidate in both positions to establish the initial fixture. For each later stable patch, run it against every earlier stable patch in that minor. The harness creates temporary appdata, binds to loopback, and adds a synthetic tuner, channel rules, and login. It checks both writers, Plex discovery and lineup, settings, an idle housekeeping pass, and a manual backup/restore before re-upgrade.
+
 ## Matching regression and performance
 
 Catalogue tests cover scoped imports, unchanged starts, channel-rule edits, ambiguity resolution, manual assignments, exclusions, learned TVG identities, and current preset labels. `go test ./internal/catalog -run '^$' -bench BenchmarkIncrementalImport -benchtime=1x` measures a one-stream import after seeding 10,000 streams and 143 selected channels. Setup is excluded from the timed result.
