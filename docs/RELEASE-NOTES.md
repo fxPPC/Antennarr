@@ -11,6 +11,8 @@
 
 Before upgrading, download a full backup under **Admin → Backup & restore**. Keep the existing data mount, network, port mappings, and Plex tuner address. Returning to 1.0 requires restoring that backup. [Upgrade guide](https://github.com/fxPPC/Antennarr/blob/main/docs/MULTI-TUNER.md#upgrading-an-existing-plex-installation)
 
+Grype reports five findings in glibc 2.44-r29 on Linux amd64 and ARM64 (three medium and two low). Wolfi records fixes for two of them in 2.44-r25. Both final scans must match the approved review. [Wolfi advisory database](https://packages.wolfi.dev/os/security.json) · [Security review](https://github.com/fxPPC/Antennarr/blob/main/scripts/release-security-reviews.json)
+
 # v1.1.0-beta.2
 
 - Choose from 16 city presets. The new choices are Toronto, Madrid, Paris, Rome, Warsaw, Lisbon, São Paulo, Stockholm, Copenhagen, and Oslo. The 261 new channels each matched at least eight distinct provider catalogues in the test sample. Each preset uses a Plex guide for its city. On a fresh installation, six tuner slots share the same account and viewer limits.
