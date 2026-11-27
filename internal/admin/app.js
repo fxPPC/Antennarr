@@ -34,6 +34,27 @@ help($('#live-streams').previousElementSibling, 'Outgoing viewers share one chan
 help($('#current-work').previousElementSibling, 'Live startup, backup replacement, imports, and background checks appear here while running. Background checks yield to playback.', 'Working on');
 help($('#upcoming-title'), 'The next work depends on roster vacancies, continuous check passes, and provider pacing. Routine checks pause during playback; optional replenishment serves playing channels only.', 'Up next');
 bindImport();
+$('#portal-form').onsubmit = async event => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submit = form.querySelector('button[type=submit]');
+  if (submit.disabled) return;
+  const result = $('#portal-result');
+  const values = Object.fromEntries(new FormData(form));
+  if ((!values.playlist_url && !values.username) || Boolean(values.username) !== Boolean(values.password)) {
+    result.textContent = 'Supply an account playlist URL or both subscriber API credentials.';
+    return;
+  }
+  submit.disabled = true;
+  result.textContent = 'Connecting and importing the catalogue…';
+  try {
+    const saved = await api('/api/input/portal','POST',values);
+    form.reset();
+    result.textContent = 'Account saved · ' + saved.channels + ' channels imported.';
+    await setup.poll();
+  } catch (e) { result.textContent = e.message; }
+  finally { submit.disabled = false; }
+};
 setup.bind(output.invalidateProfiles);
 async function refreshPorts() {
   const listeners = await api('/api/listeners');

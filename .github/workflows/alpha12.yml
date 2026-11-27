@@ -1,0 +1,147 @@
+name: GitHub ARM64 alpha
+run-name: ARM64 alpha at ${{ github.sha }}
+on:
+  push:
+    branches: [testing/v1.2, release-candidate/v1.2.0-alpha.1]
+permissions:
+  contents: read
+concurrency:
+  group: alpha12-${{ github.ref }}
+  cancel-in-progress: false
+env:
+  VERSION: v1.2.0-alpha.1
+  BASELINE: v1.1.0
+  ANTENNARR_TEST_IMAGE: antennarr:v1.2.0-alpha.1
+  ANTENNARR_TEST_FIXTURES: /tmp/alpha12-media
+jobs:
+  candidate:
+    if: github.event.deleted == false
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 110
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version: '1.27.4'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - name: Check ancestry and version
+        run: |
+          test "$(uname -m)" = aarch64
+          git merge-base --is-ancestor "$BASELINE^{commit}" "$GITHUB_SHA"
+          test "$(cat RELEASE_LINE)" = 1.2
+          python3 - <<'PY'
+          import os, pathlib, runpy
+          p = runpy.run_path('scripts/release-policy.py')
+          p['verify_source'](os.environ['VERSION'], pathlib.Path.cwd())
+          PY
+      - name: Source, browser, and media tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          test -z "$(gofmt -l cmd internal)"
+          python3 scripts/test-release-policy.py
+          python3 scripts/test-docker-preview.py
+          python3 scripts/test-image-vulnerabilities.py
+          node --test scripts/ui.test.mjs
+          npm install --prefix "$RUNNER_TEMP/ui-deps" --no-audit --no-fund playwright@1.55.1
+          "$RUNNER_TEMP/ui-deps/node_modules/.bin/playwright" install --with-deps chromium
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/ui-deps/node_modules/playwright/index.mjs" node scripts/test-alpha-ui.mjs
+          go vet ./...
+          sh scripts/fixtures.sh "$ANTENNARR_TEST_FIXTURES"
+          go test -race -p 1 -timeout 15m ./...
+      - name: Verify upgrade and recovery using the original 1.1 release
+        run: |
+          mkdir "$RUNNER_TEMP/baseline"
+          git archive "$BASELINE" | tar -x -C "$RUNNER_TEMP/baseline"
+          go -C "$RUNNER_TEMP/baseline" build -o "$RUNNER_TEMP/stable-server" ./cmd/antennarr
+          go build -o "$RUNNER_TEMP/alpha-server" ./cmd/antennarr
+          python3 scripts/alpha12/upgrade.py "$RUNNER_TEMP/stable-server" "$RUNNER_TEMP/alpha-server"
+      - name: Download locked runtime inputs from the published baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir "$RUNNER_TEMP/runtime"
+          cd "$RUNNER_TEMP/runtime"
+          gh release download "$BASELINE" --repo "$GITHUB_REPOSITORY" -p SHA256SUMS -p 'wolfi-*-linux-arm64.tar.gz'
+          sha256sum --check --ignore-missing SHA256SUMS
+          mv wolfi-runtime-linux-arm64.tar.gz "$GITHUB_WORKSPACE/packaging/runtime/"
+          tar -xf wolfi-updates-linux-arm64.tar.gz -C "$GITHUB_WORKSPACE/packaging/runtime/"
+      - name: Build and test the release image
+        run: |
+          docker build --pull --platform linux/arm64 --build-arg VERSION --build-arg REVISION="$GITHUB_SHA" --tag "$ANTENNARR_TEST_IMAGE" .
+          python3 packaging/test-permissions.py
+          sh packaging/test-runtime-media.sh
+          python3 scripts/alpha12/jellyfin.py --image "$ANTENNARR_TEST_IMAGE" --report "$RUNNER_TEMP/jellyfin-acceptance.json"
+      - uses: anchore/sbom-action@dfcb83b97731532d72be422cbc51ee64adb6fd56
+        with:
+          image: ${{ env.ANTENNARR_TEST_IMAGE }}
+          format: spdx-json
+          output-file: /tmp/alpha12.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: Install pinned Grype
+        id: scanner
+        run: sh scripts/install-ci-grype.sh
+      - uses: anchore/scan-action@11983a512817154c80a9db660c1a184be7513ed6
+        with:
+          image: ${{ env.ANTENNARR_TEST_IMAGE }}
+          grype-version: ${{ steps.scanner.outputs.version }}
+          fail-build: false
+          output-format: json
+          output-file: /tmp/alpha12-vulnerabilities.json
+      - name: Archive the exact tested image
+        run: |
+          python3 scripts/check-image-vulnerabilities.py < /tmp/alpha12-vulnerabilities.json
+          mkdir -p "$RUNNER_TEMP/candidate"
+          cd "$RUNNER_TEMP/candidate"
+          archive="antennarr-$VERSION-linux-arm64.docker.tar.gz"
+          docker save "$ANTENNARR_TEST_IMAGE" | gzip -1 > "$archive"
+          git -C "$GITHUB_WORKSPACE" archive --format=tar.gz --prefix="antennarr-$VERSION/" "$GITHUB_SHA" > "antennarr-$VERSION-source.tar.gz"
+          cp /tmp/alpha12.spdx.json /tmp/alpha12-vulnerabilities.json "$RUNNER_TEMP/jellyfin-acceptance.json" .
+          jq -n --arg commit "$GITHUB_SHA" --arg baseline "$BASELINE" --arg image_id "$(docker image inspect --format '{{.Id}}' "$ANTENNARR_TEST_IMAGE")" \
+            --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            '{commit:$commit,baseline:$baseline,image_id:$image_id,platform:"linux/arm64",run:$run}' > BUILD.json
+          sha256sum * > SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: alpha12-arm64
+          path: ${{ runner.temp }}/candidate/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 3
+  publish:
+    needs: candidate
+    if: github.ref == 'refs/heads/release-candidate/v1.2.0-alpha.1'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: alpha12-arm64
+          path: ${{ runner.temp }}/candidate
+      - name: Verify downloaded bytes and scan review
+        run: |
+          cd "$RUNNER_TEMP/candidate"
+          sha256sum --check SHA256SUMS
+          python3 "$GITHUB_WORKSPACE/scripts/check-image-vulnerabilities.py" --require-clean --release-version "$VERSION" < alpha12-vulnerabilities.json
+          test "$(jq -r .commit BUILD.json)" = "$GITHUB_SHA"
+          docker load -i "antennarr-$VERSION-linux-arm64.docker.tar.gz"
+          test "$(docker image inspect --format '{{.Id}}' "$ANTENNARR_TEST_IMAGE")" = "$(jq -r .image_id BUILD.json)"
+          test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$ANTENNARR_TEST_IMAGE")" = linux/arm64
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$ANTENNARR_TEST_IMAGE")" = "$GITHUB_SHA"
+          cd "$GITHUB_WORKSPACE"
+          python3 packaging/test-permissions.py
+      - name: Publish a GitHub prerelease and verify the download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/publish-github-alpha.sh

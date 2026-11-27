@@ -32,12 +32,12 @@ func TestCurrentSchemaReopenPreservesCatalogue(t *testing.T) {
 	}
 	var version int
 	s.DB.QueryRow("PRAGMA user_version").Scan(&version)
-	if version != 9 {
+	if version != SchemaVersion {
 		t.Fatal(version)
 	}
 }
 func TestOlderAndUnversionedDatabasesArePreserved(t *testing.T) {
-	for _, v := range []int{0, 1, 7, 10} {
+	for _, v := range []int{0, 1, 7, SchemaVersion + 1} {
 		t.Run(fmt.Sprint(v), func(t *testing.T) {
 			root := t.TempDir()
 			os.MkdirAll(filepath.Join(root, "database"), 0700)

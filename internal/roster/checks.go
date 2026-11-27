@@ -159,7 +159,18 @@ func (s *Service) probe(parent context.Context, c catalog.Candidate, v config.Se
 		return
 	}
 	ctx = moderation.WithProvider(ctx, c.Provider)
-	result := s.Gateway.Probe(ctx, s.Binary, c.URL, time.Duration(v.ProbeSeconds)*time.Second)
+	mediaURL, err := s.Store.ResolvePortalStream(ctx, s.Client, c.URL)
+	if err != nil {
+		if ctx.Err() != nil || moderation.ProbeDeferred(ctx) {
+			outcome = "deferred"
+			return
+		}
+		job.Detail("media", "portal_link_unavailable", 0)
+		s.report("Record unavailable portal link", s.Record(c.StreamID, catalog.Result{Reason: "portal link unavailable"}))
+		s.report("Complete portal roster check", s.Store.FinishRosterCheck(c.StreamID))
+		return
+	}
+	result := s.Gateway.Probe(ctx, s.Binary, mediaURL, time.Duration(v.ProbeSeconds)*time.Second)
 	if ctx.Err() != nil {
 		outcome = "paused"
 		if netguard.IsTimeout(ctx.Err()) {

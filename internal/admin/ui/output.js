@@ -1,3 +1,5 @@
+import {clientConnections} from './connections.js';
+import {guideSettings, guideInspector, paintChannelGuide, standbyLabel, matchesChannelFilter} from './guide.js';
 import { routeParams, pageURL, linkedText } from './navigation.js';
 import { confirmAction } from './core.js';
 import {tunerSlotSummary} from './listeners.js';
@@ -19,7 +21,15 @@ import {
 let ready = false, profiles = [], presets = [], channels = [], selectedProfile = '';
 const channelCards = new Map(), profileCards = new Map();
 let listeners, loadingProfiles, viewKey = '', editReturn = '';
-let rosterByChannel = new Map();
+let rosterByChannel = new Map(), guideByChannel = new Map(), liveByChannel = new Map();
+let guideReadAt = 0, refreshGeneration = 0;
+function applyGuideSnapshot(guides, monitor) {
+  if (guides) {
+    guideByChannel = new Map(guides.flatMap(g => Object.entries(g.channels || {})));
+    guideReadAt = Date.now();
+  }
+  liveByChannel = new Map((monitor?.live || []).map(l => [l.channel_id,l]));
+}
 export function invalidateProfiles() {
   viewKey = '';
 }
@@ -165,6 +175,7 @@ function loadChannels() {
   return loadingProfiles;
 }
 async function renderProfiles() {
+  refreshGeneration++;
   const openChannels = new Set([...channelCards].filter(([, value]) => value.card.open).map(([id]) => id));
   const [loadedProfiles, loadedPresets, loadedListeners] = await Promise.all([
     api('/api/profiles'), api('/api/presets'), api('/api/listeners')
@@ -173,10 +184,13 @@ async function renderProfiles() {
   const scoped = requested ? loadedProfiles.filter(p => p.id === requested) :
     coverage ? loadedProfiles.filter(p => p.enabled) : searching ? loadedProfiles : [];
   viewKey = JSON.stringify([requested, coverage, searching]);
-  const [channelLists, savedRosters] = await Promise.all([
+  const [channelLists, savedRosters, guides, monitor] = await Promise.all([
     Promise.all(scoped.map(profile => api(profilePath('/api/channels', profile.id)))),
-    Promise.all(scoped.map(profile => api(profilePath('/api/roster', profile.id))))
+    Promise.all(scoped.map(profile => api(profilePath('/api/roster', profile.id)))),
+    Promise.all(scoped.map(profile => api(profilePath('/api/guide',profile.id)))),
+    scoped.length ? api('/api/monitor') : null
   ]);
+  applyGuideSnapshot(guides,monitor);
   // Disabled tuners still show saved counts and policy overrides. The default
   // roster summary remains restricted to work eligible for background checks.
   rosterByChannel = new Map(savedRosters.flatMap(r => r.channels).map(r => [r.channel_id,r]));
@@ -271,11 +285,10 @@ async function renderProfiles() {
       } finally { toggle.disabled = false; }
     };
     tuner.append(result);
-    const guideLocation = [profile.guide_location, profile.market, profile.country].filter(Boolean).join(' · ');
-    const guide = el('p', guideLocation ? 'Plex guide location: ' + guideLocation + '. Set up this tuner separately in Plex and select a matching local guide.' : 'Choose the matching country, postal code, and guide in Plex.', 'muted');
-    guide.classList.add('tuner-guide');
-    tuner.append(guide);
-    const resolution = select(tuner, 'preferred_height', 'Preferred playback quality', String(profile.preferred_height || 0),
+    tuner.append(clientConnections(profile,routeParams().has('connect') ? (routeParams().get('connect') === 'jellyfin' ? 'Jellyfin' : 'Plex') : ''));
+    const tunerSettings = el('details',undefined,'tuner-settings');
+    tunerSettings.append(el('summary','Playback and tuner settings'));
+    const resolution = select(tunerSettings, 'preferred_height', 'Preferred playback quality', String(profile.preferred_height || 0),
       [['0','Automatic'], ['720','Prefer 720p'], ['1080','Prefer 1080p'], ['2160','Prefer UHD (4K)']]);
     resolution.onchange = async () => {
       resolution.disabled = true;
@@ -289,13 +302,7 @@ async function renderProfiles() {
         notice(error.message);
       } finally { resolution.disabled = false; }
     };
-    if (profile.timezone) tuner.append(el('small', 'Programme time zone: ' + profile.timezone));
-    const links = el('details');
-    links.className='plex-connect';
-    links.append(el('summary', 'Connect to Plex'));
-    if (routeParams().has('connect')) links.open=true;
-    appendTunerLinks(links, profile);
-    tuner.append(links);
+    if (profile.timezone) tunerSettings.append(el('small','Tuner time zone · ' + profile.timezone));
     const controls = el('div', undefined, 'row');
     controls.hidden = !active;
     controls.append(button('Add channel', () => {
@@ -322,8 +329,23 @@ async function renderProfiles() {
         history.replaceState(null,'',pageURL('output',Object.fromEntries(params)));
         filterChannels().catch(e=>notice(e.message));
       });
-      label.append(filter); tuner.append(label);
+      label.append(filter);
+      const bar = el('div',undefined,'channel-filters');
+      bar.append(label);
+      const health = select(bar,'channel_health','Show channels',routeParams().get('health') || '',
+        [['','All channels'],['backup','No backup'],['missing','Missing guide'],['conflict','Conflicting listings']]);
+      health.onchange = () => {
+        const params = routeParams();
+        if (health.value) params.set('health',health.value); else params.delete('health');
+        history.replaceState(null,'',pageURL('output',Object.fromEntries(params)));
+        filterChannels().catch(e=>notice(e.message));
+      };
+      tuner.append(bar);
     }
+    const legend = el('div',undefined,'lineup-legend');
+    legend.setAttribute('aria-hidden','true');
+    for (const title of ['Channel','Now / next','Feeds / backup','Guide coverage']) legend.append(el('span',title));
+    list.append(legend);
     for (const channel of ownChannels) {
       const card = channelCard(channel, rosterByChannel.get(channel.id), tuner);
       card.open = openChannels.has(channel.id);
@@ -331,8 +353,7 @@ async function renderProfiles() {
     }
     if (!ownChannels.length) list.append(el('p', 'No channels in this tuner. Add one or import a lineup.'));
     tuner.append(list);
-    const settings = el('details');
-    settings.append(el('summary', 'Tuner settings'));
+    const settings = tunerSettings;
     const nameForm = el('form', undefined, 'settings-grid');
     const nameInput = field(nameForm, 'name', 'Tuner name', profile.name);
     nameInput.maxLength = 100;
@@ -354,7 +375,7 @@ async function renderProfiles() {
     });
     remove.className = 'danger';
     settings.append(remove);
-    tuner.append(settings);
+    tuner.append(guideSettings(profile,()=>refresh(true)),settings);
     profileCards.set(profile.id, tuner);
     root.append(tuner);
   }
@@ -363,26 +384,6 @@ async function renderProfiles() {
   updateToolScope();
   searchSignature = null;
   await filterChannels();
-}
-function appendTunerLinks(root, profile) {
-  if (profile.address_error) root.append(el('p', profile.address_error, 'warning-text'));
-  let count = 0;
-  for (const [key, title] of [
-    ['tuner_url', 'Tuner address for Plex'],
-    ['private_tuner_url', 'Private address alternative'],
-    ['stream_fallback_url', 'Stream-only fallback · not a tuner registration URL']
-  ]) {
-    if (!profile[key]) continue;
-    const box = el('div', undefined, 'tuner-link'), input = el('input');
-    input.value = profile[key];
-    input.readOnly = true;
-    input.setAttribute('aria-label', profile.name + ' · ' + title);
-    box.append(el('strong', title), input, button('Copy', () => navigator.clipboard.writeText(input.value)));
-    root.append(box);
-    count++;
-  }
-  if (!count) root.append(el('p', 'Tuner address unavailable. Check the listening address and Docker port mappings.'));
-  if (profile.listen_port) root.append(el('p', 'TCP port ' + profile.listen_port + '. Plex must reach this port on the shared Docker network or through a private LAN port mapping.', 'muted'));
 }
 function renderPresets() {
   const root = $('#output-presets');
@@ -440,13 +441,24 @@ function channelCard(ch, r, parent) {
     const card = el('details', undefined, 'card'),
       head = el('summary');
     card.dataset.channelId = ch.id;
-    head.append(el('strong', ch.number + ' · ' + ch.name), el('span', r ? `${r.count}/${r.policy.target} verified · ${r.providers} provider${r.providers === 1 ? '' : 's'}` : 'Not offered to Plex', 'count-pill'));
-    head.lastChild.dataset.channelCount = ch.id;
-    if (r) paintRoster(head.querySelector('[data-channel-count]'), r);
-    if (!ch.enabled) head.append(el('span', 'Channel disabled', 'badge'));
+    const identity = el('span',undefined,'channel-identity');
+    identity.append(el('small',ch.number),el('strong',ch.name));
+    if (!ch.enabled) identity.append(el('small','Disabled','warning-text'));
+    const programmes = el('span',undefined,'programme-cell');
+    const now = el('span'), next = el('small');
+    programmes.append(now,next);
+    const health = el('span',undefined,'feed-cell'), count = el('span'), standby = el('small');
+    count.dataset.channelCount = ch.id;
+    health.append(count,standby);
+    paintRoster(count,r);
+    const guide = el('small',undefined,'guide-cell');
+    const cells = {now,next,guide};
+    paintChannelGuide(cells,guideByChannel.get(ch.id));
+    standby.textContent = standbyLabel(r,liveByChannel.get(ch.id));
+    head.append(identity,programmes,health,guide);
     card.append(head);
     const list = el('div');
-    channelCards.set(ch.id, {card, list, ch, parent});
+    channelCards.set(ch.id, {card,list,ch,parent,cells,standby});
     let built = false;
     card.addEventListener('toggle', () => {
       if (!card.open) return;
@@ -469,7 +481,7 @@ function channelCard(ch, r, parent) {
           await loadChannels()
         }
       }));
-      card.append(controls);
+      card.append(guideInspector(ch,()=>refresh(true)),controls);
       const custom = el('details');
       custom.append(el('summary', 'Channel policy overrides'));
       const f = el('form', undefined, 'settings-grid'),
@@ -550,34 +562,39 @@ async function renderEntries(ch, root) {
     for (const e of changes) root.append(linkedText(date(e.happened) + ' · ' + e.kind.replaceAll('_', ' ') + ' · ' + e.reason + (e.stream_id?' · stream #'+e.stream_id:'')))
   }
 }
-export async function refresh() {
+export async function refresh(forceGuide = false) {
+  const ticket = ++refreshGeneration;
+  if (forceGuide) guideReadAt = 0;
   const {tuner, coverage} = view();
   if (listeners && !tuner && !coverage) {
     const current = await api('/api/listeners');
     if (current.available_slots !== listeners.available_slots) await loadChannels();
   }
-  const saved = await Promise.all(profiles.filter(p => profileCards.has(p.id)).map(profile => api(profilePath('/api/roster', profile.id))));
-  const counts = new Map([...document.querySelectorAll('[data-channel-count]')].map(node => [node.dataset.channelCount, node]));
-  for (const r of saved.flatMap(roster => roster.channels)) {
-    const n = counts.get(r.channel_id);
-    rosterByChannel.set(r.channel_id,r);
-    if (n) paintRoster(n, r)
+  const shown = profiles.filter(p=>profileCards.has(p.id));
+  if (!shown.length) return;
+  const [saved,guides,monitor] = await Promise.all([
+    Promise.all(shown.map(p=>api(profilePath('/api/roster',p.id)))),
+    (forceGuide || Date.now() - guideReadAt >= 30000) ? Promise.all(shown.map(p=>api(profilePath('/api/guide',p.id)))) : null,
+    api('/api/monitor')
+  ]);
+  if (ticket !== refreshGeneration || shown.some(p=>!profileCards.has(p.id))) return;
+  applyGuideSnapshot(guides,monitor);
+  rosterByChannel = new Map(saved.flatMap(r=>r.channels || []).map(r=>[r.channel_id,r]));
+  for (const [id,row] of channelCards) {
+    const r = rosterByChannel.get(id);
+    paintRoster(row.card.querySelector('[data-channel-count]'),r);
+    paintChannelGuide(row.cells,guideByChannel.get(id));
+    row.standby.textContent = standbyLabel(r,liveByChannel.get(id));
   }
-  if(view().coverage || routeParams().get('q'))await filterChannels();
+  if (view().coverage || routeParams().get('q') || routeParams().get('health')) await filterChannels();
 }
 
-function paintRoster(node, r) {
-  node.textContent = `${r.count}/${r.policy.target} verified · ${r.providers} provider${r.providers === 1 ? '' : 's'}`;
-  const verified = r.last_verified ? 'Last verified '+date(r.last_verified) : 'No saved verification';
-  node.title = verified;
-  let latest = node.parentElement?.querySelector('.last-verified');
-  if (!latest && node.parentElement) {
-    latest = el('small',undefined,'last-verified');
-    node.parentElement.append(latest);
-  }
-  if(latest) latest.textContent=verified;
-  node.textContent += r.count===1 ? ' · single source' : r.count>1 ? ' · alternatives available' : '';
-  node.className = 'count-pill ' + (r.count === 0 ? 'roster-empty' : r.count >= r.policy.target ? 'roster-full' : 'roster-partial')
+function paintRoster(node, roster) {
+  const n = roster?.count || 0;
+  node.textContent = n + (n === 1 ? ' feed' : ' feeds');
+  node.title = roster ? n + '/' + roster.policy.target + ' verified across ' + roster.providers
+    + ' providers · ' + (roster.last_verified ? 'last checked ' + date(roster.last_verified) : 'awaiting verification')
+    : 'No verified feeds';
 }
 
 // Search only saved metadata; displaying results never opens an upstream feed.
@@ -589,7 +606,7 @@ export async function route() {
   if (viewKey !== key) await loadChannels();
   await filterChannels();
   if(routeParams().has('add')) { $('#add-tuners').open=true; $('#add-tuners').scrollIntoView(); }
-  if(routeParams().has('connect')) document.querySelector('.plex-connect')?.setAttribute('open','');
+
   const row=channelCards.get(routeParams().get('edit'));
   if(row && row.ch.profile_id===tuner && $('#channel-form').elements.id.value!==row.ch.id){
     row.card.open=true;
@@ -607,11 +624,11 @@ async function filterChannels() {
   const term=(routeParams().get('filter')||'').trim().toLowerCase();
   for(const {card,ch} of channelCards.values()){
     const r=rosterByChannel.get(ch.id);
-    card.hidden=(term && !(ch.number+' '+ch.name).toLowerCase().includes(term)) || !!coverage && (!ch.enabled || !r || coverage!==(r.count===0?'empty':r.count>=r.policy.target?'full':'partial'));
+    card.hidden=!matchesChannelFilter(routeParams().get('health'),guideByChannel.get(ch.id),r,liveByChannel.get(ch.id)) || (term && !(ch.number+' '+ch.name).toLowerCase().includes(term)) || !!coverage && (!ch.enabled || !r || coverage!==(r.count===0?'empty':r.count>=r.policy.target?'full':'partial'));
     card.classList.remove('search-match');
   }
   for(const card of profileCards.values())card.hidden=!!coverage && !card.querySelector('.tuner-channels > details:not([hidden])');
-  if((coverage || routeParams().get('filter')) && ![...channelCards.values()].some(v=>!v.card.hidden))root.append(el('p','No channels in this group.'));
+  if((coverage || routeParams().get('filter') || routeParams().get('health')) && ![...channelCards.values()].some(v=>!v.card.hidden))root.append(el('p','No channels in this group.'));
   return;
  }
  const v=await api('/api/output/search?q='+encodeURIComponent(q));

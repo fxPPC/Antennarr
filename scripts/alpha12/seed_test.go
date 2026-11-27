@@ -1,0 +1,79 @@
+// The fixture supplies XMLTV over an in-memory transport. The release server
+// itself runs normally using its existing generated-media failover fixture.
+package alpha12
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"antennarr/internal/catalog"
+	"antennarr/internal/guide"
+)
+
+type transport func(*http.Request) (*http.Response, error)
+
+func (f transport) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestSeedJellyfinDVR(t *testing.T) {
+	root := os.Getenv("ANTENNARR_ALPHA_SEED")
+	if root == "" {
+		t.Skip("requires disposable acceptance directory")
+	}
+	if err := os.Mkdir(root, 0700); err != nil {
+		t.Fatalf("fixture directory must be new: %v", err)
+	}
+	store, err := catalog.OpenWithDefaults(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	ctx := context.Background()
+	now := time.Now().UTC()
+	start := now.Add(-time.Minute).Format("20060102150405 -0700")
+	end := now.Add(3*time.Minute).Format("20060102150405 -0700")
+	data := map[string]string{}
+	client := &http.Client{Transport: transport(func(r *http.Request) (*http.Response, error) {
+		body, ok := data[r.URL.String()]
+		if !ok {
+			return nil, fmt.Errorf("unexpected fixture URL")
+		}
+		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/xml"}}, Body: io.NopCloser(strings.NewReader(body)), Request: r}, nil
+	})}
+	service, err := guide.New(store, client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, market := range []struct{ preset, name, station, region string }{
+		{"us-nyc", "New York Fixture", "NYFIX", "US"},
+		{"uk-london", "London Fixture", "LONFIX", "GB"},
+	} {
+		profile, err := store.AddProfilePreset(market.preset)
+		if err != nil {
+			t.Fatal(err)
+		}
+		profile.Enabled = true
+		if _, err = store.SaveProfile(profile); err != nil {
+			t.Fatal(err)
+		}
+		ch := catalog.LineupChannel{ID: fmt.Sprintf("test-%d", i+1), Number: "7", Name: market.name, Region: market.region, Station: market.station, Enabled: true}
+		if err = store.ImportLineupForProfile(profile.ID, catalog.Lineup{Version: 1, Channels: []catalog.LineupChannel{ch}}); err != nil {
+			t.Fatal(err)
+		}
+		source := fmt.Sprintf("https://guide%d.example/listings.xml", i)
+		data[source] = fmt.Sprintf(`<tv><channel id="%s"><display-name>%s</display-name></channel><programme start="%s" stop="%s" channel="%s"><title>%s on Air</title></programme></tv>`, market.station, market.name, start, end, market.station, market.name)
+		if err = service.SetFeed(ctx, profile.ID, source); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err = service.Refresh(ctx); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("Seeded disposable catalogue", filepath.Base(root))
+}

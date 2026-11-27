@@ -77,3 +77,60 @@ h2{font-size:clamp(29px,4vw,43px);letter-spacing:-.045em;line-height:1.1;margin-
 .network-ports{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:6px 18px}
 .network-ports dt{color:var(--accent)}.network-ports dd{margin:0;overflow-wrap:anywhere}
 #setup-capacity a,#tuner-capacity a{display:inline-block;white-space:nowrap;min-height:24px}
+
+/* A single scan line per station, with the same columns across the tuner. */
+.masthead {display:flex;align-items:center;justify-content:space-between;gap:16px}
+.masthead nav {margin:0}
+.masthead .brand {align-items:center;gap:12px}
+#output-tuners .tuner-card {background:var(--surface)}
+.tuner-card > summary {padding-bottom:4px}
+.tuner-card > .save-status:empty {display:none}
+.client-connections {margin:12px 0 18px}
+.connect-controls {display:flex;gap:8px;flex-wrap:wrap}
+.connect-controls button {background:#27483c;border-color:#47765e;color:#d1f3dd;font-weight:620}
+.connect-controls button[aria-expanded=true] {background:var(--accent);color:#102e20}
+.client-panel,.guide-inspector[open],.guide-settings[open] {margin-top:8px;padding:14px 18px;background:#14201e;border:1px solid var(--line);border-radius:10px}
+.copy-address {display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:0 8px;max-width:48rem;margin:10px 0}
+.copy-address label,.guide-feed label,.channel-filters label {margin:0;font-size:.85rem;font-weight:600;color:#c3d4cd}
+.copy-address input,.guide-feed input,.channel-filters input,.channel-filters select {display:block;width:100%;margin-top:4px}
+.copy-address input {font-family:ui-monospace,monospace}
+.copy-status {grid-column:1/-1;color:var(--accent);font-size:.8rem}
+.channel-filters,.guide-feed {display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);align-items:end;gap:12px;margin:18px 0 10px;max-width:46rem}
+.guide-feed {grid-template-columns:minmax(0,1fr) auto;margin:12px 0}
+.guide-settings > button {margin:4px 8px 0 0}
+.tuner-channels {margin:20px 0;--station-cols:minmax(0,1.1fr) minmax(0,1.35fr) minmax(0,.85fr) minmax(0,1fr)}
+.tuner-channels .lineup-legend,.tuner-channels .card > summary {display:grid;grid-template-columns:var(--station-cols);align-items:center;gap:16px}
+.lineup-legend {padding:9px 12px;background:#24312d;border-radius:6px 6px 0 0;color:#c5d7cb;font-size:.77rem;font-weight:700}
+.tuner-channels .card {padding:0;background:transparent}
+.tuner-channels .card > summary {position:relative;padding:10px 12px;list-style:none;line-height:1.35;cursor:pointer}
+.tuner-channels .card > summary::-webkit-details-marker {display:none}
+.tuner-channels .card > summary:hover {background:#22332d}
+.tuner-channels .card > summary > * {min-width:0}
+.tuner-channels .card[open] {background:#1b2825;border-left:3px solid var(--accent)}
+.tuner-channels .card[open] > :not(summary) {margin:12px}
+.tuner-channels .card > summary strong {min-width:0}
+.channel-identity,.programme-cell,.feed-cell {display:grid;gap:3px}
+.channel-identity small,.feed-cell small,.programme-cell small,.guide-cell {font-size:.82rem}
+.channel-identity small {font-variant-numeric:tabular-nums;letter-spacing:.04em;color:var(--accent)}
+.guide-cell[data-state=conflict],.guide-cell[data-state=missing] {color:#f4ca94}
+.guide-cell[data-state=confirmed],.guide-cell[data-state=pinned] {color:var(--accent)}
+.guide-candidates {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:10px}
+.candidate {padding:14px;border:1px solid var(--line);border-radius:8px}
+.candidate p {margin:7px 0;font-size:.9rem}
+#portal-source {margin:18px 0}
+#portal-form {margin:10px 0;padding:16px;border:1px solid var(--line);border-radius:10px}
+@media(max-width:680px) {
+  .masthead {display:block}
+  .masthead nav {margin:12px 0 0}
+  .lineup-legend {display:none!important}
+  .tuner-channels .card > summary {grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 12px;padding:12px 6px}
+  .channel-identity {grid-column:1;grid-row:1}
+  .programme-cell {grid-column:2;grid-row:1}
+  .feed-cell {grid-column:1;grid-row:2}
+  .guide-cell {grid-column:2;grid-row:2}
+  .programme-cell > span::before {content:'Now · ';color:#adc1cf}
+  .programme-cell > small::before {content:'Next · '}
+  .channel-filters {grid-template-columns:minmax(0,1fr)}
+  .client-panel,.guide-inspector[open],.guide-settings[open] {padding:10px}
+  .guide-feed {grid-template-columns:minmax(0,1fr)}
+}

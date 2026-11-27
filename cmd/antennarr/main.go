@@ -9,6 +9,7 @@ import (
 	"antennarr/internal/config"
 	"antennarr/internal/desktopstats"
 	"antennarr/internal/engine"
+	"antennarr/internal/guide"
 	"antennarr/internal/media"
 	"antennarr/internal/moderation"
 	"antennarr/internal/monitor"
@@ -183,8 +184,24 @@ func run(parent context.Context, logOutput io.Writer, report func(desktopstats.C
 		return false, errServerStopped
 	}
 	checks := &roster.Service{Settings: readChecks, Activity: work, Store: store, Budget: limits, Gateway: checkGateway, Client: client, Binary: binary, Live: func() bool { return m != nil && m.Status().Viewers > 0 }}
-	eng := &engine.Engine{Activity: work, RaceSize: c.Settings.StartupRace, Buffer: time.Duration(c.Settings.BufferSeconds) * time.Second, StallTimeout: time.Duration(c.Settings.StallTimeoutMS) * time.Millisecond, Catalogue: checks, Budget: limits, Binary: binary, Preempt: checks.Preempt, Copy: func(ctx context.Context, u string, emit func([]byte)) error {
-		return gateway.Copy(ctx, binary, u, emit)
+	guides, err := guide.New(store, client)
+	if err != nil {
+		startupError("programme guide unavailable", root, err)
+		return false, errServerStopped
+	}
+	guides.Budget = limits
+	portalWork := &admin.PortalWork{}
+	preempt := func() {
+		portalWork.Preempt()
+		guides.Preempt()
+		checks.Preempt()
+	}
+	eng := &engine.Engine{Activity: work, RaceSize: c.Settings.StartupRace, Buffer: time.Duration(c.Settings.BufferSeconds) * time.Second, StallTimeout: time.Duration(c.Settings.StallTimeoutMS) * time.Millisecond, Catalogue: checks, Budget: limits, Binary: binary, Preempt: preempt, Copy: func(ctx context.Context, u string, emit func([]byte)) error {
+		url, err := store.ResolvePortalStream(ctx, probeClient, u)
+		if err != nil {
+			return err
+		}
+		return gateway.Copy(ctx, binary, url, emit)
 	}, Inspect: func(ctx context.Context, b []byte) (media.Info, error) { return media.Inspect(ctx, binary, b) }}
 	if os.Getenv("ANTENNARR_TEST_FAILOVER") == "1" {
 		eng.Catalogue = engine.FixtureCatalogue{Catalogue: store}
@@ -243,7 +260,7 @@ func run(parent context.Context, logOutput io.Writer, report func(desktopstats.C
 		return m.Status().Viewers > 0, state == "checking" || state == "discovering"
 	})
 	statusCollector := &monitor.Collector{Store: store, Playback: m.Status, Live: eng.Status, Work: work.Snapshot, Checker: checks.CheckerState}
-	s := tuner.Server{Guard: guard, ChannelList: channelList, BeforeTune: checks.Preempt, Admin: &admin.API{TunerPorts: ports, PrimaryListen: listeners.Primary, AdminListen: listeners.Admin, CompatListen: listeners.Compat, PortRange: listeners.Range, WithIdle: m.WithIdle, SystemInfo: system.Snapshot, Monitor: statusCollector.Snapshot, StopStream: m.Stop, WithChecksPaused: checks.WithPaused, WithProtectedAccounts: limits.WithProtectedAccounts, ReadLogin: login.Current, ChangeLogin: login.Change, DataRoot: root, BaseURL: base, Idle: func() bool { return m.Status().Viewers == 0 }, Restart: func() {
+	s := tuner.Server{Guide: guides, Guard: guard, ChannelList: channelList, BeforeTune: preempt, Admin: &admin.API{GuideAdmin: guides.Admin, PortalBudget: limits.Reserve, PortalWork: portalWork, TunerPorts: ports, PrimaryListen: listeners.Primary, AdminListen: listeners.Admin, CompatListen: listeners.Compat, PortRange: listeners.Range, WithIdle: m.WithIdle, SystemInfo: system.Snapshot, Monitor: statusCollector.Snapshot, StopStream: m.Stop, WithChecksPaused: checks.WithPaused, WithProtectedAccounts: limits.WithProtectedAccounts, ReadLogin: login.Current, ChangeLogin: login.Change, DataRoot: root, BaseURL: base, Idle: func() bool { return m.Status().Viewers == 0 }, Restart: func() {
 		restartRequested.Store(true)
 		stop()
 	}, Activity: work, ReadSettings: func() (config.Settings, error) { v, e := config.Load(root); return v.Settings, e }, SaveSettings: func(v config.Settings) error {
@@ -338,6 +355,12 @@ func run(parent context.Context, logOutput io.Writer, report func(desktopstats.C
 		go func() { defer close(done); writeDesktopStats(ctx, report, store, m.Status) }()
 		defer func() { stop(); <-done }()
 	}
+	guideDone := make(chan struct{})
+	go func() {
+		defer close(guideDone)
+		guides.Run(ctx)
+	}()
+	defer func() { stop(); <-guideDone }()
 	go system.Run(ctx)
 	for _, device := range extra {
 		go func() {
@@ -390,7 +413,7 @@ func run(parent context.Context, logOutput io.Writer, report func(desktopstats.C
 		}
 		_ = srv.Shutdown(shutdown)
 	}()
-	slog.Info("tuner starting", "version", "v1.1.0", "schema", 9, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
+	slog.Info("tuner starting", "version", "v1.2.0-alpha.1", "schema", catalog.SchemaVersion, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
 	if err = srv.Serve(primaryListener); err != nil && err != http.ErrServerClosed {
 		slog.Error("HTTP server failed")
 		return false, errServerStopped

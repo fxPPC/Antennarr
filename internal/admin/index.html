@@ -1,8 +1,22 @@
 <!doctype html><html lang="en-GB"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Antennarr</title><link rel="icon" type="image/png" href="/admin/favicon.png"><link rel="stylesheet" href="/admin/style.css">
-<div class="masthead"><header class="brand"><div class="brand-mark"><img src="/admin/logo.png" alt="Antennarr logo" width="112" height="112"></div><div><p class="eyebrow">STICK YOUR ANTENNA INTO THE INTERNET</p><h1>Antennarr</h1></div></header>
+<div class="masthead"><header class="brand"><div class="brand-mark"><img src="/admin/logo.png" alt="Antennarr logo" width="112" height="112"></div><div><h1>Antennarr</h1></div></header>
 <nav aria-label="Main navigation"><a href="#status">Status</a><a href="#input">Sources</a><a href="#output">Tuners</a><a href="#admin">Admin</a></nav></div><p id="notice" role="status" aria-live="polite"></p>
 <main>
-<section id="input" hidden><h2>Sources</h2><p class="muted">Import authorised lists. Antennarr auditions only what your channel rosters need.</p><label><input type="checkbox" id="scans-active" disabled> Scans active</label><span id="scan-setting-status" role="status"></span><div id="source-import"><form id="import-form"><label>List URLs or Base64-encoded URLs<textarea name="text" required autocomplete="off" spellcheck="false" placeholder="One or several list URLs, one per line"></textarea></label><label><input name="authorised" type="checkbox" required> I am authorised to use these accounts and streams.</label><button type="submit">Import list</button><p id="import-result" role="status"></p></form><p class="muted">Supports paste.sh links with their full #key, Pastebin, Rentry, dpaste, paste.ee, GitHub raw files, and ordinary text or HTML list pages.</p></div><div id="input-summary" class="status-metrics"></div><details><summary>Accounts and input queue</summary><form id="queue-filter" class="row"><label>Provider, status, account ID, or stream ID<input name="q" maxlength="120" placeholder="Provider, account:42, or stream:123"></label><button>Search</button></form><div id="queue-list"></div><div id="queue-pages" class="row"></div><button type="button" id="clear-import-queue" class="danger">Clear import queue</button><p id="clear-queue-result" role="status"></p></details><details><summary>Input and checking settings</summary><form id="input-settings" class="settings-grid"></form><form id="retirement-settings" class="settings-grid"></form><p class="muted">A stream failure immediately removes its roster place. Retired sources are permanently deleted during idle cleanup. These thresholds control failure-based retirement; 0 disables it. Failed streams return randomly to the queue without a stream cooldown; provider pacing still applies. Unchecked accounts are never marked failed.</p></details></section>
+<section id="input" hidden><h2>Sources</h2><p class="muted">Import authorised lists. Antennarr auditions only what your channel rosters need.</p><label><input type="checkbox" id="scans-active" disabled> Scans active</label><span id="scan-setting-status" role="status"></span><div id="source-import"><form id="import-form"><label>List URLs or Base64-encoded URLs<textarea name="text" required autocomplete="off" spellcheck="false" placeholder="One or several list URLs, one per line"></textarea></label><label><input name="authorised" type="checkbox" required> I am authorised to use these accounts and streams.</label><button type="submit">Import list</button><p id="import-result" role="status"></p></form><p class="muted">Supports paste.sh links with their full #key, Pastebin, Rentry, dpaste, paste.ee, GitHub raw files, and ordinary text or HTML list pages.</p></div><details id="portal-source">
+  <summary>Add a Ministra portal account</summary>
+  <form id="portal-form">
+    <div class="settings-grid">
+      <label>Portal URL<input type="url" name="portal_url" required autocomplete="off" placeholder="https://portal.example/stalker_portal"></label>
+      <label>Registered MAC address<input type="text" name="mac" required autocomplete="off" spellcheck="false" maxlength="17" placeholder="00:11:22:33:44:55"></label>
+      <label>Account playlist URL (optional)<input type="url" name="playlist_url" autocomplete="off" spellcheck="false"></label>
+      <label>Portal XMLTV URL (optional)<input type="url" name="guide_url" autocomplete="off" spellcheck="false"></label>
+      <label>Subscriber API username<input type="text" name="username" autocomplete="off"></label>
+      <label>Subscriber API password<input type="password" name="password" autocomplete="off"></label>
+    </div>
+    <p class="muted">Use the individual playlist URL supplied by your operator, or its subscriber-scoped API credentials. Re-enter the account to refresh its catalogue.</p>
+    <button type="submit">Connect portal account</button><p id="portal-result" role="status"></p>
+  </form>
+</details><div id="input-summary" class="status-metrics"></div><details><summary>Accounts and input queue</summary><form id="queue-filter" class="row"><label>Provider, status, account ID, or stream ID<input name="q" maxlength="120" placeholder="Provider, account:42, or stream:123"></label><button>Search</button></form><div id="queue-list"></div><div id="queue-pages" class="row"></div><button type="button" id="clear-import-queue" class="danger">Clear import queue</button><p id="clear-queue-result" role="status"></p></details><details><summary>Input and checking settings</summary><form id="input-settings" class="settings-grid"></form><form id="retirement-settings" class="settings-grid"></form><p class="muted">A stream failure immediately removes its roster place. Retired sources are permanently deleted during idle cleanup. These thresholds control failure-based retirement; 0 disables it. Failed streams return randomly to the queue without a stream cooldown; provider pacing still applies. Unchecked accounts are never marked failed.</p></details></section>
 <section id="output" hidden>
   <a id="tuners-back" href="#output" hidden>← All tuners</a><h2 id="tuners-title">Tuners</h2><div id="tuner-directory"></div>
   <p id="tuners-intro" class="muted">Each tuner has its own channel lineup and guide settings. Viewers, accounts, and connection limits are shared across Antennarr.</p>
@@ -25,12 +39,12 @@
         <input name="id" type="hidden"><input name="profile_id" type="hidden">
         <div class="settings-grid">
           <label>Number<input name="number" required maxlength="10"></label>
-          <label>Plex name<input name="name" required maxlength="100"></label>
+          <label>Channel name<input name="name" required maxlength="100"></label>
           <label>Country<input name="region" maxlength="80" placeholder="GB"></label>
           <label>Required station ID (optional)<input name="station" maxlength="32" placeholder="WNBC"><small>Require this station in the source name or guide ID. Generic network names cannot establish the affiliate.</small></label>
         </div>
         <label>Other provider names, one per line<textarea name="aliases" placeholder="BBC One London&#10;-scotland&#10;- wales"></textarea><small>Start a line with - to exclude a word or phrase, for example -international or - international. Exclusions override other matches.</small></label>
-        <label><input name="enabled" type="checkbox" checked> Offered to Plex when this tuner is enabled</label>
+        <label><input name="enabled" type="checkbox" checked> Include in this tuner’s lineup</label>
         <button>Save channel</button><button type="button" id="clear-channel">Clear</button><p role="status" id="channel-result"></p>
       </form>
     </details>
@@ -66,10 +80,7 @@
     <div id="setup-import"></div>
   </div>
   <div id="setup-plex" hidden>
-    <p>In Plex, open Settings → Live TV &amp; DVR and add a tuner. Enter this address manually.</p>
-    <label id="setup-address-label" for="setup-address">Tuner address for Plex</label>
-    <div class="setup-address-row"><input id="setup-address" type="text" readonly><button id="setup-copy" type="button">Copy address</button></div>
-    <p id="setup-guide-location"></p>
+    <div id="setup-clients"></div>
   </div>
   <p id="setup-message" role="status"></p>
   <div class="setup-actions">
@@ -107,4 +118,4 @@
 <g class="flow-node"><rect x="550" y="470" width="210" height="80" rx="12"/><text x="655" y="503">Failure counter</text><text x="655" y="528" class="flow-small">Separate account/stream limits</text></g>
 <g class="flow-node flow-delete"><rect x="815" y="470" width="165" height="80" rx="12"/><text x="897" y="503">Delete from</text><text x="897" y="528">database</text></g>
 <g class="flow-notes"><text x="20" y="630">Import authorised list URLs to add accounts. Full rosters pause recruitment.</text><text x="20" y="660">Provider pacing keeps work pending. Ordinary media checks yield to playback.</text><text x="20" y="690">Successful checks reset the relevant failure streak. In-use sources are protected during deletion.</text><text x="20" y="725">Accounts without remaining matching channels are also removed.</text></g></svg></div></details><details id="backup-restore"><summary>Backup &amp; restore</summary><p class="muted">Includes accounts, queue, rosters, schedules, settings, channels, and tuner identity. Contains passwords; keep it private. Keep the same tuner URL and Plex server to retain Plex’s Live TV setup.</p><button type="button" id="backup">Download full backup</button><form id="restore-form"><label>Antennarr backup<input name="backup" type="file" accept=".zip,application/zip" required></label><button>Upload and restore</button><p class="muted">Stop viewing first. Restore replaces saved state and restarts Antennarr. No backup is created automatically.</p><p id="restore-result" role="status"></p></form><button type="button" id="reset-antennarr" class="danger">Reset Antennarr</button><p id="reset-result" role="status"></p></details></section>
-</main><footer class="build-footer">v1.1.0 · by fxPPC</footer><script type="module" src="/admin/app.js"></script></html>
+</main><footer class="build-footer">v1.2.0-alpha.1 · by fxPPC</footer><script type="module" src="/admin/app.js"></script></html>

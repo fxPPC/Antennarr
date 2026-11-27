@@ -56,6 +56,9 @@ func IsDashboardAsset(path string) bool {
 }
 
 type API struct {
+	GuideAdmin            http.HandlerFunc
+	PortalWork            *PortalWork
+	PortalBudget          func(int64, string, int, bool) (func(), bool)
 	TunerPorts            config.TunerPorts
 	PrimaryListen         string
 	AdminListen           string
@@ -147,6 +150,9 @@ func (a *API) Register(mux *http.ServeMux, auth func(http.HandlerFunc) http.Hand
 		pattern string
 		fn      http.HandlerFunc
 	}{
+		{"GET /api/guide", a.guideRequest}, {"GET /api/guide/channel", a.guideRequest}, {"GET /api/guide/stations", a.guideRequest},
+		{"POST /api/guide/pin", a.guideRequest}, {"POST /api/guide/feed", a.guideRequest}, {"POST /api/guide/refresh", a.guideRequest},
+		{"POST /api/input/portal", a.portal}, {"POST /api/input/portal/refresh", a.refreshPortal},
 		{"GET /api/setup", a.setup}, {"POST /api/setup", a.saveSetup},
 		{"GET /api/listeners", a.listeners}, {"GET /api/profiles", a.profiles}, {"POST /api/profiles", a.addProfile}, {"POST /api/profiles/{id}", a.saveProfile}, {"DELETE /api/profiles/{id}", a.deleteProfile}, {"GET /api/presets", a.presets},
 		{"GET /api/lineup", a.exportLineup}, {"POST /api/lineup", a.importLineup}, {"GET /api/output/search", a.outputSearch}, {"GET /api/system", a.systemStatus}, {"POST /api/channels/bulk", a.bulkChannels}, {"POST /api/reset", a.resetApplication}, {"GET /api/monitor", a.monitorStatus}, {"POST /api/outgoing/{id}/stop", a.stopOutgoing}, {"POST /api/input/clear", a.clearQueue}, {"GET /api/roster", a.rosterSummary}, {"GET /api/roster/{id}", a.rosterEntries}, {"GET /api/channels/{id}/excluded", a.excludedStreams}, {"POST /api/roster/{id}/policy", a.rosterPolicy}, {"GET /api/input/accounts", a.inputAccounts}, {"GET /api/input/import", a.importStatus}, {"GET /api/events", a.events}, {"GET /api/login", a.login}, {"POST /api/login", a.saveLogin}, {"GET /api/settings", a.settings}, {"POST /api/settings", a.saveSettings}, {"GET /api/removal-policy", a.removalPolicy}, {"POST /api/removal-policy", a.saveRemovalPolicy}, {"POST /api/import", a.importSources}, {"GET /api/channels", a.channels}, {"POST /api/channels", a.saveChannel}, {"DELETE /api/channels/{id}", a.deleteChannel}, {"POST /api/mappings", a.mapping}, {"POST /api/backup", a.fullBackup}, {"GET /api/backups/{name}", a.downloadBackup}, {"POST /api/restore", a.restoreBackup},
@@ -192,6 +198,14 @@ func (a *API) Register(mux *http.ServeMux, auth func(http.HandlerFunc) http.Hand
 		}))
 	}
 }
+func (a *API) guideRequest(w http.ResponseWriter, r *http.Request) {
+	if a.GuideAdmin == nil {
+		failure(w, http.StatusServiceUnavailable, "Programme guide unavailable")
+		return
+	}
+	a.GuideAdmin(w, r)
+}
+
 func response(w http.ResponseWriter, v any) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Content-Type", "application/json")

@@ -17,6 +17,8 @@ import (
 )
 
 type Server struct {
+	Guide             programmeReader
+	profileID         string
 	FriendlyName      string
 	Guard             *access.Guard
 	ChannelList       func() []config.Channel
@@ -32,6 +34,11 @@ type Server struct {
 // devices may share an engine and credentials without sharing a public UI.
 func (s *Server) TunerHandler() http.Handler {
 	mux := http.NewServeMux()
+	s.registerTunerRoutes(mux)
+	return mux
+}
+
+func (s *Server) registerTunerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /discover.json", s.discover)
 	mux.HandleFunc("GET /lineup.json", s.lineup)
 	mux.HandleFunc("GET /lineup_status.json", func(w http.ResponseWriter, r *http.Request) {
@@ -40,7 +47,9 @@ func (s *Server) TunerHandler() http.Handler {
 	mux.HandleFunc("POST /lineup.post", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
 	mux.HandleFunc("GET /device.xml", s.device)
 	mux.HandleFunc("GET /auto/{channel}", s.watch)
-	return mux
+	mux.HandleFunc("GET /playlist.m3u", s.playlist)
+	mux.HandleFunc("GET /guide.xml", s.xmltv)
+	mux.HandleFunc("GET /stream/{id}", s.watchID)
 }
 
 func (s *Server) name() string {
@@ -66,14 +75,7 @@ func (s *Server) Handler() http.Handler {
 	if s.Admin != nil {
 		s.Admin.Register(mux, s.auth)
 	}
-	mux.HandleFunc("GET /discover.json", s.discover)
-	mux.HandleFunc("GET /lineup.json", s.lineup)
-	mux.HandleFunc("GET /lineup_status.json", func(w http.ResponseWriter, r *http.Request) {
-		reply(w, map[string]any{"ScanInProgress": 0, "ScanPossible": 0, "Source": "Cable", "SourceList": []string{"Cable"}})
-	})
-	mux.HandleFunc("POST /lineup.post", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
-	mux.HandleFunc("GET /device.xml", s.device)
-	mux.HandleFunc("GET /auto/{channel}", s.watch)
+	s.registerTunerRoutes(mux)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		reply(w, map[string]string{"status": "ok", "stage": "ready"})
 	})
@@ -154,18 +156,15 @@ func (s *Server) lineup(w http.ResponseWriter, r *http.Request) {
 	reply(w, rows)
 }
 func (s *Server) watch(w http.ResponseWriter, r *http.Request) {
-	var ch *config.Channel
-	list := s.channels()
-	for i := range list {
-		if "v"+list[i].Number == r.PathValue("channel") {
-			ch = &list[i]
-			break
+	for _, ch := range s.channels() {
+		if "v"+ch.Number == r.PathValue("channel") {
+			s.serveChannel(w, r, ch)
+			return
 		}
 	}
-	if ch == nil {
-		http.NotFound(w, r)
-		return
-	}
+	http.NotFound(w, r)
+}
+func (s *Server) serveChannel(w http.ResponseWriter, r *http.Request, ch config.Channel) {
 	if r.Method == "HEAD" {
 		w.Header().Set("Content-Type", "video/mpeg")
 		return

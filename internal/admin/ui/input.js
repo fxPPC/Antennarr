@@ -114,6 +114,15 @@ async function queue() {
     row.dataset.accountId = a.id;
     const title=el('strong');title.append(idLink('account',a.id),document.createTextNode(' · '+a.state));
     row.append(title, el('small', `Added ${date(a.created)} · ${a.streams} known streams · ${a.roster} roster places`));
+    if (a.kind === 'portal') {
+      const result = el('p','','save-status'); result.setAttribute('role','status');
+      row.append(button('Refresh portal channels', async () => {
+        try {
+          const saved = await api('/api/input/portal/refresh','POST',{account_id:a.id});
+          result.textContent = saved.channels + ' channels imported.';
+        } catch (e) { result.textContent = e.message; }
+      }),result);
+    }
     const group = groups.get(a.provider);
     group.count++;
     group.summary.textContent = `${a.provider} · ${group.count} ${group.count === 1 ? 'account' : 'accounts'} on this page`;

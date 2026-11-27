@@ -120,3 +120,22 @@ test('a full allocation still lets setup enable an existing disabled tuner', () 
   assert.equal(full[1].disabled, true);
   assert.equal(tunerOptions(profiles,presets,1)[1].disabled, false);
 });
+
+import {clientAddresses} from '../internal/admin/ui/connections.js';
+import {matchesChannelFilter,standbyLabel} from '../internal/admin/ui/guide.js';
+
+test('client setup uses only the selected tuner address',()=>{
+  assert.deepEqual(clientAddresses({tuner_url:'https://tuner.local:39193/'}),{
+    plex:'https://tuner.local:39193',playlist:'https://tuner.local:39193/playlist.m3u',guide:'https://tuner.local:39193/guide.xml'
+  });
+  assert.deepEqual(clientAddresses({}),{plex:'',playlist:'',guide:''});
+});
+test('a playing channel needs a receiving standby even with a full roster',()=>{
+  assert.equal(matchesChannelFilter('backup',null,{count:6},{standby:'checking'}),true);
+  assert.equal(matchesChannelFilter('backup',null,{count:6},undefined),false);
+  assert.equal(standbyLabel({count:9}, {standby:'receiving'}),'Standby live');
+  assert.equal(standbyLabel({count:3},null),'Backup available');
+  assert.equal(matchesChannelFilter('missing',undefined,{count:3},null),true);
+  assert.equal(matchesChannelFilter('missing',{state:'confirmed'},{count:0},null),false);
+  assert.equal(matchesChannelFilter('conflict',{state:'conflict'},null,null),true);
+});

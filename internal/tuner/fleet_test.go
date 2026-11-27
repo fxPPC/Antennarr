@@ -148,8 +148,22 @@ func TestFleetSharesSameChannelButSeparatesMarketsAndGlobalLimit(t *testing.T) {
 			r.Body.Close()
 		}
 	}()
-	for _, base := range []string{us.URL, us.URL, uk.URL} {
-		r, err := http.Get(base + "/auto/v101")
+	// A Plex viewer and a Jellyfin viewer of the same channel share the engine.
+	list, err := http.Get(us.URL + "/playlist.m3u")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body, err := io.ReadAll(list.Body)
+	list.Body.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, path, ok := strings.Cut(string(body), "/stream/")
+	if !ok {
+		t.Fatal("missing Jellyfin URL", string(body))
+	}
+	for _, address := range []string{us.URL + "/auto/v101", us.URL + "/stream/" + strings.TrimSpace(path), uk.URL + "/auto/v101"} {
+		r, err := http.Get(address)
 		if err != nil || r.StatusCode != 200 {
 			t.Fatal(r, err)
 		}

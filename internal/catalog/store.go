@@ -29,6 +29,11 @@ import (
 //go:embed schema.sql
 var schema string
 
+//go:embed guide_schema.sql
+var guideSchema string
+
+const SchemaVersion = 10
+
 type Store struct {
 	// Bulk imports yield between batches so live health writes cannot time out.
 	catalogueWrites sync.Mutex
@@ -178,7 +183,7 @@ func open(root string, defaults bool) (*Store, error) {
 	if e = db.QueryRow("PRAGMA user_version").Scan(&version); e != nil {
 		return fail("read schema version", e)
 	}
-	if version > 9 {
+	if version > SchemaVersion {
 		return fail("check schema compatibility", errors.New("database requires a newer application"))
 	}
 	if version > 0 && version < 8 {
@@ -223,6 +228,24 @@ func open(root string, defaults bool) (*Store, error) {
 	if version == 8 {
 		if e = migrateProfiles(db); e != nil {
 			return fail("migrate profiles", e)
+		}
+	}
+	// Version 10 adds persistent guide observations and marks portal-capable
+	// catalogues so that a 1.1 binary cannot open them after an upgrade.
+	if version < SchemaVersion {
+		tx, err := db.Begin()
+		if err != nil {
+			return fail("begin guide migration", err)
+		}
+		if _, err = tx.Exec(guideSchema); err == nil {
+			_, err = tx.Exec("PRAGMA user_version=10")
+		}
+		if err != nil {
+			tx.Rollback()
+			return fail("migrate programme guide", err)
+		}
+		if err = tx.Commit(); err != nil {
+			return fail("commit guide migration", err)
 		}
 	}
 	// Reverse mapping lookups drive stream scheduling. Without this index the

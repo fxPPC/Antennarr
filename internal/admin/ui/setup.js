@@ -1,12 +1,13 @@
 import {$, api} from './core.js';
 import {showImport} from './source-import.js';
+import {clientConnections} from './connections.js';
 import {tunerSlotSummary} from './listeners.js';
 
 const steps = ['tuner', 'sources', 'plex'];
-const headings = ['Choose a tuner', 'Import a source list', 'Connect to Plex'];
+const headings = ['Choose a tuner', 'Add a source', 'Connect your media server'];
 let profiles = [], presets = [], saved, step, lastOptions, listeners;
 let visiting = false, working = false, focusOnOpen = false, generation = 0;
-let invalidateTuners;
+let invalidateTuners, connectionKey = '';
 
 // Installed tuners can have custom names and may have no city preset at all.
 export function tunerOptions(profiles, presets, availableSlots) {
@@ -31,6 +32,8 @@ export function currentStep(setup, profiles) {
 function moveImport(target) {
   const form = $('#import-form');
   if (form.parentNode !== target) target.prepend(form);
+  const portal = $('#portal-source');
+  if (portal.parentNode !== target) target.append(portal);
 }
 
 function hide() {
@@ -48,7 +51,7 @@ function controls() {
 
 function selectHint() {
   const selected = tunerOptions(profiles, presets, listeners?.available_slots).find(p => p.value === $('#setup-tuner').value);
-  $('#setup-city-hint').textContent = selected?.detail || (listeners?.available_slots === 0 ? 'Choose an installed tuner to continue.' : 'Choose the city whose channels you want Plex to offer.');
+  $('#setup-city-hint').textContent = selected?.detail || (listeners?.available_slots === 0 ? 'Choose an installed tuner to continue.' : 'Choose a city for your first channel lineup.');
   controls();
 }
 
@@ -91,14 +94,14 @@ function render(focus = false) {
     selectHint();
   } else if (step === 'sources') {
     $('#setup-source-hint').textContent = saved.has_sources
-      ? 'Accounts are saved. Continue with them, or import another authorised list.'
-      : 'Import an authorised list. Once an account is saved, continue to Plex.';
+      ? 'Accounts are saved. Continue to connect a media server.'
+      : 'Import an authorised list or add your portal account to continue.';
   } else {
-    $('#setup-address-label').textContent = selected.name + ' · Tuner address for Plex';
-    const address = $('#setup-address');
-    if (address.value !== selected.tuner_url) address.value = selected.tuner_url || '';
-    $('#setup-copy').disabled = !selected.tuner_url;
-    $('#setup-guide-location').textContent = selected.address_error || (selected.guide_location ? 'When Plex asks for a guide location, use ' + selected.guide_location + '.' : 'Choose the guide that covers your channels.');
+    const key = JSON.stringify(selected);
+    if (key !== connectionKey) {
+      $('#setup-clients').replaceChildren(clientConnections(selected));
+      connectionKey = key;
+    }
   }
   controls();
   if (focus) $('#setup-heading').focus();
@@ -214,14 +217,4 @@ export function bind(onTunerChange) {
     focusOnOpen = true;
     location.hash = 'status';
   });
-  $('#setup-copy').onclick = async () => {
-    const field = $('#setup-address');
-    try {
-      await navigator.clipboard.writeText(field.value);
-      $('#setup-message').textContent = 'Address copied.';
-    } catch {
-      field.focus(); field.select();
-      $('#setup-message').textContent = 'Address selected. Use your device’s copy command.';
-    }
-  };
 }

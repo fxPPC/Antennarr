@@ -98,3 +98,11 @@ Large imports commit in bounded batches, yielding to playback health writes. Mal
 - `POST /api/lineup`: `{ "confirmed": true, "lineup": { "version": 1, "channels": [...] } }`; 2 MiB maximum, strict portable fields, idle playback required. Replacement is atomic; sources/settings/device identity remain.
 - Settings: `replenish_while_playing` (boolean, default false); `logging_level` (`none`, `normal`, `debug`, default debug). Logging applies immediately and persists.
 - Monitor `database_error` describes a delayed summary without hiding live state. Check-pass `deferred` counts capacity deferrals separately from released roster memberships.
+
+## 1.2 alpha guide and portal endpoints
+
+Each private tuner listener serves `GET /playlist.m3u` and `GET /guide.xml`. The absolute `/stream/{id}` links in the playlist use persistent broadcast IDs. Jellyfin and HDHomeRun viewers of an output channel use the same controller and capacity limits.
+
+The authenticated administration API accepts `GET /api/guide?profile_id=…`, `GET /api/guide/channel?profile_id=…&id=…`, and `GET /api/guide/stations?profile_id=…&q=…`. Use `POST /api/guide/feed` to configure an XMLTV URL, `POST /api/guide/pin` to select or clear a channel’s guide station, and `POST /api/guide/refresh` to queue a refresh. All changes require the existing administration request header.
+
+`POST /api/input/portal` configures a subscriber portal source. `POST /api/input/portal/refresh` refreshes a configured account by its numeric account ID.

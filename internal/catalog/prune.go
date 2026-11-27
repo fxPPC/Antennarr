@@ -86,7 +86,7 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
  WHERE NOT EXISTS(SELECT 1 FROM prune_protected p WHERE p.id=a.id)
  AND NOT EXISTS(SELECT 1 FROM work_leases l WHERE l.kind='account' AND l.resource=a.id AND l.until>?)
  AND NOT EXISTS(SELECT 1 FROM streams s JOIN work_leases l ON l.resource=s.id WHERE s.account_id=a.id AND l.kind='stream' AND l.until>?)
- AND (a.state='retired' OR ((a.kind!='xtream' OR a.catalogue_checked>0) AND EXISTS(SELECT 1 FROM channels)
+ AND (a.state='retired' OR (a.kind!='portal' AND (a.kind!='xtream' OR a.catalogue_checked>0) AND EXISTS(SELECT 1 FROM channels)
  AND NOT EXISTS(SELECT 1 FROM streams s JOIN mappings m ON m.stream_id=s.id JOIN channels c ON c.id=m.channel_id WHERE s.account_id=a.id AND s.state!='retired')))`, now, now)
 	if err != nil {
 		return out, err

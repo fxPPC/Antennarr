@@ -40,6 +40,7 @@ func (f *Fleet) Handler(offset int) http.Handler {
 		}
 		s := *f.Template
 		s.BaseURL = base
+		s.profileID = profile.ID
 		s.FriendlyName = profile.Name
 		if profile.DeviceID != "" {
 			s.Config.DeviceID = profile.DeviceID
@@ -62,10 +63,10 @@ func (f *Fleet) Handler(offset int) http.Handler {
 
 func tunerPath(path string) bool {
 	switch path {
-	case "/discover.json", "/lineup.json", "/lineup_status.json", "/lineup.post", "/device.xml":
+	case "/discover.json", "/lineup.json", "/lineup_status.json", "/lineup.post", "/device.xml", "/playlist.m3u", "/guide.xml":
 		return true
 	}
-	return strings.HasPrefix(path, "/auto/")
+	return strings.HasPrefix(path, "/auto/") || strings.HasPrefix(path, "/stream/")
 }
 
 // PrimaryHandler preserves the original device address and legacy protected

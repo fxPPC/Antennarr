@@ -127,7 +127,7 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 		}
 		var schema int
 		s.DB.QueryRow("PRAGMA user_version").Scan(&schema)
-		if schema != 9 {
+		if schema != catalog.SchemaVersion {
 			t.Fatal(schema)
 		}
 		if c.DeviceID != originalID || c.Settings.RosterTarget != 20 || !c.Settings.ReplenishWhilePlaying {
