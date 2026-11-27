@@ -15,6 +15,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+from uuid import UUID
 
 ROOT = Path(__file__).resolve().parents[2]
 JELLYFIN = ("ghcr.io/jellyfin/jellyfin:12.4@"
@@ -182,31 +183,92 @@ def exercise(stack, work, image):
     def programmes():
         items = jf("/LiveTv/Programs?limit=100")["Items"]
         found = {v["Name"]: v for v in items}
-        if {"London Fixture on Air", "New York Fixture on Air"} <= found.keys():
+        if {"News, London Fixture on Air", "5 New York Fixture on Air"} <= found.keys():
             return found
         return None
     tasks = jf("/ScheduledTasks")
     guide_task = next(t for t in tasks if t.get("Key") == "RefreshGuide" or
                       ("guide" in t.get("Name", "").lower() and "refresh" in t["Name"].lower()))
-    if guide_task["State"] == "Idle":
-        jf("/ScheduledTasks/Running/" + guide_task["Id"], {})
+    task_id = guide_task["Id"]
+    def guide_idle():
+        return jf("/ScheduledTasks/" + task_id)["State"] == "Idle"
+    def refresh_guide():
+        wait("Jellyfin guide task to become idle", guide_idle)
+        jf("/ScheduledTasks/Running/" + task_id, {})
+    refresh_guide()
     entries = wait("two distinct Jellyfin guide entries", programmes)
+    def number(channel):
+        return str(channel.get("ChannelNumber") or channel.get("Number"))
     channels = {v["Name"]: v for v in jf("/LiveTv/Channels")["Items"]}
     for name in hosts:
+        if number(channels[name]) != "7":
+            raise RuntimeError(f"Jellyfin did not import channel 7 from {name}")
         if entries[name + " on Air"]["ChannelId"] != channels[name]["Id"]:
             raise RuntimeError(f"Wrong programme for {name}")
     if len(hosts) != 2 or len({v["Id"] for v in channels.values()}) != 2:
         raise RuntimeError("Same-number channels collided")
-    ny, port = hosts["New York Fixture"]
-    item = entries["New York Fixture on Air"]
+    ny, port = hosts["5 New York Fixture"]
+    item = entries["5 New York Fixture on Air"]
+    def playlist_urls():
+        with http.open(f"http://{ant_ip}:{port}/playlist.m3u", timeout=12) as response:
+            return [s for s in response.read().decode().splitlines() if s.startswith("http://")]
+    urls_before = playlist_urls()
+    if len(urls_before) != 1:
+        raise RuntimeError("Expected one channel in New York's M3U")
     timer = jf("/LiveTv/Timers/Defaults?programId=" + item["Id"])
     timer.update(ProgramId=item["Id"], ChannelId=item["ChannelId"], PrePaddingSeconds=0, PostPaddingSeconds=0)
     jf("/LiveTv/Timers", timer)
+    def single_timer(status):
+        timers = jf("/LiveTv/Timers?" + status + "=true")["Items"]
+        if len(timers) > 1:
+            raise RuntimeError("Duplicate Jellyfin timers on a single recording request")
+        return timers[0] if timers else None
+    booked = wait("future Jellyfin timer to be scheduled", lambda: single_timer("isScheduled"), 20)
+    def timer_identity(t):
+        return tuple(UUID(t[k]) for k in ("Id", "ChannelId", "ProgramId"))
+    if timer_identity(booked)[1:] != (UUID(item["ChannelId"]), UUID(item["Id"])):
+        raise RuntimeError("Recording timer points at the wrong channel or programme")
+
+    # The user edits the presentation while a future programme is booked.
+    # Refresh the actual DVR and require evidence it has consumed the new lineup.
+    edited_name = "5 New York Fixture HD"
+    an("/api/channels", {"profile_id": ny["id"], "id": "test-1", "name": edited_name,
+                         "number": "17", "region": "US", "aliases": ["5 New York Fixture"], "enabled": True})
+    if playlist_urls() != urls_before:
+        raise RuntimeError("Channel edit changed the Jellyfin stream URL")
+    refresh_guide()
+    def edited_channels():
+        rows = jf("/LiveTv/Channels")["Items"]
+        by_name = {v["Name"]: v for v in rows}
+        updated = by_name.get(edited_name)
+        if updated and number(updated) == "17":
+            if len(rows) != 2 or set(by_name) != {edited_name, "News, London Fixture"}:
+                raise RuntimeError("Guide refresh left duplicate channels or lost the second tuner")
+            return by_name
+        return None
+    refreshed = wait("Jellyfin to report the edited channel name and number", edited_channels, 70)
+    if number(refreshed["News, London Fixture"]) != "7":
+        raise RuntimeError("Renumbering New York affected London's tuner")
+    wait("edited Jellyfin guide refresh to finish", guide_idle, 30)
+    updated_guide = wait("listings after Jellyfin refreshed", programmes, 20)
+    for before_name, after_name in [("5 New York Fixture", edited_name), ("News, London Fixture", "News, London Fixture")]:
+        show = before_name + " on Air"
+        if (refreshed[after_name]["Id"] != channels[before_name]["Id"]
+                or updated_guide[show]["Id"] != entries[show]["Id"]
+                or updated_guide[show]["ChannelId"] != refreshed[after_name]["Id"]):
+            raise RuntimeError(f"Jellyfin channel or programme changed identity for {before_name}")
+    preserved = single_timer("isScheduled")
+    if not preserved or timer_identity(preserved) != timer_identity(booked):
+        raise RuntimeError("Scheduled timer was replaced, remapped, or started before the guide check")
+
     def live():
         return [v for v in an("/api/monitor")["live"] or [] if v["channel_id"] == "test-1"]
     wait("Jellyfin DVR primary and hot standby",
-         lambda: any(v["primary"] == -1 and v["ghost"] != 0 for v in live()), 120)
-    with http.open(f"http://{ant_ip}:{port}/auto/v7", timeout=15) as plex:
+         lambda: any(v["primary"] == -1 and v["ghost"] != 0 for v in live()), 175)
+    active = wait("Jellyfin timer to enter recording", lambda: single_timer("isActive"), 10)
+    if timer_identity(active) != timer_identity(booked):
+        raise RuntimeError("Active recording differs from the timer booked before the edit")
+    with http.open(f"http://{ant_ip}:{port}/auto/v17", timeout=15) as plex:
         if not plex.read(188):
             raise RuntimeError("Empty Plex-compatible stream")
         snap = an("/api/monitor")
@@ -220,19 +282,13 @@ def exercise(stack, work, image):
         return files[0] if len(files) == 1 and not active and not live() else None
     recording = wait("completed Jellyfin recording", completed, 245)
     outcome = verify_recording(recording)
-    # Renumbering after a recording must preserve Jellyfin's persistent channel key.
-    before = http.open(f"http://{ant_ip}:{port}/playlist.m3u").read().decode().splitlines()
-    an("/api/channels", {"profile_id": ny["id"], "id":"test-1", "name":"New York Fixture",
-                         "number":"17", "region":"US", "enabled":True})
-    after = http.open(f"http://{ant_ip}:{port}/playlist.m3u").read().decode().splitlines()
-    urls = lambda lines: [s for s in lines if s.startswith("http://")]
-    if len(urls(before)) != 1 or urls(before) != urls(after):
-        raise RuntimeError("Renumbering changed the Jellyfin stream URL")
     return {**outcome, "jellyfin": jf("/System/Info/Public")["Version"],
             "jellyfin_image_id": docker("image", "inspect", "--format={{.Id}}", JELLYFIN),
             "candidate_image_id": docker("image", "inspect", "--format={{.Id}}", image),
             "profiles": sorted(hosts), "shared_controller": True, "failovers": switched["failovers"],
-            "stable_playback_url": True, "recording_decoded": True}
+            "stable_playback_url": True, "jellyfin_channel_and_programme_ids_preserved": True,
+            "scheduled_timer_survived_channel_edit": True, "other_tuner_preserved": True,
+            "recording_decoded": True}
 
 
 if __name__ == "__main__":

@@ -208,3 +208,29 @@ func TestMixedPlaybackCancellationsReleaseExactlyTheirOwnViewer(t *testing.T) {
 		t.Fatal(st)
 	}
 }
+
+func TestJellyfinRetainsNumericBrandsAndRegionalCommas(t *testing.T) {
+	s := testServer(t)
+	s.Config.Channels[0].Name = "5 USA"
+	s.Config.Channels[1].Name = "News, London"
+	s.Config.Channels[2].Name = "Sky News"
+	page := tunerRequest(s.TunerHandler(), "GET", "/playlist.m3u")
+	lines := strings.Split(strings.TrimSpace(page.Body.String()), "\n")
+	if len(lines) != 7 {
+		t.Fatalf("expected three channels, got %q", lines)
+	}
+	// Jellyfin's GetChannelName strips an initial SAT>IP number and splits
+	// display text at commas. Use its tvg-name fallback for comma names.
+	for _, tc := range []struct {
+		index  int
+		suffix string
+	}{
+		{1, `tvg-chno="901",901. 5 USA`},
+		{3, `tvg-chno="902" tvg-name="News, London",`},
+		{5, `tvg-chno="903",Sky News`},
+	} {
+		if !strings.HasSuffix(lines[tc.index], tc.suffix) {
+			t.Errorf("playlist title on line %d: got %q, want suffix %q", tc.index+1, lines[tc.index], tc.suffix)
+		}
+	}
+}

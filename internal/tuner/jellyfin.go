@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -50,6 +51,22 @@ func playlistText(value string) string {
 	}, value)
 }
 
+// Jellyfin recognises “number. name” as a SAT>IP label and takes the final
+// comma-delimited field as the name. Its tvg-name attribute preserves a name
+// containing commas if the optional display field is empty.
+func playlistLabel(number, name string) string {
+	name = playlistText(name)
+	if strings.Contains(name, ",") {
+		return ` tvg-name="` + name + `",`
+	}
+	if first, _, ok := strings.Cut(name, " "); ok {
+		if _, err := strconv.ParseFloat(strings.Trim(first, "."), 64); err == nil {
+			return "," + number + ". " + name
+		}
+	}
+	return "," + name
+}
+
 func (s *Server) playlist(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "audio/x-mpegurl; charset=utf-8")
 	if r.Method == http.MethodHead {
@@ -59,7 +76,7 @@ func (s *Server) playlist(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(out, "#EXTM3U")
 	for _, ch := range s.channels() {
 		id := s.broadcastID(ch.ID)
-		fmt.Fprintf(out, "#EXTINF:-1 tvg-id=%q tvg-chno=%q,%s\n%s/stream/%s\n", id, ch.Number, playlistText(ch.Name), strings.TrimRight(s.BaseURL, "/"), id)
+		fmt.Fprintf(out, "#EXTINF:-1 tvg-id=%q tvg-chno=%q%s\n%s/stream/%s\n", id, ch.Number, playlistLabel(ch.Number, ch.Name), strings.TrimRight(s.BaseURL, "/"), id)
 	}
 	_ = out.Flush()
 }
