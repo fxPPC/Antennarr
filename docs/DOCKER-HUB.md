@@ -1,50 +1,14 @@
-<img src="https://raw.githubusercontent.com/fxPPC/Antennarr/main/docs/images/logo.png" alt="Antennarr logo" width="160">
-
 # Antennarr
 
-**Stick your antenna into the Internet**
+Antennarr turns authorised Xtream account lists into HDHomeRun-compatible tuners for Plex Live TV & DVR. It tests feeds and keeps alternatives for each channel. Plex supplies the guide and records programmes. Bring your own sources.
 
-**v1.0.9 · by fxPPC**
+| Choose | Pull command | Fresh installation |
+| --- | --- | --- |
+| Stable 1.0 (default) | `docker pull antennarr/antennarr:1.0` | One US tuner with 150 editable channels |
+| Latest published preview | `docker pull antennarr/antennarr:testing` | The 1.1 wizard offers optional city tuners |
 
-An IPTV-to-Plex tuner I'm building because apparently watching television needed another software project. Import account-list URLs (plain or Base64), choose your channels, and let it maintain a roster of checked feeds. Viewers share a primary stream and live backup; failed feeds get replaced automatically, mid-session, (hopefully) without interrupting playback. That's the idea. Still testing the awkward bits.
+Both images support Linux amd64 and ARM64. `latest` tracks the recommended stable release, currently `v1.0.9`. To pin the current preview, use `v1.1.0-beta.2`. Stable 1.1.0 is in preparation.
 
-Go, SQLite, and FFmpeg in one Linux container. ARM64 and amd64. Video is copied, audio normalised to AAC. One `/data` directory; manual backups.
+**Upgrading from 1.0?** Download a full backup under **Admin → Backup & restore**. Keep your existing ports, network, and Plex tuner address. The upgrade migrates your data. Returning to 1.0 requires the pre-upgrade backup. Use a separate data directory when trying the preview alongside stable.
 
-Fresh installs now include **150 editable US channels**. Bring your own authorised account lists: **no accounts, passwords, or stream URLs are included**. Existing installations keep their channel setup; this update does not automatically overwrite it. Channels become playable as working sources fill their rosters.
-
-Images and container installation checks run on native amd64 and ARM64. Controlled media tests cover recovery and shared streams; broader testing with household Plex clients, non-US channels, and other Docker network setups is still needed.
-
-Open source at [fxPPC/Antennarr](https://github.com/fxPPC/Antennarr). Break it, report it, preferably in that order.
-
-## Run it
-
-Create a dedicated appdata directory, then replace the path and server LAN IP:
-
-```sh
-docker run -d --name antennarr --restart unless-stopped \
-  -p YOUR_SERVER_LAN_IP:39192:9193 -p YOUR_SERVER_LAN_IP:9192:9192 \
-  -e ANTENNARR_ADMIN_LISTEN=:9193 \
-  -e ANTENNARR_BASE_URL=http://YOUR_SERVER_LAN_IP:9192 \
-  -v /YOUR/APPDATA/antennarr:/data \
-  antennarr/antennarr:latest
-```
-
-Open `http://YOUR_SERVER_LAN_IP:39192`. Fresh login: **admin / admin**; change it under **Admin → Change login**. Add `http://YOUR_SERVER_LAN_IP:9192` as the tuner in Plex. Keep both ports private to your LAN; use HTTPS through a reverse proxy for public administration. Configure `ANTENNARR_TRUSTED_PROXIES` for that proxy.
-
-**NAS permissions:** default UID/GID is `10001:10001`. To use your NAS account, add `-e PUID=YOUR_UID -e PGID=YOUR_GID`. Startup prepares ownership under `/data`, then runs Antennarr as that non-root user. If your NAS forbids ownership changes, use `--user YOUR_UID:YOUR_GID` instead and give those IDs read/write access to appdata, including existing contents. No privileged mode or world-writable folders needed. SQLite appdata should be local, not SMB/NFS.
-
-**Shared Docker network is optional:** to use one, add `--network YOUR_PLEX_NETWORK`, remove the tuner port mapping, and set `ANTENNARR_BASE_URL=http://antennarr:9192`. Plex must share that existing network; use `http://antennarr:9192` as its tuner. [Docker networking details](https://docs.docker.com/engine/network/drivers/bridge/).
-
-**Upgrading hardened containers:** if you previously used `--cap-drop ALL`, keep the old non-root mode with `--user 10001:10001`, or add `CHOWN`, `DAC_OVERRIDE`, `SETUID`, and `SETGID` for ownership setup. Existing channels and logins are preserved.
-
-Tags: `1.0`, `latest`, or pinned `v1.0.9`. For opt-in 1.1 builds and their exact tags, see the [GitHub releases](https://github.com/fxPPC/Antennarr/releases). Native unRAID playback testing remains pending. Third-party notices: `/usr/share/doc/antennarr/licenses`; [Runtime package sources](https://github.com/wolfi-dev/os).
-
-**Data compatibility:** The 1.0 series uses a stable data format. The 1.1 beta upgrades the data format. Test with a separate data directory and keep a pre-upgrade backup to return to 1.0. Updates within each series preserve your settings, channels, accounts, login, and tuner identity. Backups are manual.
-
-Debug-level JSON logs go to Docker by default. Choose None, Normal (warnings/errors), or Debug under Admin. Saved settings take precedence over the bootstrap `ANTENNARR_LOG_LEVEL` environment variable. Enable Docker log rotation.
-
-GPL-3.0-or-later. The image includes buildable source at `/usr/share/doc/antennarr/source.tar.gz`; the source is also available on GitHub. Extract it with `docker cp antennarr:/usr/share/doc/antennarr/source.tar.gz .`.
-
-## New in v1.0.9
-
-Docker health checks and Plex discovery follow the configured tuner port. Dashboard reloads have a separate request allowance for bundled files. Existing 1.0 data and tuner identities are compatible.
+[Stable installation](https://github.com/fxPPC/Antennarr/blob/release/1.0/docs/INSTALL.md) · [1.1 preview setup](https://github.com/fxPPC/Antennarr/blob/main/docs/MULTI-TUNER.md) · [Releases and desktop downloads](https://github.com/fxPPC/Antennarr/releases) · [Source and support](https://github.com/fxPPC/Antennarr)
