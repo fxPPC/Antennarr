@@ -43,7 +43,7 @@ These commands pull the published image for Linux amd64 or ARM64. If stable and 
 
 Open the first port in your range (39192 by default), sign in with `admin/admin`, and change the login. The setup wizard opens in **Status** on a fresh installation. Choose a city, enable its tuner, and import an authorised source list. Use the tuner address shown in the last step to add it in Plex. You can skip the wizard and reopen it from **Admin**. Add further cities under **Tuners**. An upgrade preserves saved tuners, their enabled state, and their channels.
 
-In the beta 2 source, removing a tuner frees its port immediately. The next tuner takes the lowest available slot and receives a new Plex device ID. Disabled tuners keep their slots.
+Removing a tuner frees its port immediately. The next tuner takes the lowest available slot and receives a new Plex device ID. Disabled tuners keep their slots.
 
 ## Web and tuner ports
 
@@ -69,7 +69,7 @@ For Plex on the same private Docker network, set `ANTENNARR_BASE_URL=http://ante
 
 ### Upgrading an existing Plex installation
 
-Keep the current Compose file, Docker network name and aliases, port mappings, listener variables, advertised base URL, and appdata. Change the image tag only. Existing installations retain their listener layout, including a primary tuner on 9192, additional tuners beginning at 9200, and the optional primary-only compatibility listener on 5004 when previously configured. Plex can continue using the same addresses and device IDs. Choose the seven-port range explicitly when you are ready to update Plex. The range overlay above is for new or deliberately reconfigured installations.
+Download a full backup under **Admin → Backup & restore** and keep a copy of your deployment configuration. Stop playback before switching images. Keep the current Compose file, Docker network name and aliases, port mappings, listener variables, advertised base URL, and appdata. Change the image tag only. Existing installations retain their listener layout, including a primary tuner on 9192, additional tuners beginning at 9200, and the optional primary-only compatibility listener on 5004 when previously configured. Plex can continue using the same addresses and device IDs. Choose the seven-port range explicitly when you are ready to update Plex. The range overlay above is for new or deliberately reconfigured installations.
 
 ## Plex and guides
 

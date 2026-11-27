@@ -36,4 +36,4 @@ After publication, verify both platform manifests and matching digests for every
 
 Changing runtime appdata is separate from publishing. Backups remain manual. Never include runtime data, host operations, Docker credentials, test executables, or private development history in the public repository or final image.
 
-After a release is promoted to latest, the workflow synchronises `docs/DOCKER-HUB.md` to the existing Docker Hub overview and verifies the saved text. Maintenance and prerelease publications leave the stable overview alone. This uses the release environment credentials only. Check that step's result: documentation failure does not undo or republish an immutable image. Correct the overview separately if Docker Hub rejects the update.
+After a promotion to `latest`, the workflow syncs the Docker Hub description and overview from the release checkout. To publish a documentation correction separately, merge it into `main` and run **Update Docker Hub description** there. Both paths use the protected release credentials and verify Docker Hub’s public readback. The documentation workflow changes no image tags.
