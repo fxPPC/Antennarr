@@ -16,7 +16,7 @@ The city presets introduced in beta 2 and later use the optional `@guide` matchi
 
 For Buenos Aires, some providers use the same `AR` display tag for Arabic-language services. Antennarr accepts an Argentine feed when its name specifies `ARG` or `Argentina`, its country field identifies Argentina, or its station guide ID ends in `.ar`. On upgrade, existing channels with the Argentine `@guide` rule lose incompatible assignments, including manual ones. Bogotá’s preset distinguishes Caracol Televisión, Canal Uno, Canal RCN, and RCN Novelas where providers use similar names.
 
-Brussels accepts French- and Dutch-language Belgian services. Zürich includes Swiss German-, French-, and Italian-language services. Some providers use the display tag `SW` for both Swedish and Swiss channels. Zürich requires a matching `.ch` guide ID for that tag.
+Brussels accepts French- and Dutch-language Belgian services. Zürich includes Swiss services in German, French, and Italian. Some providers use the display tag `SW` for both Swedish and Swiss channels. Zürich requires a matching `.ch` guide ID for that tag.
 
 The **Required station ID** field in the channel editor is optional and works with any lineup. It requires the station in the source name or guide ID. Names use complete tokens; guide IDs also recognise a combined network/station label. Exclusions and country rules still apply. Primary and standby feeds come from the same constrained roster. Tightening a rule removes incompatible memberships without adding failure strikes; accounts are retained. The field is included in channel exports and manual full backups, as persistent channel metadata.
 

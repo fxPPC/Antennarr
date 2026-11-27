@@ -1,6 +1,6 @@
 # Releases
 
-The [build guide](BUILD.md) gives the same Docker, Mac disk image, and Windows installer commands used in CI. Beta publication attaches the tested native installers, their SHA-256 checksums, and the locked Docker runtime inputs.
+The [build guide](BUILD.md) gives the same Docker, Mac disk image, and Windows installer commands used in CI. Stable 1.1 releases and 1.1 betas include the tested desktop installers, SHA-256 checksums, and locked Docker runtime inputs.
 
 Releases follow [the versioning and compatibility policy](VERSIONING.md). Stable releases use `vMAJOR.MINOR.PATCH`; opt-in test releases append `-alpha.N`, `-beta.N`, or `-rc.N`. Exact Git and Docker tags are immutable. Stable releases advance their minor Docker tag (`1.0`, `1.1`, etc.); only explicit promotion advances `latest` and GitHub's recommended release. Historical release source is available on GitHub. Check Docker Hub for available image tags.
 
@@ -32,7 +32,7 @@ Enable immutable GitHub releases before launch. Assets are attached while the re
 
 Before publication, confirm version/tag absence and ensure the candidate source is reviewed. The workflow rechecks before writing. If publication fails after uploading some blobs or a version tag, inspect the run and registry before retrying; do not overwrite a published stable release. Keep a draft release unpublished until all required assets and provenance exist.
 
-After publication, verify both platform manifests and matching digests for every tag intentionally updated; pull by digest and test fresh startup. Confirm source revision labels, embedded source, defaults, and zero accounts. Record actual test coverage, including any unverified Plex-client or multi-hour viewing scenarios. Before each stable 1.1 patch, also complete the same-minor downgrade matrix described in VERSIONING.md; the existing Beta 3 upgrade test does not establish that guarantee.
+After publication, verify both platform manifests and matching digests for every tag intentionally updated; pull by digest and test fresh startup. Confirm source revision labels, embedded source, defaults, and zero accounts. Record actual test coverage, including any unverified Plex-client or multi-hour viewing scenarios. Before each stable 1.1 patch, run the same-minor downgrade matrix against every earlier stable patch. [Compatibility policy](VERSIONING.md)
 
 Changing runtime appdata is separate from publishing. Backups remain manual. Never include runtime data, host operations, Docker credentials, test executables, or private development history in the public repository or final image.
 
