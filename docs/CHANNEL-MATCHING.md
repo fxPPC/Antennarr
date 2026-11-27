@@ -8,7 +8,7 @@ Ambiguous matches are left unassigned and are not automatically imported from pr
 
 Provider `VIP` and `[BK]` decorations are ignored for name identity; the UHD eligibility setting still applies independently. Catalogue headings such as `##### TENNIS #####` are not treated as television feeds.
 
-Stable 1.0 starts with an editable US lineup. In 1.1, fresh installations start empty. Choose a city under **Tuners**. See the [available markets and Plex guide locations](MULTI-TUNER.md). Tests and preset fixtures live beside the catalogue code; the runtime preset is authoritative. Existing installations retain their own channels.
+Fresh 1.1 installations start empty. The previous 1.0 series shipped with an editable US lineup. Choose a city under **Tuners**. See the [available markets and Plex guide locations](MULTI-TUNER.md). Tests and preset fixtures live beside the catalogue code; the runtime preset is authoritative. Existing installations retain their own channels.
 
 The US preset includes CBS (002/WCBS), NBC (004/WNBC), FOX (005/WNYW), ABC (007/WABC), MyNetworkTV (009/WWOR), The CW (011/WPIX), and PBS (013/WNET). Each requires its New York station ID. A generic network or “New York” label alone is insufficient. A name identifying WNBC with a guide ID identifying KNBC is rejected. For example `US NBC HD` with guide ID `nbcwnbc.us` qualifies, but the same name with no ID, `cnbc.us`, or a different affiliate does not. Related news, sports, children's services, and explicitly labelled western feeds are excluded.
 

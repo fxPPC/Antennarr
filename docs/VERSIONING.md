@@ -16,7 +16,7 @@ Stable patch releases support in-place downgrades within the same minor version.
 
 For example, 1.1.3 → 1.1.0 → 1.1.3 must preserve user configuration and credentials while continuing to work on the same directory. A 1.1 → 1.0 rollback requires restoring the complete matching backup, not just replacing the executable. Stop Antennarr before switching versions or restoring data; two instances must never open the same directory concurrently. A restored backup represents its capture time and cannot retain subsequent edits.
 
-All stable 1.0.x releases share a data format. Stable 1.1.x releases will share their own data format from 1.1.0 onwards. Alpha and beta releases may change format. Test previews on a separate copy of your data. Release candidates should pass the stable compatibility checks before promotion.
+All stable 1.0.x releases share a data format. Stable 1.1.x releases share their own data format from 1.1.0 onwards. Alpha and beta releases may change format. Test previews on a separate copy of your data. Release candidates should pass the stable compatibility checks before promotion.
 
 Within a stable minor line:
 
@@ -39,18 +39,18 @@ These are release acceptance requirements. They are not implemented or proven me
 
 | Tag | Meaning |
 | --- | --- |
-| `v1.0.9` | Immutable exact stable release |
-| `1.0` | Most recent published stable 1.0 patch |
+| `v1.1.0` | First stable multi-tuner release |
+| `v1.0.9` | Final US-only release |
+| `1.0` | Final 1.0 patch (v1.0.9) |
 | `testing` | Most recently published Docker preview |
-| `v1.1.0-beta.2` | Opt-in amd64 and ARM64 beta |
-| `1.1` | Most recent published stable 1.1 patch; absent until a stable release |
+| `1.1` | Most recent stable 1.1 patch |
 | `latest` | Explicitly promoted recommended stable release |
 
 Prereleases never change stable minor tags or `latest`. A maintenance release cannot move `latest` behind a newer stable version. Publishing a release never updates a running installation.
 
-## 1.1 public beta format baseline
+## 1.1 data format
 
-Use the existing schema 9 catalogue as the beta baseline. An installation may have zero, one, or several saved tuners. Any subset may be enabled. Removing the last tuner is a persistent choice. Disabling it preserves its lineup and roster. A market preset is an optional template for a new tuner. Adding a country to the preset registry must work with the same database format and must leave existing installations' tuner selections, identities, listener slots, lineups, and roster assignments intact.
+Stable 1.1 uses the schema 9 catalogue introduced during the beta. An installation may have zero, one, or several saved tuners. Any subset may be enabled. Removing the last tuner is a persistent choice. Disabling it preserves its lineup and roster. A market preset is an optional template for a new tuner. Adding a country to the preset registry must work with the same database format and must leave existing installations' tuner selections, identities, listener slots, lineups, and roster assignments intact.
 
 Channel numbers are local to each tuner. Keep the same internal channel ID when editing a channel. Shared account and provider limits apply across all enabled markets. For scale testing, count enabled channels and their combined roster targets. For example, 500 channels with a target of 15 require 7,500 successful verifications for a full pass. Actual pass duration depends on pacing, response times, playback, and retries.
 

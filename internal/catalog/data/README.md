@@ -9,7 +9,7 @@ Country/territory alpha-2, alpha-3, and English display-name aliases derived fro
 
 ## City presets
 
-The presets contain editable channel identities and matching rules. Channel numbers are local to each tuner. These are the references for the beta additions.
+The presets contain editable channel identities and matching rules. Channel numbers are local to each tuner. The table below gives the sources for four early presets. See the [full list of city presets and Plex guides](../../../docs/MULTI-TUNER.md) for all 20 markets.
 
 | Preset | Sources |
 | --- | --- |

@@ -1,74 +1,41 @@
 # Installation, upgrades, and manual recovery
 
-Stable **v1.0.9** runs on Linux amd64 and ARM64. The commands below install stable 1.0. For the amd64 or ARM64 **v1.1.0-beta.2** image or a beta source build, follow [multi-tuner setup](MULTI-TUNER.md).
+Antennarr 1.1.0 runs on Linux amd64 and ARM64 with Docker, its best-supported platform. The image includes FFmpeg and FFprobe. Use a dedicated writable directory on local storage for SQLite. For macOS and Windows, see the [desktop installers](NATIVE.md).
 
-Use Linux Docker on ARM64 or amd64, with local writable appdata. The Wolfi Linux runtime, FFmpeg, and FFprobe are included in the image. Docker source builds also include the Go toolchain in their build stage; Go is needed on your host only for local development outside Docker. Store SQLite appdata locally, not on SMB/NFS.
+## Start a fresh installation
 
-For the Mac and Windows beta installers, see [native installation](NATIVE.md).
-
-## Install the published image
-
-Choose a dedicated appdata directory and your Docker server's LAN address. Replace both placeholders below:
+Set the host’s private LAN address and the absolute path for appdata. The first port serves web administration. The following six are reserved for Plex tuners. Keep these ports on your private network.
 
 ```sh
 docker run -d --name antennarr --restart unless-stopped \
-  -p YOUR_SERVER_LAN_IP:39192:9193 -p YOUR_SERVER_LAN_IP:9192:9192 \
-  -e ANTENNARR_ADMIN_LISTEN=:9193 \
-  -e ANTENNARR_BASE_URL=http://YOUR_SERVER_LAN_IP:9192 \
+  -p YOUR_SERVER_LAN_IP:39192-39198:39192-39198 \
+  -e ANTENNARR_PORT_RANGE=39192-39198 \
+  -e ANTENNARR_BASE_URL=http://YOUR_SERVER_LAN_IP \
   --log-driver json-file --log-opt max-size=5m --log-opt max-file=2 \
   -v /YOUR/APPDATA/antennarr:/data \
-  antennarr/antennarr:1.0
+  antennarr/antennarr:v1.1.0
 ```
 
-Open `http://YOUR_SERVER_LAN_IP:39192`. Initial login is **admin/admin**; change it under **Admin → Change login** before remote exposure. Import authorised account-list URLs under Input and choose channels under Output. Working sources must fill the channel rosters before playback is available.
+Open `http://YOUR_SERVER_LAN_IP:39192`, sign in with `admin/admin`, and change the login under **Admin**. Use the wizard under **Status** to choose a city and import authorised accounts. In Plex **Live TV & DVR**, enter the tuner address from the wizard and select its local guide. Open **Tuners** to add more cities or edit channels. A channel is ready to play once it has a working feed. [Tuner and guide settings](MULTI-TUNER.md)
 
-Add `http://YOUR_SERVER_LAN_IP:9192` manually as the tuner in Plex's Live TV & DVR settings. Select the appropriate guide and map your channels. Antennarr supplies the tuner and media; Plex supplies guide data and recordings. Plex's own Live TV/DVR requirements apply.
+## Compose
 
-## Addresses and Docker networking
-
-| Address | Who uses it | Example |
-| --- | --- | --- |
-| Administration | Your browser or HTTPS reverse proxy | `http://YOUR_SERVER_LAN_IP:39192` |
-| Tuner/base URL | Plex Media Server | `http://YOUR_SERVER_LAN_IP:9192` |
-
-`ANTENNARR_BASE_URL` must be reachable **from Plex**, not just from your browser. A public administration URL is not the tuner address. `127.0.0.1` inside a Plex container refers to that container, not the Docker host.
-
-A shared user-defined Docker network is optional. If Plex shares that network, Antennarr can use `http://antennarr:9192` as its base URL without publishing a tuner port. Ordinary bridge networks do not span separate Docker hosts.
-
-The examples set `ANTENNARR_ADMIN_LISTEN=:9193` to enable the separate administration listener. The main listener defaults to `:9192` and also exposes authenticated administration routes. The separate administration listener omits tuner discovery/playback routes; `/healthz` and `/branding/logo.png` are public on it. Keep the main listener private even when administration is exposed through HTTPS.
-
-## Compose and source builds
-
-For stable Compose settings, clone the matching release, then copy its environment file:
+Choose Docker Compose 2.24.4 or later for the range overlay. Clone the release and copy the example environment file.
 
 ```sh
-git clone --branch v1.0.9 https://github.com/fxPPC/Antennarr.git
+git clone --branch v1.1.0 --depth 1 https://github.com/fxPPC/Antennarr.git
 cd Antennarr
 cp portable.env.example .env
 ```
 
-Edit `.env`: set `ANTENNARR_BIND` to your server's LAN address, `ANTENNARR_BASE_URL` to the tuner address Plex can reach, and `ANTENNARR_DATA_DIR` to your dedicated appdata directory. Defaults bind to loopback for local development.
-
-For the published image, set `ANTENNARR_IMAGE=antennarr/antennarr:1.0`, then:
+In `.env`, set `ANTENNARR_IMAGE=antennarr/antennarr:v1.1.0`, `ANTENNARR_DATA_DIR` to your appdata directory, and `ANTENNARR_BIND` and `ANTENNARR_PLEX_HOST` to the server’s private LAN address. Then start the published image.
 
 ```sh
-docker compose -f compose.portable.yaml pull
-docker compose -f compose.portable.yaml up -d --no-build
+docker compose -f compose.portable.yaml -f compose.range.yaml pull
+docker compose -f compose.portable.yaml -f compose.range.yaml up -d --no-build
 ```
 
-For a source build, leave `ANTENNARR_IMAGE=antennarr:local` and use:
-
-```sh
-docker compose -f compose.portable.yaml up -d --build
-```
-
-`compose.yaml` is an equivalent portable template. To join Plex's existing network, set `PLEX_NETWORK` in `.env` and use both files:
-
-```sh
-docker compose -f compose.portable.yaml -f compose.network.yaml up -d --build
-```
-
-For a published-image deployment, pull using both files first and replace `--build` with `--no-build`. The overlay sets the base URL to `http://antennarr:9192`; Plex must share that network. It retains the base template's port mappings. You can remove the tuner port mapping in your local Compose configuration if only network peers need it.
+The base template alone provides the legacy listener layout for existing deployments. For an existing private Plex Docker network with a fresh range installation, set `PLEX_NETWORK` to the network name and `ANTENNARR_PLEX_HOST=antennarr`. Include `-f compose.network.yaml` **before** `-f compose.range.yaml` in both commands so the range overlay supplies the advertised address. Plex in a separate container needs a reachable address on that network or the LAN. [Build from source](BUILD.md)
 
 ## NAS permissions
 
@@ -78,28 +45,17 @@ If the NAS forbids ownership changes, use Docker `--user YOUR_UID:YOUR_GID` with
 
 ## HTTPS reverse proxy
 
-Forward the public administration hostname to Antennarr's administration listener: container port **9193**, or host port **39192** in these examples. Terminate HTTPS at the proxy. Do not forward the tuner listener publicly.
+Forward the administration hostname to the first port in the range (39192 by default). Terminate HTTPS at the proxy and keep the tuner ports private. On legacy installations, use the existing administration listener.
 
-Set `ANTENNARR_TRUSTED_PROXIES` to the proxy address Antennarr actually sees. For example, if your proxy container has the fixed address `172.30.0.2`, use:
-
-```text
-ANTENNARR_TRUSTED_PROXIES=172.30.0.2
-```
-
-Replace that example with your actual proxy address. Multiple IPs/CIDRs are comma-separated. Trust only the required proxy peers; do not use `0.0.0.0/0`. Have the proxy set or append the real client address in `X-Forwarded-For`. Configure the proxy and Docker network so direct untrusted clients cannot impersonate a trusted proxy. Recreate the container after environment changes.
+Set `ANTENNARR_TRUSTED_PROXIES` to the proxy IP address Antennarr sees. The proxy must supply the real client address in `X-Forwarded-For`. Recreate the container after changing the environment.
 
 ## Upgrade
 
-Keep the same `/data` bind mount, tuner URL, and Plex server. Stable 1.0 uses schema 8. This 1.1 beta converts schema 8 to schema 9 before starting workers, preserving existing identities and configuration and adding London disabled. Returning to 1.0 requires the complete manual pre-upgrade backup. Unsupported/unversioned populated databases are refused rather than replaced. Do not downgrade an upgraded data directory. Same-minor stable patch downgrade support is a v1.1 release requirement; prerelease builds do not yet carry that guarantee.
+1. Download a full backup under **Admin → Backup & restore** and save a copy of the deployment configuration.
+2. Stop playback. Change only the image to `antennarr/antennarr:v1.1.0`. Keep the existing data mount, Docker network and aliases, listener variables, port mappings, and advertised Plex address.
+3. Pull and recreate the container. With Compose, use `pull` followed by `up -d --no-build` with the same files and project as before. Verify each enabled tuner’s address and lineup in Plex.
 
-For a published-image Compose installation, change `ANTENNARR_IMAGE` in `.env` to the desired release, stop playback, then run:
-
-```sh
-docker compose -f compose.portable.yaml pull
-docker compose -f compose.portable.yaml up -d --no-build
-```
-
-Include the network overlay in both commands if you use it. A `docker run` installation must pull the chosen image and recreate the container with its original mount, network, ports, and settings; pulling alone does not replace a running container. Backups are manual—create one before an upgrade if you want a recovery copy.
+The 1.0 upgrade migrates schema 8 to 9 before workers start. The existing primary tuner keeps its identity. Returning to the previous US-only release, v1.0.9, requires restoring your matching 1.0 backup. [Previous installation guide](https://github.com/fxPPC/Antennarr/blob/v1.0.9/docs/INSTALL.md)
 
 ## Manual backup, restore, and channel files
 
@@ -107,7 +63,7 @@ Include the network overlay in both commands if you use it. A `docker run` insta
 
 Stop viewing before uploading a backup. Restore accepts a ZIP up to **1 GiB**, with at most **2 GiB** of expanded files. It replaces application state and restarts the service. Keep the original tuner URL and Plex server to retain Plex's own Live TV setup. The application backup does not recreate Docker mounts, networking, environment variables, or the reverse proxy; keep your deployment configuration separately.
 
-**Channel lineup export & import** (under **Output** in stable 1.0 or the selected tuner in 1.1) shares definitions without accounts, passwords, source streams, or rosters. In 1.1, imports replace only the selected tuner’s channels and rebuild its rosters; other tuners are retained. Use a full manual backup when source state must also be retained.
+**Channel lineup export & import** (in the selected tuner) shares definitions without accounts, passwords, source streams, or rosters. A lineup import replaces the selected tuner’s channels and rebuilds its rosters. Other tuners keep their channels. Use a full manual backup when source state must also be retained.
 
 ## Troubleshooting and logs
 

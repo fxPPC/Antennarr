@@ -13,7 +13,7 @@ ANTENNARR_UPGRADE_FIXTURE=/tmp/antennarr-upgrade-fixture go test ./internal/reco
 
 Docker builds the historical Dockerfile at its pinned Git commit. To reuse an image built from that commit, pass its name with `--image`. The generator refuses an existing output directory, runs with networking disabled, and seeds only reserved `.invalid` provider addresses. The test copies the synthetic data, opens it with current code, verifies settings and the schema-8 → schema-9 migration, lowers the roster threshold without dropping entries, and performs a manual backup/restore. It compares the exact HDHomeRun discovery, lineup, and device XML with the published version, along with accounts, rosters, login, random queue positions, and saved check-pass state. The existing primary lineup is compared separately from the new disabled London preset; backup/restore must preserve both device identities.
 
-CI also exercises 1.0.4 and 1.0.9, including saved channel edits. To test an upgrade from the current stable release:
+CI also exercises 1.0.4 and 1.0.9, including saved channel edits. To test an upgrade from the final US-only 1.0 release, run:
 
 ```sh
 python3 scripts/make-upgrade-fixture.py --baseline v1.0.9 /tmp/antennarr-v109-upgrade-fixture
@@ -30,7 +30,7 @@ Build the server executable from each release checkout with `go build -o /tmp/an
 python3 scripts/test-patch-compatibility.py /tmp/antennarr-baseline /tmp/antennarr-candidate
 ```
 
-The amd64 source check uses the 1.1.0 candidate in both positions until the first stable 1.1 tag exists. It then builds each tagged stable 1.1 patch and runs it against the candidate. The harness creates temporary appdata, binds to loopback, and adds a synthetic tuner, channel rules, and login. It checks both writers, Plex discovery and lineup, settings, an idle housekeeping pass, and a manual backup/restore before re-upgrade.
+The amd64 source check builds each tagged stable 1.1 patch and runs it against the candidate. For the original 1.1.0 baseline, it ran the candidate in both positions. The harness creates temporary appdata, binds to loopback, and adds a synthetic tuner, channel rules, and login. It checks both writers, Plex discovery and lineup, settings, an idle housekeeping pass, and a manual backup/restore before re-upgrade.
 
 ## Matching regression and performance
 
