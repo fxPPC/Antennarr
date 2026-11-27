@@ -75,6 +75,12 @@ jobs:
         with:
           persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Cache signed package index and security updates
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          sh packaging/runtime/fetch-updates.sh "$ARCH" /tmp/wolfi-updates
+          cp -R /tmp/wolfi-updates packaging/runtime/wolfi-updates
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -130,6 +136,7 @@ jobs:
         run: |
           mkdir -p release
           go run ./packaging/runtime -arch "$ARCH" -out "release/wolfi-runtime-linux-$ARCH.tar.gz"
+          tar -czf "release/wolfi-updates-linux-$ARCH.tar.gz" -C packaging/runtime wolfi-updates
           mv /tmp/candidate.tar "release/image-$ARCH.tar"
           mv "/tmp/sbom-$ARCH.spdx.json" release/
           cp /tmp/image-vulnerabilities.json "release/vulnerabilities-$ARCH.json"
@@ -234,7 +241,7 @@ jobs:
           git archive --format=tar.gz --prefix="antennarr-$VERSION/" HEAD > "release/antennarr-$VERSION-source.tar.gz"
           cd release
           shopt -s nullglob
-          sha256sum antennarr-*-source.tar.gz wolfi-runtime-linux-*.tar.gz antennarr-*.dmg antennarr-*-setup.exe sbom-*.spdx.json vulnerabilities-*.json IMAGE-DIGEST.txt > SHA256SUMS
+          sha256sum antennarr-*-source.tar.gz wolfi-runtime-linux-*.tar.gz wolfi-updates-linux-*.tar.gz antennarr-*.dmg antennarr-*-setup.exe sbom-*.spdx.json vulnerabilities-*.json IMAGE-DIGEST.txt > SHA256SUMS
         id: publication
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
@@ -255,7 +262,7 @@ jobs:
           gh release create "$VERSION" --target "$GITHUB_SHA" --draft --title "Antennarr $VERSION" \
             "${flags[@]}" \
             --notes-file /tmp/release-notes.md \
-            release/antennarr-*-source.tar.gz release/wolfi-runtime-linux-*.tar.gz release/antennarr-*.dmg release/antennarr-*-setup.exe release/sbom-*.spdx.json release/vulnerabilities-*.json release/SHA256SUMS release/IMAGE-DIGEST.txt
+            release/antennarr-*-source.tar.gz release/wolfi-runtime-linux-*.tar.gz release/wolfi-updates-linux-*.tar.gz release/antennarr-*.dmg release/antennarr-*-setup.exe release/sbom-*.spdx.json release/vulnerabilities-*.json release/SHA256SUMS release/IMAGE-DIGEST.txt
           # Attach every asset before publishing an immutable release.
           gh release edit "$VERSION" --draft=false --latest="$PROMOTE_LATEST"
           cat release/IMAGE-DIGEST.txt >> "$GITHUB_STEP_SUMMARY"

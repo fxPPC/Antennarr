@@ -16,7 +16,7 @@ Use Go 1.27.4 and Python 3.9 or later. Go verifies module downloads against `go.
 
 The Dockerfile pins the Go builder and Wolfi base by digest. It restores the release’s SHA-256-verified Wolfi package layer for each architecture, including FFmpeg 9.1-r0. Keep the release assets `wolfi-runtime-linux-amd64.tar.gz` and `wolfi-runtime-linux-arm64.tar.gz` with the source when archiving a release. [Runtime layer digests](../packaging/runtime/lock.json)
 
-A normal `docker build -t antennarr:local .` fetches the runtime layer automatically. To cache it first, run `go run ./packaging/runtime -arch amd64 -out packaging/runtime/wolfi-runtime-linux-amd64.tar.gz` from the checkout, substituting `arm64` in both places for ARM64. The builder still needs the pinned base images and Go modules.
+A normal `docker build -t antennarr:local .` fetches the runtime layer automatically. To cache it first, run `go run ./packaging/runtime -arch amd64 -out packaging/runtime/wolfi-runtime-linux-amd64.tar.gz` from the checkout, substituting `arm64` in both places for ARM64. The build installs the [pinned security updates](../packaging/runtime/updates.lock) against Wolfi’s signed package index. For archived builds, extract the matching release’s `wolfi-updates-linux-<arch>.tar.gz` under `packaging/runtime/`. The builder still needs the pinned base images and Go modules.
 
 For the release checks, run the following on a disposable Linux runner of each target architecture. CI uses Ubuntu 24.04, Docker Buildx, Skopeo, and FFmpeg.
 
