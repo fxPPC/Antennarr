@@ -2,7 +2,7 @@
 
 # Antennarr
 
-Bring your authorised IPTV streams into Plex Live TV & DVR. Pick a city, import your Xtream account list, and let Antennarr find and test feeds for each channel. Plex sees each lineup as an HDHomeRun-compatible tuner and supplies its programme guide and recordings.
+Bring IPTV streams into Plex Live TV & DVR. Pick a city, import Xtream account lists, and let Antennarr find and test feeds for each channel. Plex sees each lineup as an HDHomeRun-compatible tuner and supplies its programme guide and recordings.
 
 ## Get Antennarr 1.1.0
 
