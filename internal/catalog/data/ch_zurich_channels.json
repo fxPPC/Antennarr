@@ -81,26 +81,6 @@
     ]
   },
   {
-    "name": "TeleBärn",
-    "number": "024",
-    "region": "CH",
-    "enabled": true,
-    "aliases": [
-      "TeleBaern",
-      "Tele Bärn",
-      "Tele Barn",
-      "TeleBarn",
-      "Tele Baern",
-      "@guide",
-      "-+1",
-      "-timeshift",
-      "-catchup",
-      "-replay",
-      "-24/7",
-      "-vod"
-    ]
-  },
-  {
     "name": "Telebasel",
     "number": "026",
     "region": "CH",

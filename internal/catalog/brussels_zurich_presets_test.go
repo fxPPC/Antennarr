@@ -14,7 +14,7 @@ func TestBrusselsAndZurichOptionalLineups(t *testing.T) {
 		count                                           int
 	}{
 		{"be-brussels", "1000", "Europe/Brussels", "La Une", "Ketnet", "262", 16},
-		{"ch-zurich", "8001", "Europe/Zurich", "SRF 1", "Tele Ticino", "503", 17},
+		{"ch-zurich", "8001", "Europe/Zurich", "SRF 1", "Tele Ticino", "503", 16},
 	} {
 		profile, err := s.AddProfilePreset(tc.id, 5)
 		if err != nil {
@@ -54,7 +54,7 @@ func TestBrusselsAndZurichProviderRules(t *testing.T) {
 		{"La Une", "", ""},
 		{"SWS: TELE ZURI", "", "TeleZüri"},
 		{"|SUI| TeleZüri", "TeleZueri.ch", "TeleZüri"},
-		{"CH | Tele Bärn", "telebaern.ch", "TeleBärn"},
+		{"CH | Tele Basel", "telebasel.ch", "Telebasel"},
 		{"SWISS | Swiss 1", "", "Swiss 1"},
 		{"Swiss 1", "", ""},
 		{"|SW| SRF ZWEI HD", "srf2.ch", "SRF Zwei"},
