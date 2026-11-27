@@ -36,6 +36,8 @@ jobs:
       - run: ANTENNARR_UPGRADE_FIXTURE=/tmp/antennarr-upgrade-fixture go test ./internal/recovery -run TestPublishedV1UpgradeAndManualRestore -count=1
       - run: python3 scripts/make-upgrade-fixture.py --baseline v1.0.4 /tmp/antennarr-v104-upgrade-fixture
       - run: ANTENNARR_V104_UPGRADE_FIXTURE=/tmp/antennarr-v104-upgrade-fixture go test ./internal/recovery -run TestPublishedV104UpgradeAndManualRestore -count=1
+      - run: python3 scripts/make-upgrade-fixture.py --baseline v1.0.9 /tmp/antennarr-v109-upgrade-fixture
+      - run: ANTENNARR_V109_UPGRADE_FIXTURE=/tmp/antennarr-v109-upgrade-fixture go test ./internal/recovery -run TestPublishedV109UpgradeAndManualRestore -count=1
       - run: GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o /tmp/antennarr-arm64 ./cmd/antennarr
       - run: docker compose -f compose.portable.yaml config --quiet
       - run: ANTENNARR_PORT_RANGE=41000-41006 docker compose -f compose.portable.yaml -f compose.range.yaml config --quiet

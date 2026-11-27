@@ -13,14 +13,14 @@ ANTENNARR_UPGRADE_FIXTURE=/tmp/antennarr-upgrade-fixture go test ./internal/reco
 
 Docker builds the historical Dockerfile at its pinned Git commit. To reuse an image built from that commit, pass its name with `--image`. The generator refuses an existing output directory, runs with networking disabled, and seeds only reserved `.invalid` provider addresses. The test copies the synthetic data, opens it with current code, verifies settings and the schema-8 → schema-9 migration, lowers the roster threshold without dropping entries, and performs a manual backup/restore. It compares the exact HDHomeRun discovery, lineup, and device XML with the published version, along with accounts, rosters, login, random queue positions, and saved check-pass state. The existing primary lineup is compared separately from the new disabled London preset; backup/restore must preserve both device identities.
 
-The v1.1 development line also checks upgrades from the original v1.0.4 release commit:
+CI also exercises 1.0.4 and 1.0.9, including saved channel edits. To test an upgrade from the current stable release:
 
 ```sh
-python3 scripts/make-upgrade-fixture.py --baseline v1.0.4 /tmp/antennarr-v104-upgrade-fixture
-ANTENNARR_V104_UPGRADE_FIXTURE=/tmp/antennarr-v104-upgrade-fixture go test ./internal/recovery -run TestPublishedV104UpgradeAndManualRestore -count=1 -v
+python3 scripts/make-upgrade-fixture.py --baseline v1.0.9 /tmp/antennarr-v109-upgrade-fixture
+ANTENNARR_V109_UPGRADE_FIXTURE=/tmp/antennarr-v109-upgrade-fixture go test ./internal/recovery -run TestPublishedV109UpgradeAndManualRestore -count=1 -v
 ```
 
-This fixture edits an existing channel and adds a disabled custom channel through the old version's API. The test additionally compares the complete portable channel definitions, including permanent IDs, numbers, station constraints, aliases, policies, and enabled states, after upgrade and backup/restore. Both published-version checks run in CI. They establish an upgrade baseline for the multi-tuner work; they do not establish multi-tuner Plex behaviour or stable 1.1 patch downgrade compatibility.
+This fixture edits an existing channel and adds a disabled custom channel through the old version's API. The test additionally compares the complete portable channel definitions, including permanent IDs, numbers, station constraints, aliases, policies, and enabled states, after upgrade and backup/restore.
 
 ## Matching regression and performance
 
