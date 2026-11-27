@@ -1,0 +1,60 @@
+name: Test the 1.2 pull request
+on:
+  workflow_call:
+permissions:
+  contents: read
+jobs:
+  source:
+    name: Source, media, and browser (Linux ARM64)
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 80
+    env:
+      ANTENNARR_TEST_FIXTURES: /tmp/antennarr-pr-media
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version: '1.27.4'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+      - name: Run native source and controlled media tests
+        run: |
+          test "$(uname -m)" = aarch64
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          test -z "$(gofmt -l cmd internal)"
+          go vet ./...
+          sh scripts/fixtures.sh "$ANTENNARR_TEST_FIXTURES"
+          go test -race -p 1 -timeout 15m ./...
+      - name: Exercise desktop and phone web layouts
+        run: |
+          node --test scripts/ui.test.mjs
+          npm install --prefix "$RUNNER_TEMP/ui-deps" --no-audit --no-fund playwright@1.55.1
+          "$RUNNER_TEMP/ui-deps/node_modules/.bin/playwright" install --with-deps chromium
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/ui-deps/node_modules/playwright" node scripts/test-alpha-ui.mjs
+      - name: Check whether the tuner or DVR fixture changed
+        id: changes
+        run: |
+          # A pull_request checkout is the test merge, whose first parent is the base.
+          paths=$(git diff --name-only HEAD^1 HEAD -- internal/tuner scripts/alpha12/jellyfin.py scripts/alpha12/seed_test.go .github/workflows/testing-pr.yml)
+          if [[ -n "$paths" ]]; then echo 'dvr=true' >> "$GITHUB_OUTPUT"; fi
+      - name: Fetch verified runtime inputs for the DVR test
+        if: steps.changes.outputs.dvr == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir "$RUNNER_TEMP/runtime"
+          cd "$RUNNER_TEMP/runtime"
+          gh release download v1.1.0 --repo "$GITHUB_REPOSITORY" -p SHA256SUMS -p 'wolfi-*-linux-arm64.tar.gz'
+          sha256sum --check --ignore-missing SHA256SUMS
+          mv wolfi-runtime-linux-arm64.tar.gz "$GITHUB_WORKSPACE/packaging/runtime/"
+          tar -xf wolfi-updates-linux-arm64.tar.gz -C "$GITHUB_WORKSPACE/packaging/runtime/"
+      - name: Record and verify media with Jellyfin
+        if: steps.changes.outputs.dvr == 'true'
+        run: |
+          docker build --pull --platform linux/arm64 --build-arg REVISION="$GITHUB_SHA" --tag antennarr:pr .
+          python3 scripts/alpha12/jellyfin.py --image antennarr:pr --report "$RUNNER_TEMP/jellyfin-acceptance.json"
