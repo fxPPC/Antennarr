@@ -1,0 +1,257 @@
+[
+  {
+    "name": "La Une",
+    "number": "001",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "RTBF La Une",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Tipik",
+    "number": "002",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "RTBF Tipik",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RTL TVI",
+    "number": "003",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RTL Club",
+    "number": "004",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "Club RTL",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "PLUG RTL",
+    "number": "005",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "RTL Plug",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "La Trois",
+    "number": "009",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "RTBF La Trois",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "BX1",
+    "number": "010",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "BX 1",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "LN24",
+    "number": "018",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "LN 24",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "AB3",
+    "number": "020",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "AB 3",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "VRT 1",
+    "number": "251",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "Eén",
+      "Een",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "VRT Canvas",
+    "number": "252",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "Canvas",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "VTM",
+    "number": "253",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "VTM 2",
+    "number": "256",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "VTM2",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "VTM 3",
+    "number": "257",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "VTM3",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "VTM 4",
+    "number": "258",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "VTM4",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Ketnet",
+    "number": "262",
+    "region": "BE",
+    "enabled": true,
+    "aliases": [
+      "VRT Ketnet",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  }
+]

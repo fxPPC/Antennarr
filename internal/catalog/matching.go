@@ -52,9 +52,9 @@ func sourceWords(name string) []string {
 		out[i] = name[l[0]:l[1]]
 		before := strings.TrimSpace(name[:l[0]])
 		after := strings.TrimSpace(name[l[1]:])
-		// IN, IT, NO, and LA also occur as ordinary words. Require provider tag
+		// BE, IN, IT, NO, and LA also occur as ordinary words. Require provider tag
 		// punctuation and leave hyphenated brands such as In-N-Out intact.
-		if strings.EqualFold(out[i], "IN") || strings.EqualFold(out[i], "NO") || strings.EqualFold(out[i], "IT") || strings.EqualFold(out[i], "LA") {
+		if strings.EqualFold(out[i], "BE") || strings.EqualFold(out[i], "IN") || strings.EqualFold(out[i], "NO") || strings.EqualFold(out[i], "IT") || strings.EqualFold(out[i], "LA") {
 			prefix := i == 0 && (strings.HasPrefix(after, "|") || strings.HasPrefix(after, ":") || strings.HasPrefix(name[l[1]:], " - "))
 			suffix := i == len(locs)-1 && strings.HasSuffix(before, "|")
 			if prefix || suffix {
@@ -108,7 +108,7 @@ func compactQualityToken(t string) string {
 	return compactQuality.ReplaceAllString(t, "$1")
 }
 
-var quality = regexp.MustCompile(`^(?:sd|hd|fhd|uhd|4k|8k|hevc|h264|h265|raw|backup|vip|1080[pi]?|720p?|480p?|2160p?|[0-9]+fps|(?:1080|720|2160)[pi][0-9]+(?:fps)?|hdr|hfr|avc|hvec|50hz|60hz)$`)
+var quality = regexp.MustCompile(`^(?:sd|hd|fhd|uhd|4k|8k|hevc|h264|h265|raw|backup|vip|1080[pi]?|720p?|480p?|2160[pi]?|[0-9]+fps|(?:1080|720|2160)[pi][0-9]+(?:fps)?|hdr|hfr|avc|hvec|50hz|60hz)$`)
 
 // Repeated separators usually mark catalogue sections, not playable feeds.
 var catalogueHeading = regexp.MustCompile(`^\s*[#=*]{3,}.*[#=*]{3,}\s*$`)
@@ -121,6 +121,10 @@ var backupMarker = regexp.MustCompile(`(?i)\[\s*bk\s*\]`)
 // must not match MTV and CNN. Regional words stay in the name; aliases and exclusions decide matches.
 func channelKey(name, region string) (string, string) {
 	name = normaliseName(name)
+	// Canonicalise the complete resolution phrase before splitting its words.
+	if strings.ContainsAny(name, "uU") {
+		name = ultraHDLabel.ReplaceAllString(name, "${1}UHD${2}")
+	}
 	name = fiveUSABrand.ReplaceAllString(name, "5USA")
 	name = racingUKBrand.ReplaceAllString(name, "RacingUK")
 	name = discoveryAcronym.ReplaceAllString(name, "$1 ID")
@@ -187,16 +191,20 @@ var indianCategory = regexp.MustCompile(`(?i)^\s*(?:hindi|marathi)\s*[-|:]\s*(?:
 
 type sourceLabel struct {
 	channelLabel
-	guide         channelLabel
-	hasGuide      bool
-	indianService channelLabel
-	words         string
-	ambiguous     bool
+	guide               channelLabel
+	hasGuide            bool
+	argentinaIdentified bool
+	indianService       channelLabel
+	words               string
+	ambiguous           bool
 }
 
 func parseSourceLabel(name, region string) sourceLabel {
 	k, c := channelKey(name, region)
 	label := sourceLabel{channelLabel: channelLabel{k, c}, ambiguous: catalogueHeading.MatchString(name), words: " " + strings.Join(exclusionWords(name), " ") + " "}
+	if c == "ar" {
+		label.argentinaIdentified = regionCountry(region) == "ar" || strings.Contains(label.words, " argentina ") || strings.Contains(label.words, " arg ")
+	}
 	if prefix := indianCategory.FindStringIndex(name); prefix != nil {
 		label.indianService.key, label.indianService.country = channelKey(name[prefix[1]:], region)
 	}
@@ -207,11 +215,30 @@ func parseSourceLabel(name, region string) sourceLabel {
 	}
 	return label
 }
+
+// Only delimited tags identify a market. "Swiss 1" is a station name.
+// Providers use SW for both Sweden and Switzerland, and SH is Saint Helena.
+// Accept those spellings for Switzerland only with a confirming .ch guide ID.
+var swissProviderPrefix = regexp.MustCompile(`(?i)^\s*[|[(]*\s*(sws|swiss|sui|sw|sh)\s*(?:\|+|[:»\]]| - )\s*`)
+
 func sourceLabelWithID(name, region, id string) sourceLabel {
+	if tag := swissProviderPrefix.FindStringSubmatchIndex(name); tag != nil {
+		switch strings.ToLower(name[tag[2]:tag[3]]) {
+		case "sw", "sh":
+			if strings.HasSuffix(strings.ToLower(strings.TrimSpace(id)), ".ch") {
+				name = "CH | " + name[tag[1]:]
+			}
+		default:
+			name = "CH | " + name[tag[1]:]
+		}
+	}
 	label := parseSourceLabel(name, region)
 	k, country := guideKey(id)
 	label.guide = channelLabel{k, country}
 	label.hasGuide = strings.TrimSpace(id) != ""
+	if country == "ar" && strings.HasSuffix(strings.ToLower(strings.TrimSpace(id)), ".ar") {
+		label.argentinaIdentified = true
+	}
 	// Separate fields with two spaces so a phrase cannot straddle name and ID.
 	if id != "" {
 		label.words += " " + strings.Join(exclusionWords(id), " ") + " "
@@ -253,6 +280,11 @@ func (m channelMatcher) excludes(label sourceLabel) bool {
 	// cannot make an unrelated or unrecognised guide service trustworthy.
 	if m.strictGuide {
 		if label.country == "" && label.guide.country == "" {
+			return true
+		}
+		// Providers also use AR for Arabic-language feeds. The two-letter
+		// display tag alone cannot establish the Argentine edition.
+		if (label.country == "ar" || label.guide.country == "ar") && !label.argentinaIdentified {
 			return true
 		}
 		if label.hasGuide && !m.identifiesGuide(label.guide) {
@@ -404,7 +436,7 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		uhdRoom[ch.ChannelID] = room[ch.ChannelID]
 	}
 	if len(room) > 0 {
-		rows, err := s.DB.Query(`SELECT m.channel_id, sum(instr(upper(s.name),'UHD')=0),sum(instr(upper(s.name),'UHD')>0) FROM mappings m JOIN streams s ON s.id=m.stream_id WHERE m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked') GROUP BY m.channel_id`)
+		rows, err := s.DB.Query(`SELECT m.channel_id, sum(NOT is_uhd(s.name)),sum(is_uhd(s.name)) FROM mappings m JOIN streams s ON s.id=m.stream_id WHERE m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked') GROUP BY m.channel_id`)
 		if err != nil {
 			return nil, err
 		}
@@ -442,12 +474,13 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 	for _, entry := range entries {
 		label := sourceLabelWithID(entry.Name, entry.Region, entry.TVGID)
 		candidateRoom := room
-		if IsUHD(entry.Name) {
+		uhd := IsUHD(entry.Name)
+		if uhd {
 			candidateRoom = uhdRoom
 		}
 		accepted := false
 		for _, c := range resolveProfileGroups(groups, label, entry.TVGID, known) {
-			if !active[c.channel.ID] || (IsUHD(entry.Name) && !uhdProfiles[c.channel.ProfileID]) {
+			if !active[c.channel.ID] || (uhd && !uhdProfiles[c.channel.ProfileID]) {
 				continue
 			}
 			if anchor == nil {

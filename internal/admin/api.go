@@ -178,7 +178,9 @@ func (a *API) Register(mux *http.ServeMux, auth func(http.HandlerFunc) http.Hand
 					failure(w, 409, "Backup is being packaged; try again shortly")
 					return
 				}
-			} else {
+			} else if r.Method != http.MethodGet {
+				// Dashboard polling reads the live store. Only mutations and tune
+				// starts must exclude maintenance and the backup snapshot.
 				a.operations.RLock()
 				defer a.operations.RUnlock()
 			}

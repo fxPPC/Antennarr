@@ -709,7 +709,13 @@ def exercise(package, root, os_name, arch):
             assert b"Antennarr" in response.read()
         assert api(admin_base, "/api/settings", {"scans_paused": True})["settings"]["scans_paused"]
         channel = {"id": "mpeg2", "number": "9999", "name": "Native fixture", "enabled": True}
-        presets = ["in-mumbai", "de-berlin", "nl-amsterdam", "mx-mexico-city", "us-nyc", "uk-london"]
+        catalogue = {p["id"]: p for p in api(admin_base, "/api/presets")}
+        additions = {"be-brussels": (16, "1000"), "ch-zurich": (16, "8001"),
+                     "ar-buenos-aires": (9, "C1064"), "co-bogota": (13, "110111")}
+        for preset_id, expected_guide in additions.items():
+            preset = catalogue[preset_id]
+            assert (preset["channels"], preset["guide_location"]) == expected_guide, preset
+        presets = ["in-mumbai", "be-brussels", "ch-zurich", "mx-mexico-city", "us-nyc", "uk-london"]
         existing = api(admin_base, "/api/profiles")
         if os_name == "windows" and firewall_requested():
             assert len(existing) == 1 and existing[0]["preset_id"] == presets[0]

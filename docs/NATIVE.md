@@ -1,20 +1,20 @@
 # macOS and Windows
 
-Docker on Linux remains the best-supported installation. The standalone apps are part of the opt-in 1.1 beta. Each includes Antennarr, FFmpeg, FFprobe, and the media libraries it needs.
+Docker on Linux remains the best-supported installation. The 1.1 desktop apps include Antennarr, FFmpeg, FFprobe, and their media libraries. Choose the v1.1.0 installer for your processor. [All releases](https://github.com/fxPPC/Antennarr/releases)
 
 | Computer | Download |
 | --- | --- |
-| Mac with Apple silicon | [macOS ARM64 disk image](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.2/antennarr-v1.1.0-beta.2-macos-arm64.dmg) |
-| Intel Mac | [macOS Intel disk image](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.2/antennarr-v1.1.0-beta.2-macos-amd64.dmg) |
-| Windows PC with an Intel or AMD processor | [Windows x64 installer](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.2/antennarr-v1.1.0-beta.2-windows-amd64-setup.exe) |
-| Windows on ARM | [Windows ARM64 installer](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.2/antennarr-v1.1.0-beta.2-windows-arm64-setup.exe) |
+| Mac with Apple silicon | [macOS ARM64 disk image](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0/antennarr-v1.1.0-macos-arm64.dmg) |
+| Intel Mac | [macOS Intel disk image](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0/antennarr-v1.1.0-macos-amd64.dmg) |
+| Windows PC with an Intel or AMD processor | [Windows x64 installer](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0/antennarr-v1.1.0-windows-amd64-setup.exe) |
+| Windows on ARM | [Windows ARM64 installer](https://github.com/fxPPC/Antennarr/releases/download/v1.1.0/antennarr-v1.1.0-windows-arm64-setup.exe) |
 
 ## Install and set up
 
 - **Mac:** Open the disk image, drag **Antennarr** onto **Applications**, eject the disk image, and open Antennarr from Applications. Its icon appears in the menu bar.
-- **Windows:** Run the installer for your processor. Open **Antennarr Beta** from Start. Its icon appears in the notification area, sometimes under hidden icons.
+- **Windows:** Run the installer for your processor. Open **Antennarr** from Start. Its icon appears in the notification area, sometimes under hidden icons.
 
-The beta has no Apple notarisation or Windows publisher signature. The release includes SHA-256 checksums for each installer. [GitHub release and checksums](https://github.com/fxPPC/Antennarr/releases/tag/v1.1.0-beta.2)
+The v1.1.0 installers have no Apple notarisation or Windows publisher signature. The release includes SHA-256 checksums for each installer. [GitHub release and checksums](https://github.com/fxPPC/Antennarr/releases/tag/v1.1.0)
 
 On first run, open **Status** in the web interface. Sign in with `admin` / `admin`, change the password under **Admin**, and use the wizard to add a tuner, import an authorised list, and find the address for Plex. The desktop menu shows active viewers and how many enabled channels have a feed. **Settings** opens web administration. **Start at Login** controls automatic launch for your account. **Quit** stops Antennarr and any active streams.
 
@@ -29,4 +29,4 @@ Fresh installs use seven consecutive TCP ports. By default, the web UI opens at 
 
 The app targets macOS 13 or later and 64-bit Windows 10 or later. Individual OS editions and releases have different security-update lifetimes. Use a version that still receives updates. Native release checks cover macOS 15 and 26 on Intel and Apple silicon, Windows 11 on ARM64, and Windows Server on x64. [Apple security releases](https://support.apple.com/en-us/100100) · [Microsoft’s supported Windows versions](https://learn.microsoft.com/en-us/windows/release-health/supported-versions-windows-client)
 
-Data lives in `~/Library/Application Support/Antennarr Beta` on Mac and `%LOCALAPPDATA%\Antennarr Beta` on Windows. Make a manual backup before upgrading. Quit the running app, replace it in Applications or run the new Windows installer, then reopen it. To try existing 1.0 data, restore a backup into a separate beta data directory. Keep the original backup to return to 1.0.
+Data lives in `~/Library/Application Support/Antennarr Beta` on Mac and `%LOCALAPPDATA%\Antennarr Beta` on Windows. Make a manual backup before upgrading. Quit the running app, replace it in Applications or run the new Windows installer, then reopen it. The data folders retain their beta-era names so upgrades open the same tuners and settings. To move 1.0 data to the desktop app, restore its full backup and keep the original for rollback.

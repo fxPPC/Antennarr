@@ -20,7 +20,7 @@ def request(path, method="GET", data=None, token=None):
 
 def main():
     description = {
-        "description": "Tuners for Plex Live TV & DVR. v1.0.9 is the final 1.0 release. Future updates will be on 1.1.",
+        "description": "Bring your IPTV streams into Plex Live TV & DVR with 20 city presets and tested backup feeds.",
         "full_description": Path("docs/DOCKER-HUB.md").read_text(),
     }
     token = request("auth/token", "POST", {

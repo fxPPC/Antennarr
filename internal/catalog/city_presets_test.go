@@ -20,11 +20,15 @@ func TestCityPresetIdentities(t *testing.T) {
 			}
 			_, embeddedCountry := channelKey(ch.Name, "")
 			id := compactIdentity(ch.Name) + "." + strings.ToLower(ch.Region)
+			countryTag := ch.Region
+			if countryTag == "AR" {
+				countryTag = "ARG"
+			}
 			for _, tc := range []struct {
 				name, guide string
 				want        bool
 			}{
-				{ch.Region + " | " + ch.Name + " HD", "", true},
+				{countryTag + " | " + ch.Name + " HD", "", true},
 				{ch.Name, id, true},
 				{ch.Name, "", embeddedCountry == strings.ToLower(ch.Region)},
 				{ch.Region + " | " + ch.Name, "UnrelatedStation." + strings.ToLower(ch.Region), false},

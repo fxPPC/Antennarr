@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: ${{ matrix.runner == 'ubuntu-24.04' && '0' || '1' }}
       - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
         with:
           go-version: '1.27.4'
@@ -38,17 +39,42 @@ jobs:
       - run: ANTENNARR_V104_UPGRADE_FIXTURE=/tmp/antennarr-v104-upgrade-fixture go test ./internal/recovery -run TestPublishedV104UpgradeAndManualRestore -count=1
       - run: python3 scripts/make-upgrade-fixture.py --baseline v1.0.9 /tmp/antennarr-v109-upgrade-fixture
       - run: ANTENNARR_V109_UPGRADE_FIXTURE=/tmp/antennarr-v109-upgrade-fixture go test ./internal/recovery -run TestPublishedV109UpgradeAndManualRestore -count=1
+      - name: Verify stable 1.1 patch compatibility
+        if: matrix.runner == 'ubuntu-24.04'
+        shell: bash
+        run: |
+          set -euo pipefail
+          scratch=$(mktemp -d)
+          trap 'rm -rf "$scratch"' EXIT
+          go build -trimpath -o "$scratch/candidate" ./cmd/antennarr
+          git tag --list 'v1.1.*' --sort=version:refname > "$scratch/tags"
+          tested=0
+          while IFS= read -r tag; do
+            [[ $tag =~ ^v1\.1\.(0|[1-9][0-9]*)$ ]] || continue
+            echo "Checking $tag against the candidate"
+            mkdir "$scratch/$tag"
+            git archive "refs/tags/$tag" | tar -x -C "$scratch/$tag"
+            go -C "$scratch/$tag" build -trimpath -o "$scratch/baseline" ./cmd/antennarr
+            python3 scripts/test-patch-compatibility.py "$scratch/baseline" "$scratch/candidate"
+            tested=$((tested + 1))
+          done < "$scratch/tags"
+          if (( tested == 0 )); then
+            python3 scripts/test-patch-compatibility.py "$scratch/candidate" "$scratch/candidate"
+          fi
       - run: GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -trimpath -o /tmp/antennarr-arm64 ./cmd/antennarr
       - run: docker compose -f compose.portable.yaml config --quiet
       - run: ANTENNARR_PORT_RANGE=41000-41006 docker compose -f compose.portable.yaml -f compose.range.yaml config --quiet
       - run: docker build --pull -t antennarr:source-check .
       - run: ANTENNARR_TEST_IMAGE=antennarr:source-check python3 packaging/test-permissions.py
       - run: ANTENNARR_TEST_IMAGE=antennarr:source-check ANTENNARR_TEST_FIXTURES=/tmp/antennarr-fixtures sh packaging/test-runtime-media.sh
+      - name: Install pinned Grype from the release archive
+        id: scanner
+        run: sh scripts/install-ci-grype.sh
       - name: Scan runtime packages
         uses: anchore/scan-action@11983a512817154c80a9db660c1a184be7513ed6 # v7.4.3
         with:
           image: antennarr:source-check
-          grype-version: v0.121.3
+          grype-version: ${{ steps.scanner.outputs.version }}
           fail-build: false
           output-format: json
           output-file: /tmp/image-vulnerabilities.json

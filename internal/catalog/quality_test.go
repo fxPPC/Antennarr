@@ -13,10 +13,11 @@ func TestUHDFilteringAndToggleRestore(t *testing.T) {
 	}
 	defer s.Close()
 	ids := []string{}
-	for i, name := range []string{"CNN", "MTV"} {
+	for i, service := range []struct{ name, uhd string }{{"CNN", " uHd+"}, {"MTV", " 4k"}} {
+		name := service.name
 		ch, _ := s.SaveChannel(Channel{Number: fmt.Sprint(i + 1), Name: name, Region: "US", Enabled: true})
 		ids = append(ids, ch)
-		for n, label := range []string{name + " HD", name + " uHd+"} {
+		for n, label := range []string{name + " HD", name + service.uhd} {
 			entry, _ := ingest.FromURL(fmt.Sprintf("https://p%d.example/%d.ts", n, i), label, "")
 			s.Import([]ingest.Entry{entry}, "fixture")
 		}
@@ -215,5 +216,65 @@ func TestTunerPlaybackQualityIsIndependent(t *testing.T) {
 	}
 	if s.PreferredHeight(gb.ID) != 720 || s.PreferredHeight(us) != 2160 {
 		t.Fatal("legacy preference overwrote tuner edit or missed existing tuner")
+	}
+}
+
+func TestUHDResolutionMarkers(t *testing.T) {
+	for _, label := range []string{"Sport [4K]", "Film 8k", "Music 2160i", "Match 2160p50fps", "NEWS_4K", "News [Ultra HD]", "News_Ultra-HD", "Sport UltraHD", "Sport ⁴ᵏ", "ESPNUHD"} {
+		if !IsUHD(label) {
+			t.Errorf("expected UHD marker in %q", label)
+		}
+	}
+	for _, label := range []string{"4Kids", "24Kitchen", "Radio 2160", "Sport 1080p", "4Kidz HD", "SKY 4Kids", "BBC Four", "É4K", "News Ultra Comedy HD", "UltraHDTV", "Ultra | HD"} {
+		if IsUHD(label) {
+			t.Errorf("unexpected UHD marker in %q", label)
+		}
+	}
+}
+
+func TestUHDDecorationsPreserveChannelIdentity(t *testing.T) {
+	for _, tc := range []struct{ label, station string }{
+		{"NEWS_4K", "News"}, {"News_2160p60", "News"}, {"News 2160i", "News"},
+		{"News [Ultra HD]", "News"}, {"News_Ultra-HD", "News"}, {"News UltraHD", "News"},
+		{"SKY 4Kids", "Sky 4Kids"}, {"BBC Four", "BBC Four"}, {"News Ultra Comedy HD", "News Ultra Comedy"},
+	} {
+		got, _ := channelKey(tc.label, "")
+		want, _ := channelKey(tc.station, "")
+		if got != want {
+			t.Errorf("%q resolved to %q, want %q", tc.label, got, want)
+		}
+	}
+}
+
+func TestUpgradeReleasesOnlyIneligible4KRosterPlaces(t *testing.T) {
+	s, hd, candidates := rosterFixture(t, 2)
+	p := addTestProfile(t, s, "uhd", "US")
+	p.PreferredHeight = 2160
+	if _, err := s.SaveProfile(p); err != nil {
+		t.Fatal(err)
+	}
+	uhd := saveProfileTestChannel(t, s, p.ID, "MTV", "US")
+	if err := s.EnableRosters(RosterPolicy{30, "stability", 5}); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range candidates {
+		if err := s.Record(c.StreamID, Result{Success: true}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Previous builds could admit a 4K-labelled feed to either tuner.
+	if _, err := s.DB.Exec("UPDATE streams SET name='MTV 4K' WHERE id=?", candidates[0].StreamID); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 {
+		if err := s.MigratePlaybackQuality(false); err != nil {
+			t.Fatal(err)
+		}
+		for channel, want := range map[string]int{hd: 1, uhd.ID: 2} {
+			var count int
+			if err := s.DB.QueryRow("SELECT count(*) FROM roster WHERE channel_id=?", channel).Scan(&count); err != nil || count != want {
+				t.Fatalf("roster %s has %d, want %d: %v", channel, count, want, err)
+			}
+		}
 	}
 }

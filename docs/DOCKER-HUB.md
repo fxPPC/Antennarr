@@ -1,16 +1,19 @@
 # Antennarr
 
-Antennarr turns authorised Xtream account lists into HDHomeRun-compatible tuners for Plex Live TV & DVR. It tests feeds and keeps alternatives for each channel. Plex supplies the guide and records programmes. Bring your own sources.
+Give each city its own lineup in Plex Live TV & DVR. Antennarr takes your authorised Xtream account lists, matches streams to local channels, and tests primary and backup feeds. Plex supplies the programme guide and handles recordings.
 
-**v1.0.9 is the final 1.0 release. Future updates will be on the 1.1 release line.**
+## Run stable 1.1.0
 
-| Choose | Pull command | Fresh installation |
-| --- | --- | --- |
-| Stable 1.0 (default) | `docker pull antennarr/antennarr:1.0` | One US tuner with 150 editable channels |
-| Latest published preview | `docker pull antennarr/antennarr:testing` | The 1.1 wizard offers optional city tuners |
+```sh
+docker pull antennarr/antennarr:v1.1.0
+```
 
-Both images support Linux amd64 and ARM64. `latest` tracks the recommended stable release, currently `v1.0.9`. To pin the current preview, use `v1.1.0-beta.2`. Stable 1.1.0 is in preparation.
+The Linux image supports amd64 and ARM64. Use `latest` for the recommended stable release, `1.1` to follow the 1.1 series, or `v1.1.0` to pin this version. Docker is the best-supported platform.
 
-**Upgrading from 1.0?** Download a full backup under **Admin → Backup & restore**. Keep your existing ports, network, and Plex tuner address. The upgrade migrates your data. Returning to 1.0 requires the pre-upgrade backup. Use a separate data directory when trying the preview alongside stable.
+Start the container, open the web UI, and follow the first-run wizard. Choose from 20 editable city presets and import your authorised sources. The wizard gives you the tuner address and guide location to enter in Plex. The default port range supports six tuners, each with its own lineup. [Docker installation](https://github.com/fxPPC/Antennarr/blob/v1.1.0/docs/INSTALL.md) · [Cities and Plex guides](https://github.com/fxPPC/Antennarr/blob/v1.1.0/docs/MULTI-TUNER.md)
 
-[Stable installation](https://github.com/fxPPC/Antennarr/blob/release/1.0/docs/INSTALL.md) · [1.1 preview setup](https://github.com/fxPPC/Antennarr/blob/main/docs/MULTI-TUNER.md) · [Releases and desktop downloads](https://github.com/fxPPC/Antennarr/releases) · [Source and support](https://github.com/fxPPC/Antennarr)
+**Upgrading from 1.0?** Download a full backup under **Admin → Backup & restore**. Keep your appdata mount, ports, network, and Plex addresses when replacing the image. Returning to 1.0 requires restoring that backup.
+
+The original US-only series remains available as `antennarr/antennarr:v1.0.9`, with one tuner and 150 editable channels. [Previous release](https://github.com/fxPPC/Antennarr/releases/tag/v1.0.9)
+
+[1.1.0 release and desktop downloads](https://github.com/fxPPC/Antennarr/releases/tag/v1.1.0) · [Source and support](https://github.com/fxPPC/Antennarr)

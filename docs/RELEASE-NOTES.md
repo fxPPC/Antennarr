@@ -1,15 +1,19 @@
-**1.1.0 is in preparation.** For published downloads, see [GitHub Releases](https://github.com/fxPPC/Antennarr/releases).
-
 # v1.1.0
+
+Bring your authorised IPTV streams into Plex with separate local lineups, tested backup feeds, and a wizard that walks you through setup. For Docker on Linux amd64 or ARM64, pull `antennarr/antennarr:v1.1.0`. The `1.1` and `latest` tags also select this stable release. The previous US-only version remains available as `v1.0.9`. [Previous release](https://github.com/fxPPC/Antennarr/releases/tag/v1.0.9)
 
 ## Changes since 1.0
 
-- Add multiple city tuners to one installation. Each has its own Plex address, guide location, and editable channels. The default port range supports six tuners, with shared viewer and source limits.
+- Choose from 20 optional city tuners, including Brussels, Zürich, Buenos Aires, and Bogotá. Each has its own Plex address, local guide, and editable channels. The default port range supports six tuners at once, with shared viewer and source limits.
 - Set up a new installation with the first-run wizard. The web UI lets you browse each tuner, find channels with thin rosters, and check their feeds. Channels with the fewest working feeds get priority when Antennarr fills rosters.
 - Recover from a failed feed even when its replacement needs a later keyframe. Repeatedly full accounts yield their roster slots and wait longer between checks. Stream diagnostics distinguish denied requests, timeouts, and invalid media.
-- Run the app on Apple silicon or Intel Macs, and on ARM64 or x64 Windows. Each download bundles FFmpeg and FFprobe. Use the menu bar or notification area to check activity, open settings, start at login, or quit. Docker remains the best-supported platform.
+- Run the app on Apple silicon or Intel Macs, and on ARM64 or x64 Windows. Each download bundles FFmpeg and FFprobe. Use the menu bar or notification area to check activity, open settings, start at login, or quit. Docker remains the best-supported platform. [Choose a desktop installer](https://github.com/fxPPC/Antennarr/blob/v1.1.0/docs/NATIVE.md)
 
-Before upgrading, download a full backup under **Admin → Backup & restore**. Keep the existing data mount, network, port mappings, and Plex tuner address. Returning to 1.0 requires restoring that backup. [Upgrade guide](https://github.com/fxPPC/Antennarr/blob/main/docs/MULTI-TUNER.md#upgrading-an-existing-plex-installation)
+Verification of overlapping DVR recordings and playback recovery on real Plex clients remains open. [Test coverage](https://github.com/fxPPC/Antennarr/blob/v1.1.0/docs/V1.1-PLAN.md)
+
+Before upgrading, download a full backup under **Admin → Backup & restore**. Keep the existing data mount, network, port mappings, and Plex tuner address. Returning to 1.0 requires restoring that backup. [Upgrade guide](https://github.com/fxPPC/Antennarr/blob/v1.1.0/docs/MULTI-TUNER.md#upgrading-an-existing-plex-installation)
+
+Grype reports five findings in glibc 2.44-r29 on Linux amd64 and ARM64 (three medium and two low). Wolfi records fixes for two of them in 2.44-r25. Publication requires both final scans to match the approved review. [Wolfi advisory database](https://packages.wolfi.dev/os/security.json) · [Security review](https://github.com/fxPPC/Antennarr/blob/v1.1.0/scripts/release-security-reviews.json)
 
 # v1.1.0-beta.2
 

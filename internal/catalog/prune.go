@@ -42,8 +42,8 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
 	}
 	if _, err = tx.Exec(`CREATE TEMP TABLE reserve_keep AS
  WITH provider_rank AS (
- SELECT m.channel_id,s.id,a.rate_key,s.score,s.last_success,(instr(upper(s.name),'UHD')>0) quality,
- row_number() OVER(PARTITION BY m.channel_id,(instr(upper(s.name),'UHD')>0),a.rate_key ORDER BY s.score DESC,s.last_success DESC,s.id) provider_position
+ SELECT m.channel_id,s.id,a.rate_key,s.score,s.last_success,(is_uhd(s.name)) quality,
+ row_number() OVER(PARTITION BY m.channel_id,(is_uhd(s.name)),a.rate_key ORDER BY s.score DESC,s.last_success DESC,s.id) provider_position
  FROM mappings m JOIN streams s ON s.id=m.stream_id JOIN accounts a ON a.id=s.account_id
  WHERE m.origin!='manual' AND m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked')),
  ranked AS (SELECT *,row_number() OVER(PARTITION BY channel_id,quality ORDER BY provider_position,score DESC,last_success DESC,id) position FROM provider_rank)

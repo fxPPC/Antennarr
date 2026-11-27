@@ -7,6 +7,7 @@ import (
 	"antennarr/internal/stream"
 	"antennarr/internal/tuner"
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"io/fs"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -81,6 +83,9 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 	originalID := c.DeviceID
 	if strconv.FormatBool(c.Settings.ReplenishWhilePlaying) != expected["replenish"] {
 		t.Fatal("saved replenishment setting changed")
+	}
+	if baseline == "v1.0.9" {
+		interruptPublishedMigration(t, root)
 	}
 	s, e := catalog.Open(root)
 	if e != nil {
@@ -216,5 +221,60 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 	}
 	if oldLogin.Current() != newLogin.Current() {
 		t.Fatal("login changed")
+	}
+}
+
+// Interrupt the real startup path after schema 9 has replaced the channels table.
+// The caller then retries startup and checks the published fixture's Plex output,
+// edited lineup, and restored backup.
+func interruptPublishedMigration(t *testing.T, root string) {
+	t.Helper()
+	db, err := sql.Open("sqlite", filepath.Join(root, "database", "antennarr.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1) // Keep the comparison tables on this connection.
+	snapshots := map[string]string{"schema": "SELECT type,name,tbl_name,sql FROM main.sqlite_schema"}
+	for _, table := range []string{"channels", "output_profiles", "output_assignments", "mappings", "roster", "settings", "accounts", "streams"} {
+		snapshots[table] = "SELECT * FROM main." + table
+	}
+	for name, query := range snapshots {
+		if _, err := db.Exec("CREATE TEMP TABLE before_" + name + " AS " + query); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := db.Exec(`CREATE TRIGGER fixture_interrupt BEFORE UPDATE OF name ON output_profiles
+		WHEN EXISTS (SELECT 1 FROM pragma_table_info('channels') WHERE name='profile_id')
+		BEGIN SELECT RAISE(ABORT, 'fixture migration interrupted'); END`); err != nil {
+		t.Fatal(err)
+	}
+	store, err := catalog.Open(root)
+	if err == nil {
+		store.Close()
+		t.Fatal("migration ignored the interruption")
+	}
+	if !strings.Contains(err.Error(), "fixture migration interrupted") {
+		t.Fatalf("migration failed before the interruption: %v", err)
+	}
+	if _, err := db.Exec("DROP TRIGGER fixture_interrupt"); err != nil {
+		t.Fatal(err)
+	}
+	var version int
+	if err := db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 8 {
+		t.Fatalf("schema after interruption: %d, %v", version, err)
+	}
+	for name, query := range snapshots {
+		before := "SELECT * FROM before_" + name
+		var changed bool
+		if err := db.QueryRow("SELECT EXISTS(" + query + " EXCEPT " + before + ") OR EXISTS(" +
+			before + " EXCEPT " + query + ")").Scan(&changed); err != nil || changed {
+			t.Fatalf("%s after interruption: changed=%t, err=%v", name, changed, err)
+		}
+	}
+	var missingStation bool
+	if err := db.QueryRow(`SELECT EXISTS(SELECT 1 FROM channels c WHERE NOT EXISTS
+		(SELECT 1 FROM settings WHERE name='channel_station:'||c.id))`).Scan(&missingStation); err != nil || !missingStation {
+		t.Fatalf("fixture must exercise a channel without station metadata: %v", err)
 	}
 }

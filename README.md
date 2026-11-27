@@ -2,44 +2,29 @@
 
 # Antennarr
 
-Antennarr turns authorised Xtream account lists into HDHomeRun-compatible tuners for Plex Live TV & DVR. It imports accounts, matches streams to channels, and maintains a tested pool of feeds for each channel. Plex supplies the programme guide and handles recordings. Bring your own sources.
+Bring your authorised IPTV streams into Plex Live TV & DVR. Pick a city, import your Xtream account list, and let Antennarr find and test feeds for each channel. Plex sees each lineup as an HDHomeRun-compatible tuner and supplies its programme guide and recordings.
 
-## Choose a release
+## Get Antennarr 1.1.0
 
-**v1.0.9 is the final 1.0 release. Future updates will be on the 1.1 release line.**
-
-| Release | Docker Hub tag | Linux platforms | Fresh installation |
-| --- | --- | --- | --- |
-| Stable 1.0 | `1.0` or `latest`; pin `v1.0.9` for the exact release | amd64, ARM64 | One US tuner with 150 editable channels |
-| 1.1 preview | `testing` (newest preview), `v1.1.0-beta.2` (pinned) | amd64, ARM64 | Starts empty. Choose from 16 optional city presets |
-
-**Docker is the best-supported installation.** The [1.1 beta downloads](https://github.com/fxPPC/Antennarr/releases/tag/v1.1.0-beta.2) also include standalone macOS and Windows apps for ARM64 and amd64, with FFmpeg and FFprobe bundled. [Native installation and firewall settings](docs/NATIVE.md)
-
-**1.1.0 is in preparation.** The 1.1 series adds independently configured Plex tuners, a first-run wizard, a redesigned web UI, and desktop apps. To try the current preview, run `docker pull antennarr/antennarr:testing` and follow the [multi-tuner setup guide](docs/MULTI-TUNER.md). To test alongside stable, use separate appdata. To upgrade an existing tuner, first download a full backup under **Admin → Backup & restore**. Keep your ports and Plex address. Returning to 1.0 requires that backup.
-
-## Install stable 1.0
-
-Replace the LAN address and appdata path with values for your server. Use local storage for the SQLite database.
+Docker on Linux is the best-supported installation, on both amd64 and ARM64. The stable release is available as `latest`, `1.1`, or the exact version below.
 
 ```sh
-docker run -d --name antennarr --restart unless-stopped \
-  -p YOUR_SERVER_LAN_IP:39192:9193 -p YOUR_SERVER_LAN_IP:9192:9192 \
-  -e ANTENNARR_ADMIN_LISTEN=:9193 \
-  -e ANTENNARR_BASE_URL=http://YOUR_SERVER_LAN_IP:9192 \
-  --log-opt max-size=5m --log-opt max-file=2 \
-  -v /YOUR/APPDATA/antennarr:/data \
-  antennarr/antennarr:1.0
+docker pull antennarr/antennarr:v1.1.0
 ```
 
-1. Open `http://YOUR_SERVER_LAN_IP:39192`. Sign in with `admin/admin` and change the login under **Admin**.
-2. Import authorised account-list URLs under **Input** and choose channels under **Output**. A channel becomes playable once it has a working feed.
-3. In Plex **Live TV & DVR**, add `http://YOUR_SERVER_LAN_IP:9192`, select the local guide, and map the channels. Keep tuner ports private.
+1. [Start the Docker container](docs/INSTALL.md#start-a-fresh-installation), or install the [macOS or Windows app](docs/NATIVE.md). Desktop downloads include FFmpeg and FFprobe for ARM64 and Intel/AMD processors.
+2. Open the web UI and sign in with `admin/admin`. Change the login, then use the first-run wizard to choose a city and import your authorised sources.
+3. In Plex **Live TV & DVR**, add the tuner address from the wizard, select the local guide, and map the channels.
 
-See the [installation guide](docs/INSTALL.md) for Compose, Docker networking, permissions, backups, and troubleshooting.
+Choose from 20 editable city presets, including New York, London, Brussels, Zürich, Buenos Aires, and Bogotá. A fresh installation starts empty. The default port range supports up to six tuners, each with its own Plex address and lineup. [Cities, guides, and tuner setup](docs/MULTI-TUNER.md)
+
+**Upgrading from 1.0?** Download a full backup under **Admin → Backup & restore**. Keep the same appdata, network, port mappings, and Plex addresses when switching images. Restoring 1.0 requires that backup. [Upgrade instructions](docs/INSTALL.md#upgrade)
+
+The original US-only series remains available as **v1.0.9**, its final release, with one tuner and 150 editable channels. [Previous release](https://github.com/fxPPC/Antennarr/releases/tag/v1.0.9)
 
 ## How playback works
 
-Antennarr tests candidate feeds and keeps working ones in a channel’s roster. When Plex tunes the channel, Antennarr opens a primary feed and, when available, a live backup. Viewers watching the same channel share those feeds. Antennarr copies video and encodes audio to AAC. Source outages, codec changes, and timing differences can still interrupt playback.
+Antennarr gives channels with the fewest working feeds first pick as it fills their rosters. When Plex tunes a channel, viewers share a primary feed and, when available, a live backup. The web UI shows which channels are ready and which need more sources.
 
 ![Feed selection, roster checks, and failover](docs/images/feed-flow.svg)
 

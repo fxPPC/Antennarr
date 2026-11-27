@@ -2400,5 +2400,42 @@
         "severity": "Medium"
       }
     ]
+  },
+  "v1.1.0": {
+    "reviewed_on": "2026-11-27",
+    "decision": "Approved for stable 1.1.0 on amd64 and ARM64 only if each complete final Grype report matches these five findings and lists no fixes. Wolfi records CVE-2026-100290 and CVE-2026-115819 as fixed in 2.44-r25. The reviewed images contain 2.44-r29. Publish both reports with the release.",
+    "require_exact": true,
+    "findings": [
+      {
+        "id": "CVE-2026-100290",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Low"
+      },
+      {
+        "id": "CVE-2026-115819",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-121758",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-124024",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-126765",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Low"
+      }
+    ]
   }
 }

@@ -45,6 +45,10 @@ func allowed(name string) bool {
 // Create stages an immutable copy before compression. An optional callback lets
 // the caller release its administration lock once all input files are captured.
 func Create(root, base string, store *catalog.Store, captured ...func()) (string, error) {
+	return create(root, base, store, MaxExpanded, captured...)
+}
+
+func create(root, base string, store *catalog.Store, maxExpanded int64, captured ...func()) (string, error) {
 	// VACUUM INTO produces a consistent SQLite snapshot while WAL writers continue.
 	snapshot, e := store.Backup()
 	if e != nil {
@@ -97,10 +101,10 @@ func Create(root, base string, store *catalog.Store, captured ...func()) (string
 			if err != nil {
 				return err
 			}
-			n, copyErr := io.Copy(out, io.LimitReader(in, MaxExpanded-stagedBytes+1))
+			n, copyErr := io.Copy(out, io.LimitReader(in, maxExpanded-stagedBytes+1))
 			closeErr := out.Close()
 			stagedBytes += n
-			if stagedBytes > MaxExpanded {
+			if stagedBytes > maxExpanded {
 				return errors.New("application data exceeds backup limit")
 			}
 			if copyErr != nil {
@@ -143,7 +147,7 @@ func Create(root, base string, store *catalog.Store, captured ...func()) (string
 			return e
 		}
 		total += st.Size()
-		if total > MaxExpanded {
+		if total > maxExpanded {
 			return errors.New("application data exceeds backup limit")
 		}
 		w, e := z.Create(name)
@@ -185,7 +189,14 @@ func Create(root, base string, store *catalog.Store, captured ...func()) (string
 			return "", e
 		}
 	}
-	b, _ := json.Marshal(m)
+	b, e := json.Marshal(m)
+	if e != nil {
+		return "", e
+	}
+	// Restore counts every ZIP entry, including the manifest.
+	if int64(len(b)) > maxExpanded-total {
+		return "", errors.New("application data exceeds backup limit")
+	}
 	w, e := z.Create("manifest.json")
 	if e != nil {
 		return "", e

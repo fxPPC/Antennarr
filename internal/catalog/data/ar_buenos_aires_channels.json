@@ -1,0 +1,190 @@
+[
+  {
+    "name": "América TV",
+    "number": "009",
+    "region": "AR",
+    "enabled": true,
+    "aliases": [
+      "America TV",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod",
+      "-internacional",
+      "-international",
+      "-latam",
+      "-arabic",
+      "-mena"
+    ]
+  },
+  {
+    "name": "Telefe",
+    "number": "010",
+    "region": "AR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod",
+      "-internacional",
+      "-international",
+      "-latam",
+      "-arabic",
+      "-mena"
+    ]
+  },
+  {
+    "name": "TV Pública",
+    "number": "011",
+    "region": "AR",
+    "enabled": true,
+    "aliases": [
+      "TV Publica",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod",
+      "-internacional",
+      "-international",
+      "-latam",
+      "-arabic",
+      "-mena"
+    ]
+  },
+  {
+    "name": "América 24",
+    "number": "015",
+    "region": "AR",
+    "enabled": true,
+    "aliases": [
+      "America 24",
+      "A24",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod",
+      "-internacional",
+      "-international",
+      "-latam",
+      "-arabic",
+      "-mena"
+    ]
+  },
+  {
+    "name": "C5N",
+    "number": "016",
+    "region": "AR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod",
+      "-internacional",
+      "-international",
+      "-latam",
+      "-arabic",
+      "-mena"
+    ]
+  },
+  {
+    "name": "Crónica TV",
+    "number": "017",
+    "region": "AR",
+    "enabled": true,
+    "aliases": [
+      "Cronica TV",
+      "Crónica",
+      "Cronica",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod",
+      "-internacional",
+      "-international",
+      "-latam",
+      "-arabic",
+      "-mena"
+    ]
+  },
+  {
+    "name": "Canal 26",
+    "number": "018",
+    "region": "AR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod",
+      "-internacional",
+      "-international",
+      "-latam",
+      "-arabic",
+      "-mena"
+    ]
+  },
+  {
+    "name": "Encuentro",
+    "number": "022",
+    "region": "AR",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod",
+      "-internacional",
+      "-international",
+      "-latam",
+      "-arabic",
+      "-mena"
+    ]
+  },
+  {
+    "name": "ESPN3",
+    "number": "104",
+    "region": "AR",
+    "enabled": true,
+    "aliases": [
+      "ESPN 3",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod",
+      "-internacional",
+      "-international",
+      "-latam",
+      "-arabic",
+      "-mena"
+    ]
+  }
+]

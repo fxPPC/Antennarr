@@ -1,0 +1,254 @@
+[
+  {
+    "name": "SRF 1",
+    "number": "001",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "SRF Zwei",
+    "number": "002",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "SRF 2",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TeleZüri",
+    "number": "007",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "Tele Zueri",
+      "Tele Züri",
+      "Tele Zuri",
+      "TeleZuri",
+      "TeleZueri",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "SRF Info",
+    "number": "008",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Swiss 1",
+    "number": "020",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Telebasel",
+    "number": "026",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "Tele Basel",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Tele M1",
+    "number": "027",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "Tele M 1",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "TVO",
+    "number": "030",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "MySports 1",
+    "number": "101",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "My Sports 1",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "blue SPORT 1",
+    "number": "126",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "blue SPORT 2",
+    "number": "127",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RTS un",
+    "number": "301",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "RTS 1",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RTS Deux",
+    "number": "302",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "RTS 2",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RSI La 1",
+    "number": "501",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RSI La 2",
+    "number": "502",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Tele Ticino",
+    "number": "503",
+    "region": "CH",
+    "enabled": true,
+    "aliases": [
+      "TeleTicino",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-vod"
+    ]
+  }
+]
