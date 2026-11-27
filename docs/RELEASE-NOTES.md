@@ -1,11 +1,12 @@
-# v1.1.0
+**1.1.0 is in preparation.** For published downloads, see [GitHub Releases](https://github.com/fxPPC/Antennarr/releases).
 
-**In development.** The current public downloads are [stable 1.0 and the 1.1 preview](https://github.com/fxPPC/Antennarr/releases).
+# v1.1.0
 
 ## Changes since 1.0
 
 - Add multiple city tuners to one installation. Each has its own Plex address, guide location, and editable channels. The default port range supports six tuners, with shared viewer and source limits.
 - Set up a new installation with the first-run wizard. The web UI lets you browse each tuner, find channels with thin rosters, and check their feeds. Channels with the fewest working feeds get priority when Antennarr fills rosters.
+- Recover from a failed feed even when its replacement needs a later keyframe. Repeatedly full accounts yield their roster slots and wait longer between checks. Stream diagnostics distinguish denied requests, timeouts, and invalid media.
 - Run the app on Apple silicon or Intel Macs, and on ARM64 or x64 Windows. Each download bundles FFmpeg and FFprobe. Use the menu bar or notification area to check activity, open settings, start at login, or quit. Docker remains the best-supported platform.
 
 Before upgrading, download a full backup under **Admin → Backup & restore**. Keep the existing data mount, network, port mappings, and Plex tuner address. Returning to 1.0 requires restoring that backup. [Upgrade guide](https://github.com/fxPPC/Antennarr/blob/main/docs/MULTI-TUNER.md#upgrading-an-existing-plex-installation)
