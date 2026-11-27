@@ -52,9 +52,9 @@ func sourceWords(name string) []string {
 		out[i] = name[l[0]:l[1]]
 		before := strings.TrimSpace(name[:l[0]])
 		after := strings.TrimSpace(name[l[1]:])
-		// IN, IT, NO, and LA also occur as ordinary words. Require provider tag
+		// BE, IN, IT, NO, and LA also occur as ordinary words. Require provider tag
 		// punctuation and leave hyphenated brands such as In-N-Out intact.
-		if strings.EqualFold(out[i], "IN") || strings.EqualFold(out[i], "NO") || strings.EqualFold(out[i], "IT") || strings.EqualFold(out[i], "LA") {
+		if strings.EqualFold(out[i], "BE") || strings.EqualFold(out[i], "IN") || strings.EqualFold(out[i], "NO") || strings.EqualFold(out[i], "IT") || strings.EqualFold(out[i], "LA") {
 			prefix := i == 0 && (strings.HasPrefix(after, "|") || strings.HasPrefix(after, ":") || strings.HasPrefix(name[l[1]:], " - "))
 			suffix := i == len(locs)-1 && strings.HasSuffix(before, "|")
 			if prefix || suffix {
@@ -211,7 +211,23 @@ func parseSourceLabel(name, region string) sourceLabel {
 	}
 	return label
 }
+
+// Only delimited tags identify a market. "Swiss 1" is a station name.
+// Providers use SW for both Sweden and Switzerland, and SH is Saint Helena.
+// Accept those spellings for Switzerland only with a confirming .ch guide ID.
+var swissProviderPrefix = regexp.MustCompile(`(?i)^\s*[|[(]*\s*(sws|swiss|sui|sw|sh)\s*(?:\|+|[:»\]]| - )\s*`)
+
 func sourceLabelWithID(name, region, id string) sourceLabel {
+	if tag := swissProviderPrefix.FindStringSubmatchIndex(name); tag != nil {
+		switch strings.ToLower(name[tag[2]:tag[3]]) {
+		case "sw", "sh":
+			if strings.HasSuffix(strings.ToLower(strings.TrimSpace(id)), ".ch") {
+				name = "CH | " + name[tag[1]:]
+			}
+		default:
+			name = "CH | " + name[tag[1]:]
+		}
+	}
 	label := parseSourceLabel(name, region)
 	k, country := guideKey(id)
 	label.guide = channelLabel{k, country}
