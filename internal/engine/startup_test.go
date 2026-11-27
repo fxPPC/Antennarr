@@ -127,25 +127,35 @@ func TestFailedPoolCyclesWithoutPerSourceCooldown(t *testing.T) {
 
 type startupCatalogue struct {
 	fixtureCatalogue
-	poolWaits atomic.Int32
+	history chan string
+}
+
+func (c *startupCatalogue) Record(_ int64, r catalog.Result) error {
+	if r.Success {
+		c.history <- "decoded"
+	}
+	return nil
 }
 
 func (c *startupCatalogue) Event(kind, _ string, _ int64, _ string) {
 	if kind == "source_pool" {
-		c.poolWaits.Add(1)
+		c.history <- kind
 	}
 }
 
 func TestStartupInspectsFreshMediaAfterFullUndecodableWindow(t *testing.T) {
-	cat := &startupCatalogue{fixtureCatalogue: fixtureCatalogue{candidates: []catalog.Candidate{{StreamID: 1, AccountID: 1, Limit: 1}}}}
+	cat := &startupCatalogue{
+		fixtureCatalogue: fixtureCatalogue{candidates: []catalog.Candidate{{StreamID: 1, AccountID: 1, Limit: 1}}},
+		history:          make(chan string, 2),
+	}
 	var active, closed atomic.Int32
 	var fullWindowRejected atomic.Bool
-	ready := make(chan struct{})
+	const keyframe = "late keyframe"
 	source := progressingFixture(&active, &closed)
 	e := &Engine{Catalogue: cat, Budget: budget.New(1, 1), Copy: func(ctx context.Context, url string, emit func([]byte)) error {
 		return source(ctx, url, func(b []byte) {
 			if fullWindowRejected.Load() {
-				b[187] = 0xab // The decodable keyframe only arrives after the first full window.
+				copy(b[32:], keyframe)
 				emit(b)
 				return
 			}
@@ -155,10 +165,9 @@ func TestStartupInspectsFreshMediaAfterFullUndecodableWindow(t *testing.T) {
 		if len(sample) >= 4<<20 {
 			fullWindowRejected.Store(true)
 		}
-		if !bytes.Contains(sample, []byte{0xab}) {
+		if !bytes.Contains(sample, []byte(keyframe)) {
 			return media.Info{}, errors.New("waiting for keyframe")
 		}
-		close(ready)
 		return media.Info{Codec: "h264", AudioCodec: "aac"}, nil
 	}, NewOutput: func(_ context.Context, emit func([]byte), _ int) (Output, error) {
 		return &testOutput{emit: emit}, nil
@@ -172,13 +181,17 @@ func TestStartupInspectsFreshMediaAfterFullUndecodableWindow(t *testing.T) {
 		if err := e.FlushMetrics(context.Background()); err != nil {
 			t.Fatal(err)
 		}
-		if cat.poolWaits.Load() != 0 {
-			t.Fatal("reported no eligible sources while a candidate was starting")
-		}
 	}()
-	select {
-	case <-ready:
-	case <-ctx.Done():
-		t.Fatal("startup never inspected new bytes after filling its sample")
+	// The controller queues history in order. With just one source it must
+	// report successful startup before reporting the missing standby.
+	for _, want := range []string{"decoded", "source_pool"} {
+		select {
+		case got := <-cat.history:
+			if got != want {
+				t.Fatalf("got %q while waiting for %q", got, want)
+			}
+		case <-ctx.Done():
+			t.Fatalf("timed out waiting for %q", want)
+		}
 	}
 }
