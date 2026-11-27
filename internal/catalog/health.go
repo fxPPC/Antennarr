@@ -148,7 +148,11 @@ func (s *Store) Event(kind, channel string, source int64, reason string) {
 	// Detailed, bounded event history remains available through authenticated UI.
 	switch kind {
 	case "failover":
-		slog.Info("live backup promoted", "channel_id", channel, "stream_id", source)
+		message := "live backup promoted"
+		if reason == "replacement source ready" {
+			message = "replacement playback source ready"
+		}
+		slog.Info(message, "channel_id", channel, "stream_id", source)
 	case "output_recovery":
 		slog.Warn("channel output recovering", "channel_id", channel, "stream_id", source)
 	case "source_failure":

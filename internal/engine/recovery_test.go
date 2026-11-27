@@ -234,3 +234,57 @@ func TestChannelCleanupDoesNotWaitForDatabaseHistory(t *testing.T) {
 		t.Fatal("source cleanup leaked")
 	}
 }
+
+func TestReplacementWithoutStandbyRecordsFailover(t *testing.T) {
+	cat := &fixtureCatalogue{candidates: []catalog.Candidate{{StreamID: 1, AccountID: 1, Limit: 1, URL: "first"}, {StreamID: 2, AccountID: 2, Limit: 1, URL: "next"}}}
+	var active, closed atomic.Int32
+	source := progressingFixture(&active, &closed)
+	fault := make(chan struct{})
+	replacementStarted := make(chan struct{})
+	e := &Engine{Catalogue: cat, RaceSize: 1, Budget: budget.New(1, 1), Copy: func(ctx context.Context, url string, emit func([]byte)) error {
+		if url != "first" {
+			close(replacementStarted)
+			return source(ctx, url, emit)
+		}
+		child, cancel := context.WithCancel(ctx)
+		defer cancel()
+		go func() {
+			select {
+			case <-fault:
+				cancel()
+			case <-child.Done():
+			}
+		}()
+		return source(child, url, emit)
+	}, Inspect: func(context.Context, []byte) (media.Info, error) {
+		return media.Info{Codec: "h264", AudioCodec: "aac"}, nil
+	},
+		NewOutput: func(_ context.Context, emit func([]byte), _ int) (Output, error) { return &testOutput{emit: emit}, nil }}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	done := make(chan error, 1)
+	go func() { done <- e.Run(ctx, "one-slot", func([]byte) {}) }()
+	defer func() { cancel(); <-done }()
+	var triggered bool
+	for ctx.Err() == nil {
+		status := e.Status()
+		if len(status) > 0 {
+			if status[0].Primary == 1 && status[0].Standby == "waiting for eligible source slots" && !triggered {
+				close(fault)
+				select {
+				case <-replacementStarted:
+				case <-time.After(700 * time.Millisecond):
+					t.Fatal("replacement waited for the previous full-pool retry")
+				}
+				triggered = true
+			}
+			if status[0].Primary == 2 {
+				if !triggered || status[0].Failovers != 1 {
+					t.Fatalf("missing failover after loss of sole primary: %+v", status[0])
+				}
+				return
+			}
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatal("second source never became primary")
+}

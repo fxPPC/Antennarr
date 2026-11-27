@@ -252,6 +252,7 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 	// before cycling the pool again; this is not a timed source cooldown.
 	failedPass := map[int64]int64{}
 	var primary, ghost *feed
+	hadPrimary := false
 	var mux Output
 	var muxStarted, outputRetry time.Time
 	var outputFailures, outputRestarts int
@@ -327,16 +328,17 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 				}
 				data := append([]byte(nil), b...)
 				if !ready {
-					if len(sample) < 4<<20 {
-						sample = append(sample, b...)
-					}
+					const sampleLimit = 4 << 20
+					sample = append(sample, b[:min(len(b), sampleLimit-len(sample))]...)
 					stats := f.analyzer.Snapshot()
 					if stats.VideoChanges >= 5 && stats.AudioChanges >= 5 && time.Since(lastInspection) >= 500*time.Millisecond {
 						lastInspection = time.Now()
 						info, err := e.Inspect(sourceCtx, sample)
 						if err != nil {
-							// Joining a live feed mid-GOP is normal. Keep collecting
-							// until a keyframe arrives or the startup deadline expires.
+							// A full undecodable window cannot gain a later keyframe.
+							if len(sample) == sampleLimit {
+								sample = sample[:0]
+							}
 							send(event{f: f, data: data})
 							return
 						}
@@ -358,6 +360,7 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 		}()
 		return true
 	}
+	var lastRecruit time.Time
 	remove := func(f *feed, failed bool, reason string) {
 		if f == nil {
 			return
@@ -368,6 +371,10 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 			recordEvent("source_released", channel, f.candidate.StreamID, "Unused startup candidate released; verified roster retained")
 		}
 		if failed {
+			if f.ready {
+				// Losing a working feed frees a slot even during pool backoff.
+				lastRecruit = time.Time{}
+			}
 			recordEvent("source_failure", channel, f.candidate.StreamID, reason)
 			failedPass[f.candidate.StreamID] = time.Now().Unix()
 			record(f.candidate.StreamID, catalog.Result{Success: false, Reason: reason, Stalls: 1, PlaybackSeconds: time.Since(f.lastRecorded).Seconds()})
@@ -489,10 +496,14 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 		}
 		targetHeight := preferredHeight()
 		used := map[int64]bool{}
+		starting := false
 		pendingPreferred := false
 		pendingHeight := false
 		for _, f := range feeds {
 			used[f.candidate.AccountID] = true
+			if !f.ready {
+				starting = true
+			}
 			if f != primary && f != ghost && f.candidate.UHD == preferredUHD {
 				pendingPreferred = true
 				if f.candidate.Height == targetHeight {
@@ -548,7 +559,7 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 			launchTier(fallback)
 		}
 
-		if launched > 0 {
+		if launched > 0 || starting {
 			recruitDelay = 500 * time.Millisecond
 			poolWaiting = false
 		} else {
@@ -566,16 +577,21 @@ func (e *Engine) Run(parent context.Context, channel string, emit func([]byte)) 
 			ghost = nil
 		}
 		restart := old != nil && old.info.Codec != f.info.Codec
-		if old != nil {
+		if hadPrimary {
 			failovers++
-			recordEvent("failover", channel, f.candidate.StreamID, "promoted live ghost")
+			reason := "replacement source ready"
+			if old != nil {
+				reason = "promoted live ghost"
+			}
+			recordEvent("failover", channel, f.candidate.StreamID, reason)
 		}
+		hadPrimary = true
 		return startMux(f, restart)
 	}
 	recruit()
 	tick := time.NewTicker(100 * time.Millisecond)
 	defer tick.Stop()
-	lastRecruit := time.Now()
+	lastRecruit = time.Now()
 	emptySince := time.Now()
 	for {
 		select {
