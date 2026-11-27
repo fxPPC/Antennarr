@@ -1,0 +1,273 @@
+[
+  {
+    "name": "Canal Uno",
+    "number": "104",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "Canal Uno Colombia",
+      "Canal 1",
+      "Canal 1 (Canal 1 HD)",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Caracol Televisión",
+    "number": "106",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "Caracol",
+      "Canal Caracol",
+      "Caracol TV",
+      "Caracol Television",
+      "Caracol TV Canal 1",
+      "Caracol (Caracol HD)",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Canal RCN",
+    "number": "111",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "RCN",
+      "RCN Televisión",
+      "RCN Television",
+      "RCN TV",
+      "RCN (RCN HD)",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Citytv",
+    "number": "112",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "City TV",
+      "City TV Bogotá",
+      "City TV Bogota",
+      "Citytv Bogotá",
+      "Citytv Bogota",
+      "City TV (City TV)",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Canal Capital",
+    "number": "116",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "Canal Capital Colombia",
+      "Canal Capital (Canal Capital)",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Teleantioquia",
+    "number": "117",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "Tele Antioquia",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Telecaribe",
+    "number": "118",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "Tele Caribe",
+      "Telecaribe (Telecaribe)",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Telepacífico",
+    "number": "119",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "Telepacifico",
+      "Tele Pacífico",
+      "Tele Pacifico",
+      "Telepacifico (Telepacifico)",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Canal Trece",
+    "number": "120",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "Canal 13",
+      "Canal 13 Colombia",
+      "Trece",
+      "Canal Trece (Canal Trece)",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Telecafé",
+    "number": "122",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "Telecafe",
+      "Tele Café",
+      "Tele Cafe",
+      "Telecafé (Telecafe)",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Canal TRO",
+    "number": "123",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "Canal TRO (Canal TRO)",
+      "Televisión Regional del Oriente",
+      "Television Regional del Oriente",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Señal Colombia",
+    "number": "129",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "Senal Colombia",
+      "Canal Señal Colombia",
+      "Canal Senal Colombia",
+      "Señal Colombia (Señal Colombia HD)",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "RCN Novelas",
+    "number": "445",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "RCN Telenovelas",
+      "Canal RCN Telenovelas",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  },
+  {
+    "name": "Win Sports",
+    "number": "521",
+    "region": "CO",
+    "enabled": true,
+    "aliases": [
+      "Win Sports (Win Sports HD)",
+      "@guide",
+      "-+1",
+      "-timeshift",
+      "-catchup",
+      "-replay",
+      "-24/7",
+      "-ppv",
+      "-vod"
+    ]
+  }
+]

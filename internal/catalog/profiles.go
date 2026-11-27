@@ -69,6 +69,8 @@ var tunerPresets = []presetDefinition{
 	{Profile{Kind: "hdhomerun", Name: "Sweden - Stockholm", Market: "Stockholm", Country: "SE", Timezone: "Europe/Stockholm", GuideLocation: "11120", Preset: "se-stockholm"}, "se_stockholm_channels.json"},
 	{Profile{Kind: "hdhomerun", Name: "Denmark - Copenhagen", Market: "Copenhagen", Country: "DK", Timezone: "Europe/Copenhagen", GuideLocation: "1050", Preset: "dk-copenhagen"}, "dk_copenhagen_channels.json"},
 	{Profile{Kind: "hdhomerun", Name: "Norway - Oslo", Market: "Oslo", Country: "NO", Timezone: "Europe/Oslo", GuideLocation: "0150", Preset: "no-oslo"}, "no_oslo_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Argentina - Buenos Aires", Market: "Buenos Aires", Country: "AR", Timezone: "America/Argentina/Buenos_Aires", GuideLocation: "C1064", Preset: "ar-buenos-aires"}, "ar_buenos_aires_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Colombia - Bogotá", Market: "Bogotá", Country: "CO", Timezone: "America/Bogota", GuideLocation: "110111", Preset: "co-bogota"}, "co_bogota_channels.json"},
 }
 
 func presetProfile(id string) (Profile, error) {
