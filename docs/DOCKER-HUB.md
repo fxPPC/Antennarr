@@ -11,4 +11,4 @@ Both images support Linux amd64 and ARM64. `latest` tracks the recommended stabl
 
 **Upgrading from 1.0?** Download a full backup under **Admin → Backup & restore**. Keep your existing ports, network, and Plex tuner address. The upgrade migrates your data. Returning to 1.0 requires the pre-upgrade backup. Use a separate data directory when trying the preview alongside stable.
 
-[Stable installation](https://github.com/fxPPC/Antennarr/blob/release/1.0/docs/INSTALL.md) · [1.1 preview setup](https://github.com/fxPPC/Antennarr/blob/v1.1.0-beta.2/docs/MULTI-TUNER.md) · [Releases and desktop downloads](https://github.com/fxPPC/Antennarr/releases) · [Source and support](https://github.com/fxPPC/Antennarr)
+[Stable installation](https://github.com/fxPPC/Antennarr/blob/release/1.0/docs/INSTALL.md) · [1.1 preview setup](https://github.com/fxPPC/Antennarr/blob/main/docs/MULTI-TUNER.md) · [Releases and desktop downloads](https://github.com/fxPPC/Antennarr/releases) · [Source and support](https://github.com/fxPPC/Antennarr)
