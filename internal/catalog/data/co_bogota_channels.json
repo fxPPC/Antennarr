@@ -102,23 +102,6 @@
     ]
   },
   {
-    "name": "Teleantioquia",
-    "number": "117",
-    "region": "CO",
-    "enabled": true,
-    "aliases": [
-      "Tele Antioquia",
-      "@guide",
-      "-+1",
-      "-timeshift",
-      "-catchup",
-      "-replay",
-      "-24/7",
-      "-ppv",
-      "-vod"
-    ]
-  },
-  {
     "name": "Telecaribe",
     "number": "118",
     "region": "CO",

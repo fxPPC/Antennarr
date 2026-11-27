@@ -167,92 +167,12 @@
     ]
   },
   {
-    "name": "DeporTV",
-    "number": "100",
-    "region": "AR",
-    "enabled": true,
-    "aliases": [
-      "@guide",
-      "-+1",
-      "-timeshift",
-      "-catchup",
-      "-replay",
-      "-24/7",
-      "-vod",
-      "-internacional",
-      "-international",
-      "-latam",
-      "-arabic",
-      "-mena"
-    ]
-  },
-  {
     "name": "ESPN3",
     "number": "104",
     "region": "AR",
     "enabled": true,
     "aliases": [
       "ESPN 3",
-      "@guide",
-      "-+1",
-      "-timeshift",
-      "-catchup",
-      "-replay",
-      "-24/7",
-      "-vod",
-      "-internacional",
-      "-international",
-      "-latam",
-      "-arabic",
-      "-mena"
-    ]
-  },
-  {
-    "name": "ESPN Premium Argentina",
-    "number": "123",
-    "region": "AR",
-    "enabled": true,
-    "aliases": [
-      "@guide",
-      "-+1",
-      "-timeshift",
-      "-catchup",
-      "-replay",
-      "-24/7",
-      "-vod",
-      "-internacional",
-      "-international",
-      "-latam",
-      "-arabic",
-      "-mena"
-    ]
-  },
-  {
-    "name": "Cartoon Network",
-    "number": "203",
-    "region": "AR",
-    "enabled": true,
-    "aliases": [
-      "@guide",
-      "-+1",
-      "-timeshift",
-      "-catchup",
-      "-replay",
-      "-24/7",
-      "-vod",
-      "-internacional",
-      "-international",
-      "-latam",
-      "-arabic",
-      "-mena"
-    ]
-  },
-  {
-    "name": "Volver",
-    "number": "303",
-    "region": "AR",
-    "enabled": true,
-    "aliases": [
       "@guide",
       "-+1",
       "-timeshift",
