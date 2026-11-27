@@ -20,8 +20,8 @@ Fresh installations start empty. Each saved tuner has its own lineup and Plex ad
 | Stockholm | 20 | 11120 | Tele2 |
 | Copenhagen | 22 | 1050 | Norlys |
 | Oslo | 19 | 0150 | Telenor |
-| Buenos Aires | 13 | C1064 | Cablevisión - Capital Federal |
-| Bogotá | 14 | 110111 | Claro TV Colombia (DTH) |
+| Buenos Aires | 9 | C1064 | Cablevisión - Capital Federal |
+| Bogotá | 13 | 110111 | Claro TV Colombia (DTH) |
 | Brussels | 16 | 1000 | Proximus |
 | Zürich | 17 | 8001 | Sunrise TV (Deutschschweiz) |
 
