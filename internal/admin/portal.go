@@ -60,6 +60,11 @@ func (a *API) portal(w http.ResponseWriter, r *http.Request) {
 		failure(w, 400, err.Error())
 		return
 	}
+	if !a.importing.CompareAndSwap(false, true) {
+		failure(w, 409, "Another source import is active")
+		return
+	}
+	defer a.importing.Store(false)
 	id, err := a.Store.PortalAccountID(cfg)
 	if err != nil {
 		failure(w, 500, "Cannot read portal account")
@@ -75,6 +80,11 @@ func (a *API) refreshPortal(w http.ResponseWriter, r *http.Request) {
 	if !decode(w, r, &v) {
 		return
 	}
+	if !a.importing.CompareAndSwap(false, true) {
+		failure(w, 409, "Another source import is active")
+		return
+	}
+	defer a.importing.Store(false)
 	cfg, err := a.Store.PortalAccount(v.AccountID)
 	if err != nil {
 		failure(w, 404, "Portal account unavailable")
@@ -84,11 +94,6 @@ func (a *API) refreshPortal(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *API) importPortal(w http.ResponseWriter, r *http.Request, id int64, cfg ingest.PortalAccount) {
-	if !a.importing.CompareAndSwap(false, true) {
-		failure(w, 409, "Another source import is active")
-		return
-	}
-	defer a.importing.Store(false)
 	u, _ := url.Parse(cfg.PortalURL)
 	if a.PortalBudget == nil || a.Client == nil {
 		failure(w, 503, "Portal service unavailable")

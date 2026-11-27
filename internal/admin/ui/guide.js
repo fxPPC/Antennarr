@@ -15,7 +15,7 @@ export function matchesChannelFilter(filter, guide, roster, live) {
 export function standbyLabel(roster,live) {
   if (live?.standby === 'receiving') return 'Standby live';
   if (live) return 'Awaiting standby';
-  if ((roster?.count || 0) > 1) return 'Backup available';
+  if ((roster?.count || 0) > 1) return 'Backup candidate';
   return 'No backup';
 }
 
@@ -81,7 +81,14 @@ export function guideInspector(channel, onChange) {
     const ticket = ++sequence;
     const data = await api('/api/guide/channel?' + query);
     if (ticket !== sequence || !root.open) return;
-    const text = data.pin ? 'A pinned station supplies this channel.' : 'Automatic selection · ' + (data.origins || 0) + ' independent guide sources.';
+    const reason = {
+      confirmed: (data.origins || 0) + ' independent sources agree on the published programme.',
+      conflict: 'Sources disagree on one or more slots. A tie retains an existing listing.',
+      single: 'One independent guide supplies the published programme.',
+      cached: 'Previously accepted listings remain available until their scheduled end.',
+      missing: 'There are no current or upcoming listings for this channel.'
+    };
+    const text = data.pin ? 'Guide selection is pinned to one station.' : reason[data.state] || 'Guide selection is automatic.';
     content.replaceChildren(el('p',text));
     const candidates = data.candidates || [];
     if (!candidates.length) content.append(el('p', 'No current candidates. Check the tuner’s guide feed or wait for a roster update.', 'muted'));
@@ -144,7 +151,7 @@ export function guideSettings(profile, onChange) {
     busy = save.disabled = clear.disabled = true;
     try {
       await api('/api/guide/feed','POST',{profile_id:profile.id,url});
-      input.value = '';
+      if (input.value.trim() === url) input.value = '';
       status.textContent = url ? 'External guide saved.' : 'External guide removed.';
       await Promise.all([read(),onChange()]);
     } catch (e) { status.textContent=e.message; }

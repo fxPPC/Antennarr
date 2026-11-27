@@ -39,14 +39,9 @@ def exercise(root, old, new):
     with app.running(new):
         check_saved(app.snapshot(), expected)
         app.request("/api/settings", {"roster_target": 18})
-    dbs = list(live.rglob("*.sqlite")) + list(live.rglob("*.db"))
-    dbs = [p for p in dbs if p.is_file() and p.read_bytes()[:16] == b"SQLite format 3\0"]
-    versions = []
-    for db in dbs:
-        with sqlite3.connect(db.as_uri() + "?mode=ro", uri=True) as conn:
-            versions.append(conn.execute("pragma user_version").fetchone()[0])
-    if 10 not in versions:
-        raise RuntimeError(f"Migrated catalogue schema 10 missing, found {versions}")
+    db = live / "database" / "antennarr.db"
+    with sqlite3.connect(db.as_uri() + "?mode=ro&immutable=1", uri=True) as conn:
+        compat.check(conn.execute("pragma user_version").fetchone()[0], 10, "migrated schema")
     with subprocess.Popen([old], env=app.env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as proc:
         try:
             log, _ = proc.communicate(timeout=10)
@@ -54,7 +49,7 @@ def exercise(root, old, new):
             proc.kill()
             proc.wait()
             raise RuntimeError("1.1 opened the newer schema")
-        if proc.returncode == 0 or b"newer application" not in log:
+        if proc.returncode == 0 or b"check schema compatibility" not in log:
             raise RuntimeError("Expected 1.1 to reject newer catalogue: " + log[-800:].decode(errors="replace"))
     # Restore using the old binary and its own backup format on a fresh directory.
     live.rename(root / "alpha")

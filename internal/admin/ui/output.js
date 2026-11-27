@@ -624,7 +624,8 @@ async function filterChannels() {
   const term=(routeParams().get('filter')||'').trim().toLowerCase();
   for(const {card,ch} of channelCards.values()){
     const r=rosterByChannel.get(ch.id);
-    card.hidden=!matchesChannelFilter(routeParams().get('health'),guideByChannel.get(ch.id),r,liveByChannel.get(ch.id)) || (term && !(ch.number+' '+ch.name).toLowerCase().includes(term)) || !!coverage && (!ch.enabled || !r || coverage!==(r.count===0?'empty':r.count>=r.policy.target?'full':'partial'));
+    const health = routeParams().get('health');
+    card.hidden=!!health && (!ch.enabled || !matchesChannelFilter(health,guideByChannel.get(ch.id),r,liveByChannel.get(ch.id))) || (term && !(ch.number+' '+ch.name).toLowerCase().includes(term)) || !!coverage && (!ch.enabled || !r || coverage!==(r.count===0?'empty':r.count>=r.policy.target?'full':'partial'));
     card.classList.remove('search-match');
   }
   for(const card of profileCards.values())card.hidden=!!coverage && !card.querySelector('.tuner-channels > details:not([hidden])');

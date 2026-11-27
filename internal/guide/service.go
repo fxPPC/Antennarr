@@ -74,11 +74,12 @@ type snapshot struct {
 	Checked    int64       `json:"checked"`
 }
 type job struct {
-	url, origin string
-	account     int64
-	limit       int
-	profiles    map[string]bool
-	ids         map[string]map[string]bool
+	url, origin, budgetProvider string
+	account                     int64
+	limit                       int
+	profiles                    map[string]bool
+	ids                         map[string]map[string]bool
+	names                       map[string]map[string]bool
 }
 type channelInput struct {
 	ch  catalog.Channel
@@ -86,15 +87,15 @@ type channelInput struct {
 	old snapshot
 }
 type inputs struct {
-	channels  map[string]*channelInput
-	feeds     map[string]string
-	jobs      []*job
-	labels    map[string]map[string][]string
-	rosterIDs map[string]map[string]bool
+	channels map[string]*channelInput
+	feeds    map[string]string
+	jobs     []*job
+	labels   map[string]map[string][]string
+	pins     map[string][]string
 }
 
 func (s *Service) inputs(ctx context.Context) (inputs, error) {
-	in := inputs{channels: map[string]*channelInput{}, feeds: map[string]string{}, labels: map[string]map[string][]string{}, rosterIDs: map[string]map[string]bool{}}
+	in := inputs{channels: map[string]*channelInput{}, feeds: map[string]string{}, labels: map[string]map[string][]string{}, pins: map[string][]string{}}
 	channels, e := s.store.ActiveChannels()
 	if e != nil {
 		return in, e
@@ -127,6 +128,9 @@ func (s *Service) inputs(ctx context.Context) (inputs, error) {
 		}
 		if c := in.channels[id]; c != nil {
 			c.pin = pin
+			if pin != "" {
+				in.pins[pin] = append(in.pins[pin], id)
+			}
 			if e = json.Unmarshal([]byte(data), &c.old); e != nil {
 				rows.Close()
 				return in, e
@@ -168,51 +172,105 @@ func (s *Service) inputs(ctx context.Context) (inputs, error) {
 	if e != nil {
 		return in, e
 	}
+	// A feed explicitly configured on two tuners, an operator-listed portal
+	// guide and a user-supplied feed can all refer to the very same URL.
 	providers := map[string]*job{}
+	portalURLs := map[int64]string{}
 	for _, r := range roster {
 		c := in.channels[r.ChannelID]
-		if c == nil || r.Station == "" {
-			continue
-		}
-		ids := in.rosterIDs[r.Station]
-		if ids == nil {
-			ids = map[string]bool{}
-			in.rosterIDs[r.Station] = ids
-		}
-		ids[r.ChannelID] = true
-		if r.Kind != "xtream" || r.Limit <= 0 {
+		if c == nil || r.Limit <= 0 {
 			continue
 		}
 		host := catalog.ProviderKey(r.Provider)
-		j := providers[host]
-		if j == nil {
-			sec, err := s.store.AccountSecret(r.Account)
-			if err != nil {
-				if errors.Is(err, sql.ErrNoRows) {
-					continue
-				}
-				return in, err
-			}
-			u, err := url.Parse(strings.TrimRight(sec.Endpoint, "/") + "/xmltv.php")
-			if err != nil || netguard.URL(u) != nil {
+		var j *job
+		var raw string
+		switch r.Kind {
+		case "xtream":
+			if r.Station == "" {
 				continue
 			}
-			q := u.Query()
-			q.Set("username", sec.Username)
-			q.Set("password", sec.Password)
-			u.RawQuery = q.Encode()
-			j = &job{url: u.String(), origin: host, account: r.Account, limit: r.Limit, ids: map[string]map[string]bool{}}
-			providers[host] = j
-			in.jobs = append(in.jobs, j)
+			j = providers[host]
+			if j == nil {
+				sec, err := s.store.AccountSecret(r.Account)
+				if err != nil {
+					if errors.Is(err, sql.ErrNoRows) {
+						continue
+					}
+					return in, err
+				}
+				u, err := url.Parse(strings.TrimRight(sec.Endpoint, "/") + "/xmltv.php")
+				if err != nil || netguard.URL(u) != nil {
+					continue
+				}
+				q := u.Query()
+				q.Set("username", sec.Username)
+				q.Set("password", sec.Password)
+				u.RawQuery = q.Encode()
+				raw = u.String()
+			}
+		case "portal":
+			var ok bool
+			raw, ok = portalURLs[r.Account]
+			if !ok {
+				cfg, err := s.store.PortalAccount(r.Account)
+				if err != nil {
+					if errors.Is(err, sql.ErrNoRows) {
+						continue
+					}
+					return in, err
+				}
+				raw = cfg.XMLTV()
+				portalURLs[r.Account] = raw
+			}
+			if raw == "" {
+				continue
+			}
+		default:
+			continue
 		}
-		targets := j.ids[r.Station]
-		if targets == nil {
-			targets = map[string]bool{}
-			j.ids[r.Station] = targets
+		if j == nil {
+			j = byURL[raw]
+			if j == nil {
+				u, err := url.Parse(raw)
+				if err != nil || netguard.URL(u) != nil {
+					continue
+				}
+				j = &job{url: raw, origin: catalog.ProviderKey(u.Host)}
+				in.jobs = append(in.jobs, j)
+				byURL[raw] = j
+			}
+			if j.account == 0 {
+				j.account = r.Account
+				j.limit = r.Limit
+				j.budgetProvider = host
+			}
+			if r.Kind == "xtream" {
+				providers[host] = j
+			}
 		}
-		targets[r.ChannelID] = true
+		if j.ids == nil {
+			j.ids = map[string]map[string]bool{}
+			j.names = map[string]map[string]bool{}
+		}
+		if r.Station != "" {
+			addTarget(j.ids, r.Station, r.ChannelID)
+		}
+		if r.Kind == "portal" {
+			for _, name := range append([]string{c.ch.Name, c.ch.Station}, c.ch.Aliases...) {
+				if name != "" && !strings.HasPrefix(name, "-") && name != "@guide" {
+					addTarget(j.names, norm(name), r.ChannelID)
+				}
+			}
+		}
 	}
+
 	return in, nil
+}
+func addTarget(index map[string]map[string]bool, key, id string) {
+	if index[key] == nil {
+		index[key] = map[string]bool{}
+	}
+	index[key][id] = true
 }
 func norm(s string) string { return strings.ToLower(strings.Join(strings.Fields(s), " ")) }
 
@@ -225,7 +283,11 @@ func (s *Service) fetch(ctx context.Context, j *job, now int64) (map[string]*sta
 			account = -1
 			limit = 1
 		}
-		release, ok := s.Budget.Reserve(account, j.origin, limit, false)
+		provider := j.budgetProvider
+		if provider == "" {
+			provider = j.origin
+		}
+		release, ok := s.Budget.Reserve(account, provider, limit, false)
 		if !ok {
 			return nil, "", errors.New("guide deferred")
 		}
@@ -288,6 +350,9 @@ func (s *Service) Refresh(parent context.Context) error {
 			list[p] = map[string]Candidate{}
 		}
 		for id, st := range stations {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
 			sid := stationID(origin, id)
 			n, next := nowNext(st.programmes, now)
 			candidate := Candidate{ID: sid, Source: origin, Station: id, Name: st.displayName(), Now: n, Next: next, programmes: st.programmes}
@@ -297,11 +362,6 @@ func (s *Service) Refresh(parent context.Context) error {
 			}
 			for p := range j.profiles {
 				list[p][sid] = candidate
-				for c := range in.rosterIDs[id] {
-					if in.channels[c].ch.ProfileID == p {
-						targets[c] = true
-					}
-				}
 				for _, name := range append([]string{id}, st.names...) {
 					for _, c := range in.labels[p][norm(name)] {
 						targets[c] = true
@@ -310,8 +370,13 @@ func (s *Service) Refresh(parent context.Context) error {
 			}
 			// A pin carries its station through account/roster changes and may select
 			// any station in the user's external XMLTV feed.
-			for ch, c := range in.channels {
-				if c.pin == sid && (j.profiles[c.ch.ProfileID] || j.ids[id][ch]) {
+			for _, name := range append([]string{id}, st.names...) {
+				for ch := range j.names[norm(name)] {
+					targets[ch] = true
+				}
+			}
+			for _, ch := range in.pins[sid] {
+				if j.profiles[in.channels[ch].ch.ProfileID] || j.ids[id][ch] {
 					targets[ch] = true
 				}
 			}

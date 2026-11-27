@@ -41,5 +41,10 @@ func GuideAllowed(ch Channel, id, name string) bool {
 	if country != "" && ((label.guide.country != "" && country != label.guide.country) || (label.country != "" && country != label.country)) {
 		return false
 	}
-	return !m.excludes(label) && m.stationMatches(label)
+	if !m.stationMatches(label) || m.excludes(label) || guideConflict([]channelMatcher{m}, m, label) {
+		return false
+	}
+	// Some XMLTV guides identify a delay only in the display name.
+	display := sourceLabelWithID(name, "", name)
+	return !guideConflict([]channelMatcher{m}, m, display)
 }

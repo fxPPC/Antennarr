@@ -191,6 +191,22 @@ func (a PortalAccount) subscribedStations(ctx context.Context, client *http.Clie
 	return labels, nil
 }
 
+// A display name starts at the first comma outside an attribute value.
+func portalName(line string) string {
+	quoted := false
+	for i, c := range line {
+		switch c {
+		case '"':
+			quoted = !quoted
+		case ',':
+			if !quoted {
+				return strings.TrimSpace(line[i+1:])
+			}
+		}
+	}
+	return ""
+}
+
 func (a *PortalAccount) Channels(ctx context.Context, client *http.Client) ([]PortalChannel, error) {
 	if err := a.Normalise(); err != nil {
 		return nil, err
@@ -215,7 +231,7 @@ func (a *PortalAccount) Channels(ctx context.Context, client *http.Client) ([]Po
 		return nil, err
 	}
 	lines := strings.Split(strings.TrimSpace(strings.TrimPrefix(string(b), "\ufeff")), "\n")
-	if len(lines) == 0 || !strings.HasPrefix(strings.TrimSpace(lines[0]), "#EXTM3U") {
+	if fields := strings.Fields(lines[0]); len(fields) == 0 || fields[0] != "#EXTM3U" {
 		return nil, errors.New("portal export is not an extended M3U playlist")
 	}
 	a.PlaylistGuide = ""
@@ -236,13 +252,15 @@ func (a *PortalAccount) Channels(ctx context.Context, client *http.Client) ([]Po
 	seen := map[string]bool{}
 	ambiguous := map[string]bool{}
 	name, tvg := "", ""
+	described, usable := false, false
 	for _, s := range lines[1:] {
 		s = strings.TrimSpace(s)
+		if strings.HasPrefix(s, "#EXT-X-") {
+			return nil, errors.New("use a channel catalogue rather than an HLS stream")
+		}
 		if strings.HasPrefix(s, "#EXTINF:") {
-			name, tvg = "", ""
-			if _, after, ok := strings.Cut(s, ","); ok {
-				name = strings.TrimSpace(after)
-			}
+			described = true
+			name, tvg = portalName(s), ""
 			for _, m := range attr.FindAllStringSubmatch(s, -1) {
 				if m[1] == "tvg-id" {
 					tvg = m[2]
@@ -253,6 +271,7 @@ func (a *PortalAccount) Channels(ctx context.Context, client *http.Client) ([]Po
 		if s == "" || strings.HasPrefix(s, "#") {
 			continue
 		}
+		described = true
 		station, id := name, tvg
 		name, tvg = "", ""
 		if station == "" || len(station) > 512 || len(id) > 256 {
@@ -262,6 +281,7 @@ func (a *PortalAccount) Channels(ctx context.Context, client *http.Client) ([]Po
 		if err != nil || len(s) > 8192 || u.User != nil || netguard.URL(u) != nil {
 			continue
 		}
+		usable = true
 		key := "playlist\x00" + station + "\x00" + id
 		if entitled != nil {
 			channelID := entitled[station]
@@ -282,6 +302,9 @@ func (a *PortalAccount) Channels(ctx context.Context, client *http.Client) ([]Po
 		if len(out) > 20000 {
 			return nil, errors.New("portal channel limit exceeded")
 		}
+	}
+	if described && !usable {
+		return nil, errors.New("no usable HTTP channels in portal response")
 	}
 	filtered := out[:0]
 	for _, c := range out {

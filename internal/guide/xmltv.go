@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"encoding/xml"
 	"errors"
+	"golang.org/x/text/encoding/charmap"
 	"io"
 	"sort"
 	"strings"
@@ -71,6 +72,16 @@ func parseXMLTV(r io.Reader, now int64) (map[string]*station, error) {
 	}
 	boundedStream := &io.LimitedReader{R: stream, N: maxGuideBytes + 1}
 	d := xml.NewDecoder(boundedStream)
+	d.CharsetReader = func(charset string, input io.Reader) (io.Reader, error) {
+		switch strings.ToLower(strings.TrimSpace(charset)) {
+		case "iso-8859-1", "latin1":
+			return charmap.ISO8859_1.NewDecoder().Reader(input), nil
+		case "windows-1252":
+			return charmap.Windows1252.NewDecoder().Reader(input), nil
+		default:
+			return nil, errors.New("unsupported XMLTV character encoding")
+		}
+	}
 	out := map[string]*station{}
 	get := func(id string) *station {
 		if id == "" || len(id) > 256 {

@@ -3,6 +3,7 @@ package catalog
 type QueueAccountRow struct {
 	ID       int64  `json:"id"`
 	Provider string `json:"provider"`
+	Kind     string `json:"kind"`
 	State    string `json:"state"`
 	Created  int64  `json:"created"`
 	Streams  int    `json:"streams"`
@@ -70,13 +71,13 @@ func (s *Store) InputPage(search string, offset int) (AccountPage, error) {
 		return out, e
 	}
 	out.Offset = max(0, min(offset, max(0, (out.Total-1)/50)*50))
-	rows, e := tx.Query(`SELECT a.id,a.provider,a.state,a.created,(SELECT count(*) FROM streams s WHERE s.account_id=a.id),(SELECT count(*) FROM roster r WHERE r.account_id=a.id) FROM accounts a`+where+` ORDER BY a.provider COLLATE NOCASE,a.id LIMIT 50 OFFSET ?`, append(args, out.Offset)...)
+	rows, e := tx.Query(`SELECT a.id,a.provider,a.kind,a.state,a.created,(SELECT count(*) FROM streams s WHERE s.account_id=a.id),(SELECT count(*) FROM roster r WHERE r.account_id=a.id) FROM accounts a`+where+` ORDER BY a.provider COLLATE NOCASE,a.id LIMIT 50 OFFSET ?`, append(args, out.Offset)...)
 	if e != nil {
 		return out, e
 	}
 	for rows.Next() {
 		var a QueueAccountRow
-		if e = rows.Scan(&a.ID, &a.Provider, &a.State, &a.Created, &a.Streams, &a.Roster); e != nil {
+		if e = rows.Scan(&a.ID, &a.Provider, &a.Kind, &a.State, &a.Created, &a.Streams, &a.Roster); e != nil {
 			rows.Close()
 			return out, e
 		}

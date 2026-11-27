@@ -46,6 +46,7 @@ $('#portal-form').onsubmit = async event => {
     return;
   }
   submit.disabled = true;
+  for (const field of form.querySelectorAll('input')) field.disabled = true;
   result.textContent = 'Connecting and importing the catalogue…';
   try {
     const saved = await api('/api/input/portal','POST',values);
@@ -53,7 +54,10 @@ $('#portal-form').onsubmit = async event => {
     result.textContent = 'Account saved · ' + saved.channels + ' channels imported.';
     await setup.poll();
   } catch (e) { result.textContent = e.message; }
-  finally { submit.disabled = false; }
+  finally {
+    submit.disabled = false;
+    for (const field of form.querySelectorAll('input')) field.disabled = false;
+  }
 };
 setup.bind(output.invalidateProfiles);
 async function refreshPorts() {

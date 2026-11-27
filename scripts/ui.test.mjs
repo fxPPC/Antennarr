@@ -134,7 +134,7 @@ test('a playing channel needs a receiving standby even with a full roster',()=>{
   assert.equal(matchesChannelFilter('backup',null,{count:6},{standby:'checking'}),true);
   assert.equal(matchesChannelFilter('backup',null,{count:6},undefined),false);
   assert.equal(standbyLabel({count:9}, {standby:'receiving'}),'Standby live');
-  assert.equal(standbyLabel({count:3},null),'Backup available');
+  assert.equal(standbyLabel({count:3},null),'Backup candidate');
   assert.equal(matchesChannelFilter('missing',undefined,{count:3},null),true);
   assert.equal(matchesChannelFilter('missing',{state:'confirmed'},{count:0},null),false);
   assert.equal(matchesChannelFilter('conflict',{state:'conflict'},null,null),true);

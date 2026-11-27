@@ -37,7 +37,7 @@ func TestSeedJellyfinDVR(t *testing.T) {
 	ctx := context.Background()
 	now := time.Now().UTC()
 	start := now.Add(-time.Minute).Format("20060102150405 -0700")
-	end := now.Add(3*time.Minute).Format("20060102150405 -0700")
+	end := now.Add(3 * time.Minute).Format("20060102150405 -0700")
 	data := map[string]string{}
 	client := &http.Client{Transport: transport(func(r *http.Request) (*http.Response, error) {
 		body, ok := data[r.URL.String()]
@@ -62,7 +62,7 @@ func TestSeedJellyfinDVR(t *testing.T) {
 		if _, err = store.SaveProfile(profile); err != nil {
 			t.Fatal(err)
 		}
-		ch := catalog.LineupChannel{ID: fmt.Sprintf("test-%d", i+1), Number: "7", Name: market.name, Region: market.region, Station: market.station, Enabled: true}
+		ch := catalog.LineupChannel{ID: fmt.Sprintf("test-%d", i+1), Number: "7", Name: market.name, Region: market.region, Enabled: true}
 		if err = store.ImportLineupForProfile(profile.ID, catalog.Lineup{Version: 1, Channels: []catalog.LineupChannel{ch}}); err != nil {
 			t.Fatal(err)
 		}
@@ -74,6 +74,27 @@ func TestSeedJellyfinDVR(t *testing.T) {
 	}
 	if err = service.Refresh(ctx); err != nil {
 		t.Fatal(err)
+	}
+	profiles, err := store.Profiles()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range profiles {
+		data, err := service.Programmes(ctx, p.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		found := false
+		for _, list := range data {
+			for _, programme := range list {
+				if strings.Contains(programme.Title, "Fixture on Air") {
+					found = true
+				}
+			}
+		}
+		if !found {
+			t.Fatalf("missing scheduled programme for %s: %+v", p.ID, data)
+		}
 	}
 	t.Log("Seeded disposable catalogue", filepath.Base(root))
 }

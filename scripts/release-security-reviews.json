@@ -2437,5 +2437,48 @@
         "severity": "Low"
       }
     ]
+  },
+  "v1.2.0-alpha.1": {
+    "reviewed_on": "2026-11-27",
+    "decision": "Linux ARM64 only. The signed Wolfi 2.44-r29 APK embeds upstream glibc c7f65355ebd788c705ef6dddd6030bab679f7791, which contains upstream corrections for CVE-2026-100290, CVE-2026-115819, CVE-2026-121758, and CVE-2026-126765. CVE-2026-124024 requires the separate IBM1390 or IBM1399 conversion module. Publication requires scripts/alpha12/review-runtime.py to verify the installed libc against this exact signed APK and absence of converter modules in the candidate filesystem. Retain the entire scan, runtime evidence, and source references; fail on any changed finding or newly reported fix.",
+    "references": [
+      "https://lore-kernel.gnuweeb.org/all/20261126174957.3194898-1-peter@korsgaard.com/T/",
+      "https://github.com/CVEProject/cvelistV5/blob/main/cves/2026/124xxx/CVE-2026-124024.json",
+      "https://github.com/bminor/glibc/blob/master/iconvdata/gconv-modules-extra.conf",
+      "https://github.com/fxPPC/Antennarr/releases/download/v1.1.0/wolfi-updates-linux-arm64.tar.gz"
+    ],
+    "require_exact": true,
+    "findings": [
+      {
+        "id": "CVE-2026-100290",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Low"
+      },
+      {
+        "id": "CVE-2026-115819",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-121758",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-124024",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-126765",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Low"
+      }
+    ]
   }
 }

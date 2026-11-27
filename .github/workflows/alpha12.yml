@@ -45,13 +45,15 @@ jobs:
           sudo apt-get install -y ffmpeg
           test -z "$(gofmt -l cmd internal)"
           python3 scripts/test-release-policy.py
+          python3 scripts/alpha12/test-publication.py
           python3 scripts/test-docker-preview.py
           python3 scripts/test-image-vulnerabilities.py
           node --test scripts/ui.test.mjs
           npm install --prefix "$RUNNER_TEMP/ui-deps" --no-audit --no-fund playwright@1.55.1
           "$RUNNER_TEMP/ui-deps/node_modules/.bin/playwright" install --with-deps chromium
-          PLAYWRIGHT_MODULE="$RUNNER_TEMP/ui-deps/node_modules/playwright/index.mjs" node scripts/test-alpha-ui.mjs
+          PLAYWRIGHT_MODULE="$RUNNER_TEMP/ui-deps/node_modules/playwright" node scripts/test-alpha-ui.mjs
           go vet ./...
+          go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
           sh scripts/fixtures.sh "$ANTENNARR_TEST_FIXTURES"
           go test -race -p 1 -timeout 15m ./...
       - name: Verify upgrade and recovery using the original 1.1 release
@@ -77,6 +79,12 @@ jobs:
           python3 packaging/test-permissions.py
           sh packaging/test-runtime-media.sh
           python3 scripts/alpha12/jellyfin.py --image "$ANTENNARR_TEST_IMAGE" --report "$RUNNER_TEMP/jellyfin-acceptance.json"
+      - name: Verify reviewed libc build and converter inventory in the exact candidate
+        run: |
+          cid=$(docker create "$ANTENNARR_TEST_IMAGE")
+          trap 'docker rm "$cid" >/dev/null' EXIT
+          docker export "$cid" | python3 scripts/alpha12/review-runtime.py \
+            packaging/runtime/wolfi-updates/aarch64/glibc-2.44-2.44-r29.apk > "$RUNNER_TEMP/runtime-review.json"
       - uses: anchore/sbom-action@dfcb83b97731532d72be422cbc51ee64adb6fd56
         with:
           image: ${{ env.ANTENNARR_TEST_IMAGE }}
@@ -102,7 +110,7 @@ jobs:
           archive="antennarr-$VERSION-linux-arm64.docker.tar.gz"
           docker save "$ANTENNARR_TEST_IMAGE" | gzip -1 > "$archive"
           git -C "$GITHUB_WORKSPACE" archive --format=tar.gz --prefix="antennarr-$VERSION/" "$GITHUB_SHA" > "antennarr-$VERSION-source.tar.gz"
-          cp /tmp/alpha12.spdx.json /tmp/alpha12-vulnerabilities.json "$RUNNER_TEMP/jellyfin-acceptance.json" .
+          cp /tmp/alpha12.spdx.json /tmp/alpha12-vulnerabilities.json "$RUNNER_TEMP/jellyfin-acceptance.json" "$RUNNER_TEMP/runtime-review.json" .
           jq -n --arg commit "$GITHUB_SHA" --arg baseline "$BASELINE" --arg image_id "$(docker image inspect --format '{{.Id}}' "$ANTENNARR_TEST_IMAGE")" \
             --arg run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
             '{commit:$commit,baseline:$baseline,image_id:$image_id,platform:"linux/arm64",run:$run}' > BUILD.json

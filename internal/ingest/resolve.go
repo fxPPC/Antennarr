@@ -196,7 +196,7 @@ func (r Resolver) resolve(ctx context.Context, input string) (ImportReport, erro
 				return walkErr
 			}
 			if before == len(report.Entries)+report.Duplicates && warnings == len(report.Warnings) && portalMAC.MatchString(body) {
-				report.Warnings = append(report.Warnings, fmt.Sprintf("Page %d contains MAC-based portal entries. Antennarr accepts Xtream accounts and M3U playlists.", page))
+				report.Warnings = append(report.Warnings, fmt.Sprintf("Page %d contains MAC-based portal entries. Configure a registered subscriber individually in Sources → Ministra portal.", page))
 			} else if walkErr != nil {
 				report.Warnings = append(report.Warnings, "A source page contained no complete accounts or used an unsupported format.")
 			}

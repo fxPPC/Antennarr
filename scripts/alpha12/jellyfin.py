@@ -41,6 +41,8 @@ def request(base, path, data=None, headers=None):
             content = reply.read()
             return json.loads(content) if content else None
     except urllib.error.HTTPError as err:
+        if err.code in (502, 503, 504):
+            raise
         raise RuntimeError(f"{req.method if hasattr(req, 'method') else req.get_method()} {path}: HTTP {err.code}") from err
 
 
@@ -89,7 +91,25 @@ def verify_recording(path):
     for seq, first, second in [(colours, "red", "green"), (tones, "440", "880")]:
         if seq.count(first) < 4 or seq.count(second) < 4 or seq.index(first) > seq.index(second):
             raise RuntimeError(f"Recording lacks ordered primary and standby markers: {dict(Counter(seq))}")
-    return {"video_samples": dict(Counter(colours)), "audio_seconds": dict(Counter(tones)),
+    frames = json.loads(run("ffprobe", "-v", "error", "-show_frames", "-show_entries",
+                            "frame=media_type,best_effort_timestamp_time", "-of", "json", str(path),
+                            stdout=subprocess.PIPE).stdout)["frames"]
+    gap = {}
+    spans = {}
+    for kind in ("video", "audio"):
+        stamps = [float(f["best_effort_timestamp_time"]) for f in frames
+                  if f.get("media_type") == kind and "best_effort_timestamp_time" in f]
+        if len(stamps) < 2:
+            raise RuntimeError("Missing decoded timestamps for " + kind)
+        deltas = [b - a for a, b in zip(stamps, stamps[1:])]
+        gap[kind] = round(max(deltas), 3)
+        spans[kind] = stamps[-1] - stamps[0]
+        if min(deltas) < -0.1 or max(deltas) > 2:
+            raise RuntimeError(f"{kind} timeline discontinuity: {min(deltas):.3f}…{max(deltas):.3f} s")
+    if abs(spans["video"] - spans["audio"]) > 2:
+        raise RuntimeError(f"Audio and video durations disagree: {spans}")
+    return {"max_decoded_gap_seconds": gap,
+            "video_samples": dict(Counter(colours)), "audio_seconds": dict(Counter(tones)),
             "bytes": path.stat().st_size}
 
 
@@ -202,7 +222,7 @@ def exercise(stack, work, image):
     # Renumbering after a recording must preserve Jellyfin's persistent channel key.
     before = http.open(f"http://{ant_ip}:{port}/playlist.m3u").read().decode().splitlines()
     an("/api/channels", {"profile_id": ny["id"], "id":"test-1", "name":"New York Fixture",
-                         "number":"17", "region":"US", "station":"NYFIX", "enabled":True})
+                         "number":"17", "region":"US", "enabled":True})
     after = http.open(f"http://{ant_ip}:{port}/playlist.m3u").read().decode().splitlines()
     urls = lambda lines: [s for s in lines if s.startswith("http://")]
     if len(urls(before)) != 1 or urls(before) != urls(after):

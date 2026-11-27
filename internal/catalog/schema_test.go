@@ -81,3 +81,51 @@ func TestCatalogueUsesItsOwnDatabaseDirectory(t *testing.T) {
 		t.Fatal("unexpected external files", entries, err)
 	}
 }
+
+func TestInterruptedGuideUpgradeCanRetry(t *testing.T) {
+	root := t.TempDir()
+	store, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Recreate the 1.1 layout, then introduce a conflicting table partway
+	// through the new migration. Nothing from a partial attempt may persist.
+	_, err = store.DB.Exec(`DROP TABLE guide_feeds; DROP TABLE guide_channels; DROP TABLE guide_stations;
+		CREATE TABLE guide_channels(keep TEXT); INSERT INTO guide_channels VALUES ('original');
+		PRAGMA user_version=9`)
+	store.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reopened, err := Open(root); err == nil {
+		reopened.Close()
+		t.Fatal("conflicting schema accepted")
+	}
+	db, err := sql.Open("sqlite", filepath.Join(root, "database", "antennarr.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	var version, partial int
+	var retained string
+	if err = db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 9 {
+		t.Fatal("failed migration changed the version", version, err)
+	}
+	if err = db.QueryRow("SELECT count(*) FROM sqlite_master WHERE name='guide_feeds'").Scan(&partial); err != nil || partial != 0 {
+		t.Fatal("partial guide tables survived", partial, err)
+	}
+	if err = db.QueryRow("SELECT keep FROM guide_channels").Scan(&retained); err != nil || retained != "original" {
+		t.Fatal("existing data changed", retained, err)
+	}
+	if _, err = db.Exec("DROP TABLE guide_channels"); err != nil {
+		t.Fatal(err)
+	}
+	reopened, err := Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reopened.Close()
+	if err = reopened.DB.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != SchemaVersion {
+		t.Fatal("migration did not resume", version, err)
+	}
+}
