@@ -30,7 +30,7 @@ Build the server executable from each release checkout with `go build -o /tmp/an
 python3 scripts/test-patch-compatibility.py /tmp/antennarr-baseline /tmp/antennarr-candidate
 ```
 
-Use the 1.1.0 candidate in both positions to establish the initial fixture. For each later stable patch, run it against every earlier stable patch in that minor. The harness creates temporary appdata, binds to loopback, and adds a synthetic tuner, channel rules, and login. It checks both writers, Plex discovery and lineup, settings, an idle housekeeping pass, and a manual backup/restore before re-upgrade.
+The amd64 source check uses the 1.1.0 candidate in both positions until the first stable 1.1 tag exists. It then builds each tagged stable 1.1 patch and runs it against the candidate. The harness creates temporary appdata, binds to loopback, and adds a synthetic tuner, channel rules, and login. It checks both writers, Plex discovery and lineup, settings, an idle housekeeping pass, and a manual backup/restore before re-upgrade.
 
 ## Matching regression and performance
 
