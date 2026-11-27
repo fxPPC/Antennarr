@@ -1,6 +1,6 @@
 # Setting up Plex tuners
 
-Fresh installations start empty. Each saved tuner has its own lineup and Plex address. Buenos Aires and Bogotá are available from 1.1.0.
+Fresh installations start empty. Each saved tuner has its own lineup and Plex address. The 1.1.0 release candidate adds Brussels, Zürich, Buenos Aires, and Bogotá to the 16 presets in beta 2.
 
 | City | Editable channels | Guide location | Verified Plex lineup |
 | --- | ---: | --- | --- |
@@ -22,6 +22,8 @@ Fresh installations start empty. Each saved tuner has its own lineup and Plex ad
 | Oslo | 19 | 0150 | Telenor |
 | Buenos Aires | 13 | C1064 | Cablevisión - Capital Federal |
 | Bogotá | 14 | 110111 | Claro TV Colombia (DTH) |
+| Brussels | 16 | 1000 | Proximus |
+| Zürich | 17 | 8001 | Sunrise TV (Deutschschweiz) |
 
 The default port range accommodates six tuners at once.
 

@@ -4,7 +4,7 @@
 
 ## Changes since 1.0
 
-- Add multiple city tuners to one installation. Each has its own Plex address, guide location, and editable channels. The default port range supports six tuners, with shared viewer and source limits.
+- Choose from 20 optional city tuners, including Brussels, Zürich, Buenos Aires, and Bogotá. Each has its own Plex address, local guide, and editable channels. The default port range supports six tuners at once, with shared viewer and source limits.
 - Set up a new installation with the first-run wizard. The web UI lets you browse each tuner, find channels with thin rosters, and check their feeds. Channels with the fewest working feeds get priority when Antennarr fills rosters.
 - Recover from a failed feed even when its replacement needs a later keyframe. Repeatedly full accounts yield their roster slots and wait longer between checks. Stream diagnostics distinguish denied requests, timeouts, and invalid media.
 - Run the app on Apple silicon or Intel Macs, and on ARM64 or x64 Windows. Each download bundles FFmpeg and FFprobe. Use the menu bar or notification area to check activity, open settings, start at login, or quit. Docker remains the best-supported platform.
