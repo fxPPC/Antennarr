@@ -28,6 +28,10 @@ func TestPublishedV104UpgradeAndManualRestore(t *testing.T) {
 	testPublishedUpgradeAndManualRestore(t, os.Getenv("ANTENNARR_V104_UPGRADE_FIXTURE"), "v1.0.4")
 }
 
+func TestPublishedV109UpgradeAndManualRestore(t *testing.T) {
+	testPublishedUpgradeAndManualRestore(t, os.Getenv("ANTENNARR_V109_UPGRADE_FIXTURE"), "v1.0.9")
+}
+
 func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string) {
 	t.Helper()
 	if source == "" {
@@ -41,8 +45,8 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 	if e = json.Unmarshal(raw, &expected); e != nil {
 		t.Fatal(e)
 	}
-	if baseline == "v1.0.4" && (expected["baseline"] != baseline || expected["lineup_export"] == "") {
-		t.Fatal("v1.0.4 fixture with saved channel definitions required")
+	if expected["baseline"] != baseline || (baseline != "v1.0.0" && expected["lineup_export"] == "") {
+		t.Fatal("invalid published fixture for", baseline)
 	}
 	channelCount, e := strconv.Atoi(expected["channel_count"])
 	if e != nil || channelCount < 1 {

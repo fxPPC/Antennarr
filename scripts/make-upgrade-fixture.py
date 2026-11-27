@@ -14,7 +14,7 @@ import time
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('output', type=Path)
-parser.add_argument('--baseline', choices=['v1.0.0', 'v1.0.4'], default='v1.0.0')
+parser.add_argument('--baseline', choices=['v1.0.0', 'v1.0.4', 'v1.0.9'], default='v1.0.0')
 parser.add_argument('--image', help='Use an existing image built from the selected baseline')
 args = parser.parse_args()
 root = args.output.resolve()
@@ -38,6 +38,7 @@ try:
     if not image:
         revision = {
             'v1.0.0': '4f948cca0f4395bbe8aad109558e1fe151775827',
+            'v1.0.9': '74e7fc2ea3ad88c72d503bd173a02189322920f0',
             'v1.0.4': 'e1fdf4bc738e0a39c1b83a9f1f3c8148bb6758f4',
         }[args.baseline]
         image = f'antennarr-fixture:{revision}'
@@ -62,7 +63,7 @@ try:
         raise RuntimeError('Baseline image failed to initialise')
     channels = json.loads(get('/api/channels'))
     channel = next(c['id'] for c in channels if c['name'] == 'CNN')
-    if args.baseline == 'v1.0.4':
+    if args.baseline != 'v1.0.0':
         def save_channel(value):
             docker('exec', name, 'curl', '-fsS', '-u', 'admin:admin',
                    '-H', 'X-Antennarr-Request: 1', '-H', 'Content-Type: application/json',
@@ -80,7 +81,7 @@ try:
     expected = {path: get(path, False) for path in ['/discover.json', '/lineup.json', '/device.xml']}
     settings = json.loads(get('/api/settings'))
     expected.update(replenish=str(settings.get('replenish_while_playing', False)).lower(), base='http://fixture:9192', channel=channel, channel_count=str(len(channels)), baseline=args.baseline)
-    if args.baseline == 'v1.0.4':
+    if args.baseline != 'v1.0.0':
         expected['lineup_export'] = get('/api/lineup')
     docker('stop', name)
     with sqlite3.connect(data / 'database/antennarr.db') as db:

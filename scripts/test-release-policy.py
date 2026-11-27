@@ -56,6 +56,13 @@ class ReleasePolicyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             policy.plan("v1.1.0-beta.1", "refs/heads/main", "1.1", [released("v1.1.0-beta.1", prerelease=True)])
 
+    def test_native_downloads_for_stable_and_beta_1_1(self):
+        for tag, expected in (("v1.1.0", True), ("v1.1.4", True), ("v1.1.0-beta.2", True),
+                              ("v1.1.0-alpha.8", False), ("v1.0.9", False)):
+            with self.subTest(tag=tag):
+                result = policy.plan(tag, "refs/heads/main", tag[1:4], [])
+                self.assertEqual(result["native_apps"], expected)
+
     def test_numeric_precedence(self):
         result = policy.plan("v1.10.0", "refs/heads/main", "1.10", [released("v1.9.9")], True)
         self.assertTrue(result["promote_latest"])

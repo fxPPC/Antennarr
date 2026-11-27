@@ -4,6 +4,7 @@ import (
 	"antennarr/internal/budget"
 	"antennarr/internal/catalog"
 	"antennarr/internal/media"
+	"bytes"
 	"context"
 	"errors"
 	"sync/atomic"
@@ -121,5 +122,63 @@ func TestFailedPoolCyclesWithoutPerSourceCooldown(t *testing.T) {
 		<-done
 	case <-ctx.Done():
 		t.Fatal("source still had a timed cooldown")
+	}
+}
+
+type startupCatalogue struct {
+	fixtureCatalogue
+	poolWaits atomic.Int32
+}
+
+func (c *startupCatalogue) Event(kind, _ string, _ int64, _ string) {
+	if kind == "source_pool" {
+		c.poolWaits.Add(1)
+	}
+}
+
+func TestStartupInspectsFreshMediaAfterFullUndecodableWindow(t *testing.T) {
+	cat := &startupCatalogue{fixtureCatalogue: fixtureCatalogue{candidates: []catalog.Candidate{{StreamID: 1, AccountID: 1, Limit: 1}}}}
+	var active, closed atomic.Int32
+	var fullWindowRejected atomic.Bool
+	ready := make(chan struct{})
+	source := progressingFixture(&active, &closed)
+	e := &Engine{Catalogue: cat, Budget: budget.New(1, 1), Copy: func(ctx context.Context, url string, emit func([]byte)) error {
+		return source(ctx, url, func(b []byte) {
+			if fullWindowRejected.Load() {
+				b[187] = 0xab // The decodable keyframe only arrives after the first full window.
+				emit(b)
+				return
+			}
+			emit(bytes.Repeat(b, 1024))
+		})
+	}, Inspect: func(_ context.Context, sample []byte) (media.Info, error) {
+		if len(sample) >= 4<<20 {
+			fullWindowRejected.Store(true)
+		}
+		if !bytes.Contains(sample, []byte{0xab}) {
+			return media.Info{}, errors.New("waiting for keyframe")
+		}
+		close(ready)
+		return media.Info{Codec: "h264", AudioCodec: "aac"}, nil
+	}, NewOutput: func(_ context.Context, emit func([]byte), _ int) (Output, error) {
+		return &testOutput{emit: emit}, nil
+	}}
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Second)
+	done := make(chan error, 1)
+	go func() { done <- e.Run(ctx, "late-keyframe", func([]byte) {}) }()
+	defer func() {
+		cancel()
+		<-done
+		if err := e.FlushMetrics(context.Background()); err != nil {
+			t.Fatal(err)
+		}
+		if cat.poolWaits.Load() != 0 {
+			t.Fatal("reported no eligible sources while a candidate was starting")
+		}
+	}()
+	select {
+	case <-ready:
+	case <-ctx.Done():
+		t.Fatal("startup never inspected new bytes after filling its sample")
 	}
 }

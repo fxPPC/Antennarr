@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the opt-in beta desktop ZIPs from an Antennarr checkout."""
+"""Build 1.1 desktop packages from an Antennarr checkout."""
 import argparse
 from contextlib import contextmanager, suppress
 import hashlib
@@ -125,12 +125,12 @@ def build(target, version, output, output_fd, media):
         if mac:
             shutil.copyfile(ASSETS / "Antennarr.icns", resources / "Antennarr.icns")
             shutil.copyfile(ASSETS / "TrayIcon.png", resources / "TrayIcon.png")
-            number, beta = version[1:].split("-beta.")
+            number, _, beta = version[1:].partition("-beta.")
             info = {"CFBundlePackageType": "APPL", "CFBundleExecutable": "Antennarr",
                     "CFBundleIdentifier": "org.antennarr.desktop.beta", "CFBundleName": "Antennarr",
                     "CFBundleDisplayName": "Antennarr", "CFBundleIconFile": "Antennarr.icns",
                     "CFBundleInfoDictionaryVersion": "6.0", "CFBundleShortVersionString": number,
-                    "CFBundleVersion": number + "b" + beta, "LSMinimumSystemVersion": "13.0",
+                    "CFBundleVersion": number + ("b" + beta if beta else ""), "LSMinimumSystemVersion": "13.0",
                     "NSLocalNetworkUsageDescription": "Antennarr connects to channel sources you add on your local network.",
                     "LSUIElement": True, "NSHighResolutionCapable": True}
             (contents / "Info.plist").write_bytes(plistlib.dumps(info))
@@ -149,9 +149,9 @@ def build(target, version, output, output_fd, media):
         readme = readme.replace("@START@", (
             "Drag Antennarr to Applications, eject the disk image, then open Antennarr\n"
             "from Applications. Its menu is in the Mac menu bar.\n"
-            "macOS 13 or later is required. This beta has no Apple Developer ID signature or notarisation."
+            "macOS 13 or later is required. This build has no Apple Developer ID signature or notarisation."
             if mac else "Install Antennarr, then open it from Start. Its menu is in the\n"
-            "Windows notification area (check hidden icons). This beta has no publisher signature."
+            "Windows notification area (check hidden icons). This build has no publisher signature."
         )).replace("@DATA@", "~/Library/Application Support/Antennarr Beta" if mac else r"%LOCALAPPDATA%\Antennarr Beta")
         firewall = ("If macOS asks, allow incoming connections for Antennarr so Plex can connect."
                     if mac else "Choose the private-network firewall option in the installer for Plex on your LAN.")
@@ -196,7 +196,7 @@ def build(target, version, output, output_fd, media):
             shutil.copyfile(ASSETS / "finder-layout.bin", layout / ".DS_Store")
             shutil.copyfile(stage / "README.txt", layout / "Read Me.txt")
             image = archive.with_suffix(".dmg")
-            subprocess.run(["hdiutil", "create", "-volname", "Antennarr Beta", "-fs", "HFS+",
+            subprocess.run(["hdiutil", "create", "-volname", "Antennarr", "-fs", "HFS+",
                             "-format", "UDZO", "-srcfolder", str(layout), str(image)], check=True)
             subprocess.run(["hdiutil", "verify", "-quiet", str(image)], check=True)
             publish(image, output_fd)
@@ -211,11 +211,10 @@ def copy_media(media, payload, folder, name):
 
 
 def release_version(tag):
-    match = re.fullmatch(r"v1\.1\.(0|[1-9][0-9]*)-beta\.([1-9][0-9]*)", tag)
+    match = re.fullmatch(r"v1\.1\.(0|[1-9][0-9]*)(?:-beta\.[1-9][0-9]*)?", tag)
     if not match:
-        raise ValueError("expected a 1.1 beta release tag, for example v1.1.0-beta.1")
-    # Filenames and bundle metadata use the two release numbers in canonical form.
-    return f"v1.1.{int(match[1])}-beta.{int(match[2])}"
+        raise ValueError("expected a 1.1 release tag, for example v1.1.0 or v1.1.0-beta.1")
+    return tag
 
 
 def main():

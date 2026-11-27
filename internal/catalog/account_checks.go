@@ -32,7 +32,8 @@ func (s *Store) accountUnavailable(id int64, inactive, countFailure bool, kind, 
 	defer tx.Rollback()
 	p := policyIn(tx)
 	var failures int
-	if e = tx.QueryRow("SELECT failures FROM accounts WHERE id=?", id).Scan(&failures); e != nil {
+	var previousKind string
+	if e = tx.QueryRow("SELECT failures,last_failure_kind FROM accounts WHERE id=?", id).Scan(&failures, &previousKind); e != nil {
 		return e
 	}
 	if countFailure {
@@ -48,7 +49,18 @@ func (s *Store) accountUnavailable(id int64, inactive, countFailure bool, kind, 
 	if countFailure && p.AccountFailures > 0 && failures >= p.AccountFailures {
 		state = "retired"
 	}
-	_, e = tx.Exec(`UPDATE accounts SET failures=?,state=?,next_check=0,last_check=?,catalogue_checked=CASE WHEN ? THEN 0 ELSE catalogue_checked END WHERE id=? AND state NOT IN('retired','manually_blocked')`, failures, state, time.Now().Unix(), len(catalogue) > 0 && catalogue[0], id)
+	now := time.Now()
+	var nextCheck int64
+	if kind == "full_connections" {
+		// Give a newly busy account another chance after an hour. Persistently
+		// occupied accounts yield their discovery turns for six hours at a time.
+		delay := time.Hour
+		if previousKind == kind {
+			delay = 6 * time.Hour
+		}
+		nextCheck = now.Add(delay).Unix()
+	}
+	_, e = tx.Exec(`UPDATE accounts SET failures=?,state=?,next_check=?,last_check=?,catalogue_checked=CASE WHEN ? THEN 0 ELSE catalogue_checked END WHERE id=? AND state NOT IN('retired','manually_blocked')`, failures, state, nextCheck, now.Unix(), len(catalogue) > 0 && catalogue[0], id)
 	if e != nil {
 		return e
 	}

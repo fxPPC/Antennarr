@@ -13,7 +13,7 @@ Antennarr turns authorised Xtream account lists into HDHomeRun-compatible tuners
 
 **Docker is the best-supported installation.** The [1.1 beta downloads](https://github.com/fxPPC/Antennarr/releases/tag/v1.1.0-beta.2) also include standalone macOS and Windows apps for ARM64 and amd64, with FFmpeg and FFprobe bundled. [Native installation and firewall settings](docs/NATIVE.md)
 
-**Most users should install stable 1.0.** For the beta, follow [multi-tuner setup](docs/MULTI-TUNER.md). Use a separate data directory. Opening 1.0 data in the beta migrates it to schema 9. Returning to 1.0 requires a pre-upgrade backup.
+**1.1.0 is in preparation.** The 1.1 series adds independently configured Plex tuners, a first-run wizard, a redesigned web UI, and desktop apps. To try the current preview, run `docker pull antennarr/antennarr:testing` and follow the [multi-tuner setup guide](docs/MULTI-TUNER.md). To test alongside stable, use separate appdata. To upgrade an existing tuner, first download a full backup under **Admin → Backup & restore**. Keep your ports and Plex address. Returning to 1.0 requires that backup.
 
 ## Install stable 1.0
 

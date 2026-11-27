@@ -1,6 +1,6 @@
 # HTTP API
 
-On a fresh beta installation, the first port in `ANTENNARR_PORT_RANGE` serves administration (default 39192). The next six ports serve tuner discovery and playback (39193–39198). Each tuner has a distinct device identity. Existing installations retain their configured listeners and primary address. [Port selection and upgrades](MULTI-TUNER.md#web-and-tuner-ports)
+On a fresh 1.1 installation, the first port in `ANTENNARR_PORT_RANGE` serves administration (default 39192). The next six ports serve tuner discovery and playback (39193–39198). Each tuner has a distinct device identity. Existing installations retain their configured listeners and primary address. [Port selection and upgrades](MULTI-TUNER.md#web-and-tuner-ports)
 
 Administration uses HTTP Basic authentication. The health check and branding image are public. Administration mutations require `X-Antennarr-Request: 1`. Request bodies are bounded, and errors omit credentials.
 

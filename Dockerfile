@@ -6,16 +6,20 @@ WORKDIR /runtime-lock
 COPY packaging/runtime/prepare.go packaging/runtime/lock.json ./
 RUN --mount=type=bind,source=packaging/runtime,target=/cache \
     go run prepare.go -arch "$TARGETARCH" -cache /cache -out /wolfi-runtime.tar.gz
+RUN --mount=type=bind,source=packaging/runtime,target=/cache \
+    sh /cache/fetch-updates.sh "$TARGETARCH" /packages
 
 # Apply the original package-installation layer to its original Wolfi base.
 # The layer contains ordinary filesystem entries and retains the APK database.
 FROM cgr.dev/chainguard/wolfi-base@sha256:4cf5932a0f95a88af352f77e4efa67480cab0e1f7a48f0eddca3cce003a7c0fb AS runtime-base
-ARG VERSION=v1.1.0-beta.2
+ARG VERSION=v1.1.0
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Antennarr" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.licenses="GPL-3.0-or-later" org.opencontainers.image.source="https://github.com/fxPPC/Antennarr" org.opencontainers.image.revision="${REVISION}"
-RUN --mount=type=bind,from=runtime-snapshot,source=/wolfi-runtime.tar.gz,target=/tmp/wolfi-runtime.tar.gz \
+RUN --network=none --mount=type=bind,from=runtime-snapshot,source=/wolfi-runtime.tar.gz,target=/tmp/wolfi-runtime.tar.gz \
+    --mount=type=bind,from=runtime-snapshot,source=/packages,target=/packages \
     tar -xzpf /tmp/wolfi-runtime.tar.gz -C / && \
-    ffmpeg -version && ffprobe -version && taskset --version && setpriv --version
+    xargs apk --no-network --no-cache --repositories-file /dev/null -X /packages add < /packages/world && \
+    ffmpeg -version && ffprobe -version && setpriv --version
 WORKDIR /opt/antennarr
 COPY docs/licenses /usr/share/doc/antennarr/licenses
 COPY LICENSE /usr/share/doc/antennarr/LICENSE

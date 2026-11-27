@@ -36,3 +36,31 @@ func (d *processDiagnostic) reason() string {
 	}
 	return "source media process stopped"
 }
+
+// FailureDetail translates the probe's sanitised reasons into status fields.
+// An access rejection from the media URL is scoped to this stream.
+func (r ProbeResult) FailureDetail() (kind string, httpStatus int) {
+	if r.TimedOut {
+		return "timeout", 0
+	}
+	switch r.Reason {
+	case "source rejected access (HTTP 401)":
+		return "access_denied", 401
+	case "source rejected access (HTTP 403)":
+		return "access_denied", 403
+	case "source stream not found (HTTP 404)":
+		return "stream_not_found", 404
+	case "source rate limited (HTTP 429)":
+		return "rate_limited", 429
+	case "source server error (HTTP 5xx)":
+		return "http_error", 0
+	case "source connection timed out":
+		return "timeout", 0
+	case "source ended before sample completed", "source media process stopped":
+		return "source_stopped", 0
+	case "media process failed to start", "source adapter failed", "source URL blocked":
+		return "source_adapter_error", 0
+	default:
+		return "media_invalid", 0
+	}
+}

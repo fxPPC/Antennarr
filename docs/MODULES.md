@@ -12,7 +12,7 @@ The application is a modular monolith. `cmd/antennarr` is the composition root: 
 - `monitor`: read-only collection boundary. Caches a consistent SQLite read snapshot for five seconds; live playback/work state is sampled on every response. It never causes checks or opens sources.
 - `systeminfo`: bounded host diagnostics and in-memory load samples, classified by actual streaming/checking activity. No subprocess arguments come from requests, and idle time is not presented as background-check load.
 - `admin`: authenticated HTTP/UI, validated settings, and explicit operations. It delegates work rather than implementing alternate media pipelines.
-- `netguard`, `moderation`, `budget`, `checkcpu`, `access`: shared security and resource policies. New inputs/outputs must not bypass them.
+- `netguard`, `moderation`, `budget`, `access`: shared security and resource policies. New inputs/outputs must not bypass them.
 - `recovery`: bounded, validated, explicit manual backups/restores, and staged factory reset before SQLite opens. Reset retains manual archives. No automatic backups.
 
 ## Future-compatible data
@@ -21,6 +21,6 @@ The application saves configuration at `/data/config/config.json`; normal setup 
 
 Configuration has `format_version`, a stable `profile_id` (`primary`), and an `extensions` object preserved through saves. Unsupported future versions fail rather than being silently rewritten. SQLite schema 9 stores tuner ownership directly in `channels.profile_id`, with numbers unique within a tuner. The schema-8 migration removes the old assignment mirror and triggers, retaining all channel IDs. Accounts remain shared; profiles retain market, country, time zone, guide location, enabled state, and immutable device identity/port offset. `tuner.Fleet` creates a device view per private listener while sharing the stream manager. Presets are registry-backed data copied on addition; they never overwrite saved user edits.
 
-The original primary DeviceID remains authoritative in configuration; additional device IDs live in profile records. The alpha routes overlapping channel numbers through distinct device listeners. Real Plex guide and recording behaviour remains a separate acceptance gate.
+The original primary DeviceID remains authoritative in configuration; additional device IDs live in profile records. Antennarr routes overlapping channel numbers through distinct device listeners. Real Plex guide and recording behaviour remains a separate acceptance gate.
 
 Roster checking uses continuous saved passes. Legacy hours/due fields remain for format compatibility, but no longer schedule roster checks. Complete discovery failures share the configured account deletion policy across worker and manual-refresh paths.

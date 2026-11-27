@@ -1,7 +1,7 @@
 # Compile the Windows desktop installer from the matching native payload ZIP.
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory)][ValidatePattern('^v1\.1\.[0-9]+-beta\.[0-9]+$')][string]$Version,
+    [Parameter(Mandatory)][ValidatePattern('^v1\.1\.(?:0|[1-9][0-9]*)(?:-beta\.[1-9][0-9]*)?\z')][string]$Version,
     [Parameter(Mandatory)][ValidateSet('amd64', 'arm64')][string]$Arch,
     [Parameter(Mandatory)][string]$PayloadZip,
     [Parameter(Mandatory)][string]$OutputDir

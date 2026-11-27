@@ -204,12 +204,12 @@ func TestFullAccountDefaultPreservesAccountAndFailureStreak(t *testing.T) {
 		if members != 0 {
 			t.Fatal("full account retained unavailable roster membership")
 		}
-		a, e := s.Store.QueueAccount(time.Now().Add(time.Hour).Unix(), time.Hour)
+		a, e := s.Store.QueueAccount(time.Now().Add(6*time.Hour).Unix(), time.Hour)
 		if e != nil || a.ID != id {
 			t.Fatal("full account not queued", a, e)
 		}
 	}
-	if _, err := s.Store.DB.Exec("UPDATE accounts SET last_check=last_check-3601 WHERE id=?", id); err != nil {
+	if _, err := s.Store.DB.Exec("UPDATE accounts SET next_check=next_check-21601 WHERE id=?", id); err != nil {
 		t.Fatal(err)
 	}
 	// Free slots allow recovery using the saved catalogue, without re-importing.

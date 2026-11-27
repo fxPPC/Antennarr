@@ -19,15 +19,18 @@ def request(path, method="GET", data=None, token=None):
 
 
 def main():
-    text = Path("docs/DOCKER-HUB.md").read_text()
+    description = {
+        "description": "Turn authorised Xtream account lists into HDHomeRun-compatible tuners for Plex Live TV & DVR.",
+        "full_description": Path("docs/DOCKER-HUB.md").read_text(),
+    }
     token = request("auth/token", "POST", {
         "identifier": os.environ["DOCKERHUB_USERNAME"],
         "secret": os.environ["DOCKERHUB_TOKEN"],
     })["access_token"]
     request("repositories/antennarr/antennarr", "PATCH",
-            {"full_description": text}, token)
+            description, token)
     saved = request("repositories/antennarr/antennarr")
-    if saved.get("full_description") != text:
+    if any(saved.get(key) != value for key, value in description.items()):
         raise ValueError("Docker Hub description readback differed")
     print("Docker Hub overview updated and verified")
 
