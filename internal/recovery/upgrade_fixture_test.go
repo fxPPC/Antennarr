@@ -105,7 +105,7 @@ func testPublishedUpgradeAndManualRestore(t *testing.T, source, baseline string)
 	}
 	check := func(c config.Config, s *catalog.Store) {
 		t.Helper()
-		for table, want := range map[string]int{"accounts": 31, "roster": 30, "channels": channelCount + 110} {
+		for table, want := range map[string]int{"accounts": 31, "roster": 30, "channels": channelCount + 109} {
 			var n int
 			if e := s.DB.QueryRow("SELECT count(*) FROM " + table).Scan(&n); e != nil || n != want {
 				t.Fatal(table, n, e)

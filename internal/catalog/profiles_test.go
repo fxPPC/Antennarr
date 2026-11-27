@@ -194,8 +194,8 @@ func TestFreshProfilesAreOptionalAndNeverReseeded(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if p.ID == "primary" || p.PortOffset <= 1 || p.DeviceID == "" {
-		t.Fatal("old identity reused", p)
+	if p.ID != "primary" || p.PortOffset != 0 || p.DeviceID == "" {
+		t.Fatal("first free offset was not reused", p)
 	}
 	if _, e = s.AddProfilePreset("uk-london", p.PortOffset); e == nil {
 		t.Fatal("allocation exceeded configured listener pool")
@@ -451,16 +451,16 @@ func TestLondonReferencesStillVetoDeletedSisterChannel(t *testing.T) {
 	}
 	var target channelMatcher
 	for _, ch := range channels {
-		if ch.Name == "5DRAMA" {
+		if ch.Name == "5STAR" {
 			target = compileChannel(ch)
-			target.channel.ID = "5drama"
+			target.channel.ID = "5star"
 		}
 	}
 	if target.channel.ID == "" {
-		t.Fatal("5Drama missing")
+		t.Fatal("5STAR missing")
 	}
-	label := sourceLabelWithID("UK 5 Drama HD", "", "5star.uk")
-	if got := resolveChannel([]channelMatcher{target}, label, "5star.uk", nil); got != nil {
+	label := sourceLabelWithID("UK 5STAR HD", "", "5drama.uk")
+	if got := resolveChannel([]channelMatcher{target}, label, "5drama.uk", nil); got != nil {
 		t.Fatal("deleted sister channel no longer vetoes conflicting identity")
 	}
 }
@@ -521,29 +521,26 @@ func TestFixedListenerSlotsReserveDisabledTunersAndReuseOnlyVacancies(t *testing
 	}
 	defer s.Close()
 	var saved []Profile
-	for _, preset := range Presets() {
-		p, err := s.AddProfileForListeners(preset.ID, 5, true)
+	for _, preset := range Presets()[:6] {
+		p, err := s.AddProfilePreset(preset.ID, 5)
 		if err != nil || p.PortOffset != len(saved) || p.Enabled {
 			t.Fatal(p, err)
 		}
 		saved = append(saved, p)
 	}
-	if len(saved) != 6 {
-		t.Fatal("expected six presets", len(saved))
+	if _, err := s.AddProfilePreset(Presets()[6].ID, 5); err == nil {
+		t.Fatal("added a seventh tuner to six occupied listener slots")
 	}
-	if n, err := s.AvailableProfileSlots(5, true); err != nil || n != 0 {
+	if n, err := s.AvailableProfileSlots(5); err != nil || n != 0 {
 		t.Fatal(n, err)
 	}
 	if err = s.DeleteProfile(saved[2].ID); err != nil {
 		t.Fatal(err)
 	}
-	if n, err := s.AvailableProfileSlots(5, true); err != nil || n != 1 {
+	if n, err := s.AvailableProfileSlots(5); err != nil || n != 1 {
 		t.Fatal(n, err)
 	}
-	if n, err := s.AvailableProfileSlots(5, false); err != nil || n != 0 {
-		t.Fatal("legacy slots recycled", n, err)
-	}
-	p, err := s.AddProfileForListeners(saved[2].Preset, 5, true)
+	p, err := s.AddProfilePreset(saved[2].Preset, 5)
 	if err != nil || p.PortOffset != 2 || p.ID == saved[2].ID || p.DeviceID == saved[2].DeviceID {
 		t.Fatal(p, err)
 	}

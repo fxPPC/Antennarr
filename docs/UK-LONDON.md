@@ -1,6 +1,6 @@
 # UK - London preset
 
-The `uk-london` preset contains **110 editable channels**: London BBC One and ITV1, national entertainment and factual services, satellite movie and sport channels, news, and children's television. Its country is `GB`, and its time zone is `Europe/London`.
+The `uk-london` preset contains **109 editable channels**: London BBC One and ITV1, national entertainment and factual services, satellite movie and sport channels, news, and children's television. Its country is `GB`, and its time zone is `Europe/London`.
 
 The preset uses stable Antennarr numbers grouped by category: entertainment 101–161, films 301–312, sport 401–419, news 501–508, and children 601–610. These are **local tuner numbers**, not a promise to reproduce Sky, Freesat, or Plex guide numbering.
 
@@ -13,7 +13,7 @@ For Plex, select the UK and a London postcode such as **SW1A 1AA**, then choose 
 - Names, punctuation, common abbreviations, quality markers, and case can vary. Programme identities cannot: Discovery is separate from Discovery History, Sky Comedy from Sky Cinema Comedy, and Sky Sci-Fi from Sky Cinema Sci-Fi & Horror.
 - Timeshifts, catch-up, loops, event placeholders, and contradictory recognised guide identifiers are excluded. Compact delayed-service IDs such as `legendxtraplus1.uk` also veto a misleading name, even when that sister channel is not selected. A missing roster is preferable to recording the wrong programme.
 - Current U& brands accept their established Dave, Drama, Eden, W, Yesterday, Alibi, and Gold names. These are channel renames, not loose keyword matches. [UKTV's channel rebrand](https://corporate.uktv.co.uk/newsroom/uktv-completes-the-rollout-of-new-u-masterbrand-with-pay-channels-uandgold-and-uandalibi).
-- Freeview lists 5SELECT as the former name of 5DRAMA. The London rules accept that name and exclude 5STAR, 5ACTION, and delayed feeds. [Freeview channel changes, 21 October 2026](https://www.freeview.co.uk/help/updates-alerts/channel-updates-21-october-2026).
+- Freeview lists 5SELECT as the former name of 5DRAMA. Saved 5DRAMA definitions accept that name and exclude 5STAR, 5ACTION, and delayed feeds. [Freeview channel changes, 21 October 2026](https://www.freeview.co.uk/help/updates-alerts/channel-updates-21-october-2026).
 - Sky One and ITV Quiz use their current identities. Sky Max, Sky Showcase, and ITVBe are not assumed to carry the replacement service. Seasonal movie pop-ups and individual Sky Sports+ event feeds are omitted. [Sky One announcement](https://skygroup.sky/en-gb/article/iconic-tv-channel-sky-one-is-coming-back1), [ITV Quiz announcement](https://www.itv.com/presscentre/presscentre/media-releases/itv-launches-brand-new-channel-itv-quiz), [Freeview's current channel list](https://www.freeview.co.uk/corporate/platform-management/channel-listings-industry-professionals).
 
 UK `Syfy` and `Racing UK` are accepted as exact older names for Sky Sci-Fi and Racing TV. Their renames are confirmed by [Sky](https://www.skygroup.sky/article/syfy-channel-re-brands-to-sky-sci-fi-offering-new-shows-and-fan-favourites) and [Racecourse Media Group](https://racecoursemediagroup.com/news/racinguk_to_become_racingtv/). Bare `Racing`, Racing TV Extra, and foreign Syfy services remain separate.
@@ -28,7 +28,7 @@ The preset was checked against **22 distinct provider catalogues**, captured on 
 
 The follow-up matching review after alpha.2 still finds 13,220 entries with UK name or guide evidence. Of those, 3,101 are unambiguous matches to this preset, covering **103 of 110 channels across 17 catalogues**. These figures describe saved metadata, not tested media connections, source rights, or current availability. No provider endpoints, account details, or private catalogue files are included here.
 
-The seven channels without an accepted match in that snapshot remain useful editable definitions: 5DRAMA, 5STAR, GREAT! TV, Legend, GREAT! Action, CNN International, and Nick Jr. Too. They are allowed to have empty rosters. For example:
+The seven channels without an accepted match in that historical snapshot were: 5DRAMA, 5STAR, GREAT! TV, Legend, GREAT! Action, CNN International, and Nick Jr. Too. They are allowed to have empty rosters. For example:
 
 | Observed metadata | Decision |
 | --- | --- |

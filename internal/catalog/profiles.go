@@ -59,6 +59,16 @@ var tunerPresets = []presetDefinition{
 	{Profile{Kind: "hdhomerun", Name: "India - Mumbai", Market: "Mumbai", Country: "IN", Timezone: "Asia/Kolkata", GuideLocation: "400001", Preset: "in-mumbai"}, "in_mumbai_channels.json"},
 	{Profile{Kind: "hdhomerun", Name: "Germany - Berlin", Market: "Berlin", Country: "DE", Timezone: "Europe/Berlin", GuideLocation: "10115", Preset: "de-berlin"}, "de_berlin_channels.json"},
 	{Profile{Kind: "hdhomerun", Name: "Netherlands - Amsterdam", Market: "Amsterdam", Country: "NL", Timezone: "Europe/Amsterdam", GuideLocation: "1012 JS", Preset: "nl-amsterdam"}, "nl_amsterdam_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Canada - Toronto", Market: "Toronto", Country: "CA", Timezone: "America/Toronto", GuideLocation: "M5V 2T6", Preset: "ca-toronto"}, "ca_toronto_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Spain - Madrid", Market: "Madrid", Country: "ES", Timezone: "Europe/Madrid", GuideLocation: "28001", Preset: "es-madrid"}, "es_madrid_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "France - Paris", Market: "Paris", Country: "FR", Timezone: "Europe/Paris", GuideLocation: "75001", Preset: "fr-paris"}, "fr_paris_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Italy - Rome", Market: "Rome", Country: "IT", Timezone: "Europe/Rome", GuideLocation: "00184", Preset: "it-rome"}, "it_rome_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Poland - Warsaw", Market: "Warsaw", Country: "PL", Timezone: "Europe/Warsaw", GuideLocation: "00-001", Preset: "pl-warsaw"}, "pl_warsaw_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Portugal - Lisbon", Market: "Lisbon", Country: "PT", Timezone: "Europe/Lisbon", GuideLocation: "1100", Preset: "pt-lisbon"}, "pt_lisbon_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Brazil - São Paulo", Market: "São Paulo", Country: "BR", Timezone: "America/Sao_Paulo", GuideLocation: "01001", Preset: "br-sao-paulo"}, "br_sao_paulo_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Sweden - Stockholm", Market: "Stockholm", Country: "SE", Timezone: "Europe/Stockholm", GuideLocation: "11120", Preset: "se-stockholm"}, "se_stockholm_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Denmark - Copenhagen", Market: "Copenhagen", Country: "DK", Timezone: "Europe/Copenhagen", GuideLocation: "1050", Preset: "dk-copenhagen"}, "dk_copenhagen_channels.json"},
+	{Profile{Kind: "hdhomerun", Name: "Norway - Oslo", Market: "Oslo", Country: "NO", Timezone: "Europe/Oslo", GuideLocation: "0150", Preset: "no-oslo"}, "no_oslo_channels.json"},
 }
 
 func presetProfile(id string) (Profile, error) {
@@ -183,12 +193,8 @@ func (s *Store) SaveProfile(p Profile) (Profile, error) {
 	return s.Profile(p.ID)
 }
 
-const nextLegacySlot = `SELECT max(coalesce((SELECT max(port_offset) FROM output_profiles),-1),
-		coalesce((SELECT CAST(value AS INTEGER) FROM settings WHERE name='profile_slot_highwater'),-1))+1`
-
-// Fixed ranges can reuse an empty listener; a replacement receives its own device ID.
-// Legacy listeners keep their historical monotonically allocated offsets.
-func addProfilePreset(tx *sql.Tx, preset string, limit int, reuse bool) (Profile, error) {
+// A new device takes the lowest vacant listener without moving any saved device.
+func addProfilePreset(tx *sql.Tx, preset string, limit int) (Profile, error) {
 	p, e := presetProfile(preset)
 	if e != nil {
 		return p, e
@@ -209,12 +215,9 @@ func addProfilePreset(tx *sql.Tx, preset string, limit int, reuse bool) (Profile
 	if e != nil {
 		return p, e
 	}
-	if reuse {
-		e = tx.QueryRow(`WITH RECURSIVE slots(n) AS (SELECT 0 UNION ALL SELECT n+1 FROM slots WHERE n<?)
-			SELECT coalesce(min(n),?+1) FROM slots WHERE NOT EXISTS(SELECT 1 FROM output_profiles p WHERE p.port_offset=n)`, limit, limit).Scan(&p.PortOffset)
-	} else {
-		e = tx.QueryRow(nextLegacySlot).Scan(&p.PortOffset)
-	}
+	// A gap is either offset zero or the slot immediately after a saved tuner.
+	e = tx.QueryRow(`SELECT min(n) FROM (SELECT 0 AS n UNION ALL SELECT port_offset+1 FROM output_profiles)
+		WHERE NOT EXISTS (SELECT 1 FROM output_profiles p WHERE p.port_offset=n)`).Scan(&p.PortOffset)
 	if e != nil {
 		return p, e
 	}
@@ -225,9 +228,6 @@ func addProfilePreset(tx *sql.Tx, preset string, limit int, reuse bool) (Profile
 		p.ID = "primary"
 	}
 	if _, e = tx.Exec("INSERT INTO output_profiles("+profileColumns+") VALUES(?,?,?,?,?,?,?,?,?,?,?)", p.ID, p.Kind, p.Name, p.Market, p.Country, p.Timezone, p.GuideLocation, p.Preset, p.Enabled, p.DeviceID, p.PortOffset); e != nil {
-		return p, e
-	}
-	if _, e = tx.Exec("INSERT INTO settings(name,value) VALUES('profile_slot_highwater',?) ON CONFLICT(name) DO UPDATE SET value=max(CAST(settings.value AS INTEGER),CAST(excluded.value AS INTEGER))", fmt.Sprint(p.PortOffset)); e != nil {
 		return p, e
 	}
 	chs, e := presetChannels(preset)
@@ -246,32 +246,18 @@ func addProfilePreset(tx *sql.Tx, preset string, limit int, reuse bool) (Profile
 	// when its channels actually become eligible for recruitment.
 	return p, nil
 }
+
 func (s *Store) AddProfilePreset(preset string, maxOffset ...int) (Profile, error) {
 	limit := -1
 	if len(maxOffset) > 0 {
 		limit = maxOffset[0]
 	}
-	return s.AddProfileForListeners(preset, limit, false)
-}
-
-func (s *Store) AvailableProfileSlots(limit int, reuse bool) (int, error) {
-	var n int
-	var err error
-	if reuse {
-		err = s.DB.QueryRow("SELECT count(*) FROM output_profiles WHERE port_offset BETWEEN 0 AND ?", limit).Scan(&n)
-	} else {
-		err = s.DB.QueryRow(nextLegacySlot).Scan(&n)
-	}
-	return max(0, limit+1-n), err
-}
-
-func (s *Store) AddProfileForListeners(preset string, limit int, reuse bool) (Profile, error) {
 	tx, e := s.DB.Begin()
 	if e != nil {
 		return Profile{}, e
 	}
 	defer tx.Rollback()
-	p, e := addProfilePreset(tx, preset, limit, reuse)
+	p, e := addProfilePreset(tx, preset, limit)
 	if e != nil {
 		return p, e
 	}
@@ -280,6 +266,14 @@ func (s *Store) AddProfileForListeners(preset string, limit int, reuse bool) (Pr
 	}
 	return p, tx.Commit()
 }
+
+// AvailableProfileSlots counts the same occupied offsets used by allocation.
+func (s *Store) AvailableProfileSlots(limit int) (int, error) {
+	var used int
+	err := s.DB.QueryRow("SELECT count(*) FROM output_profiles WHERE port_offset BETWEEN 0 AND ?", limit).Scan(&used)
+	return max(0, limit+1-used), err
+}
+
 func insertProfileChannel(tx *sql.Tx, c Channel) error {
 	raw, e := json.Marshal(c.Aliases)
 	if e != nil {
@@ -305,7 +299,7 @@ func (s *Store) seedLondonProfile() error {
 	if e != sql.ErrNoRows {
 		return e
 	}
-	if _, e = addProfilePreset(tx, "uk-london", -1, false); e != nil {
+	if _, e = addProfilePreset(tx, "uk-london", -1); e != nil {
 		return e
 	}
 	if _, e = tx.Exec("INSERT INTO settings(name,value) VALUES('multi_tuner_presets_seeded','1')"); e != nil {
