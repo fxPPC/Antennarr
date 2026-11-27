@@ -3,6 +3,7 @@
 import argparse
 import base64
 import contextlib
+import hashlib
 import ipaddress
 import json
 import mmap
@@ -428,6 +429,31 @@ def diagnose_mac_request(base, admin, pid):
 
 
 
+def windows_beta_installer(root):
+    # Pin the public artifact itself before executing it on a disposable runner.
+    digests = {
+        "amd64": "4857dfe12659ec9a71e603e577d38b40651f53908e0d8d764f04c028cbf8b7cc",
+        "arm64": "da6919a55ca743cbc23fd76e5dc64571b1fae45a9e81beb472cbc53addf07a85",
+    }
+    arch = {"amd64": "amd64", "x86_64": "amd64", "arm64": "arm64", "aarch64": "arm64"}[platform.machine().lower()]
+    url = f"https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.2/antennarr-v1.1.0-beta.2-windows-{arch}-setup.exe"
+    dest = root / "previous-setup.exe"
+    with HTTP.open(url, timeout=90) as response, dest.open("xb") as output:
+        shutil.copyfileobj(response, output)
+    if hashlib.sha256(dest.read_bytes()).hexdigest() != digests[arch]:
+        raise RuntimeError("Published Windows beta installer checksum mismatch")
+    return dest
+
+
+def windows_programs_folder():
+    import ctypes
+    folder = ctypes.create_unicode_buffer(260)
+    # CSIDL_PROGRAMS is the current user's Start menu Programs folder.
+    if ctypes.windll.shell32.SHGetFolderPathW(None, 2, None, 0, folder) != 0:
+        raise OSError("Could not locate the user's Start menu")
+    return Path(folder.value)
+
+
 def set_private_firewall(enabled):
     subprocess.run(["powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
                     "Set-NetFirewallProfile -Profile Private -Enabled " + ("True" if enabled else "False")],
@@ -525,10 +551,7 @@ def installed(archive, root):
         active_firewall_test = firewall_requested()
         if active_firewall_test and not ctypes.windll.shell32.IsUserAnAdmin():
             raise RuntimeError("Testing the private firewall rule requires an elevated disposable runner.")
-        previous_installer = os.environ.get("ANTENNARR_TEST_PREVIOUS_INSTALLER")
-        if previous_installer and not active_firewall_test:
-            raise RuntimeError("Upgrade rehearsal requires a disposable Windows runner.")
-        first = Path(previous_installer) if previous_installer else archive
+        first = windows_beta_installer(root) if active_firewall_test else archive
         try:
             invalid = subprocess.run([archive, *flags, "/PORTRANGE=40000-40007", "/TASKS=", "/DIR=" + str(package)],
                                      timeout=60, env=install_env)
@@ -543,9 +566,9 @@ def installed(archive, root):
                 subprocess.run([first, *flags, "/LOG=" + str(root / "lanfirewall.log"), "/TASKS=startlogin,lanfirewall", "/DIR=" + str(package)],
                                check=True, timeout=120, env=install_env)
                 verify_windows_rule(server, 39192)
-            if previous_installer:
+            if active_firewall_test:
                 # The released installer uses a per-user Start folder and Run value.
-                group = Path(os.environ["APPDATA"]) / "Microsoft/Windows/Start Menu/Programs/Antennarr Beta"
+                group = windows_programs_folder() / "Antennarr Beta"
                 legacy = group / "Antennarr Beta.lnk"
                 assert legacy.is_file()
                 run_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
@@ -688,7 +711,7 @@ def exercise(package, root, os_name, arch):
         channel = {"id": "mpeg2", "number": "9999", "name": "Native fixture", "enabled": True}
         presets = ["in-mumbai", "de-berlin", "nl-amsterdam", "mx-mexico-city", "us-nyc", "uk-london"]
         existing = api(admin_base, "/api/profiles")
-        if os_name == "windows" and os.environ.get("ANTENNARR_TEST_PREVIOUS_INSTALLER"):
+        if os_name == "windows" and firewall_requested():
             assert len(existing) == 1 and existing[0]["preset_id"] == presets[0]
             presets = presets[1:]
         else:
