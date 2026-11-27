@@ -17,7 +17,8 @@ import urllib.error
 import urllib.request
 
 ROOT = Path(__file__).resolve().parents[2]
-JELLYFIN = "ghcr.io/jellyfin/jellyfin:12.4"
+JELLYFIN = ("ghcr.io/jellyfin/jellyfin:12.4@"
+            "sha256:fea863d0cd9ec445985d9c75fc6ed64e38a1d2766cf0c250a33d553f4fc1b771")
 http = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
 

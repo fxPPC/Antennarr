@@ -1,6 +1,9 @@
 // Exercise the embedded UI with deterministic operator and guide responses.
 import assert from 'node:assert/strict';
-import {readFile} from 'node:fs/promises';
+import {mkdir, readFile} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
+import {join} from 'node:path';
 import {createRequire} from 'node:module';
 const require = createRequire(import.meta.url);
 const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'playwright');
@@ -117,5 +120,77 @@ async function run(viewport) {
   await page.close();
   console.log('PASS real browser UI ' + viewport.width + 'x' + viewport.height);
 }
-try { for(const viewport of viewportSizes) await run(viewport); }
-finally { await browser.close(); }
+async function runReal(admin) {
+  const context = await browser.newContext({viewport:viewportSizes[1],httpCredentials:{username:'admin',password:'admin'}});
+  const page = await context.newPage();
+  const errors=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  page.on('response',r=>{if(r.url().startsWith(admin+'/api/') && r.status()>=400) errors.push(r.status()+' '+new URL(r.url()).pathname);});
+  page.setDefaultTimeout(12000);
+  try {
+    await page.goto(admin+'/admin#status');
+    const wizard=page.locator('#setup-guide');
+    await wizard.locator('#setup-tuner').selectOption('preset:uk-london');
+    await wizard.getByRole('button',{name:'Next',exact:true}).click();
+    await wizard.getByRole('heading',{name:'Add a source'}).waitFor();
+    // The unpopulated tuner is deliberate. A fresh installation should expose
+    // its lineup and XMLTV channel IDs before an operator connects a provider.
+    await wizard.getByRole('button',{name:'Skip for now'}).click();
+    await page.getByRole('link',{name:'Tuners',exact:true}).click();
+    await page.locator('#tuner-directory a').filter({hasText:'London'}).click();
+    const tuner=page.locator('#output');
+    await tuner.getByRole('button',{name:'Connect to Plex'}).click();
+    const address=await tuner.getByRole('textbox',{name:'Tuner address',exact:true}).inputValue();
+    assert.equal(new URL(address).hostname,'127.0.0.1');
+    const discovery=await fetch(address+'/discover.json').then(async r=>{assert.equal(r.status,200);return r.json();});
+    assert.equal(discovery.BaseURL,address);
+    await tuner.getByRole('button',{name:'Connect to Jellyfin'}).click();
+    const playlistURL=await tuner.getByRole('textbox',{name:'M3U playlist URL'}).inputValue();
+    const guideURL=await tuner.getByRole('textbox',{name:'XMLTV guide URL'}).inputValue();
+    const [playlist,guide]=await Promise.all([playlistURL,guideURL].map(async url=>{
+      assert.equal(new URL(url).origin,address);
+      const res=await fetch(url);assert.equal(res.status,200);return res.text();
+    }));
+    const ids=[...playlist.matchAll(/tvg-id="([^"]+)"/g)].map(m=>m[1]);
+    assert.ok(ids.length>50,'London preset should contain a full lineup');
+    assert.deepEqual(ids,[...guide.matchAll(/<channel id="([^"]+)">/g)].map(m=>m[1]));
+    const health=tuner.getByRole('combobox',{name:'Show channels'});
+    await health.selectOption('missing');
+    assert.equal(await tuner.locator('.tuner-channels > details:visible').count(),ids.length);
+    await health.selectOption('conflict');
+    await tuner.getByText('No channels in this group.').waitFor();
+    await health.selectOption('missing');
+    const row=tuner.locator('.tuner-channels > details:visible').first();
+    await row.locator(':scope > summary').click();
+    await row.getByText('Compare guide sources',{exact:true}).click();
+    await row.getByText('No current candidates.',{exact:false}).waitFor();
+    await row.getByRole('searchbox',{name:'Find another guide station'}).fill('synthetic-station');
+    await row.getByRole('button',{name:'Find station',exact:true}).click();
+    await row.getByText('No matching guide stations.').waitFor();
+    await tuner.getByText('Programme guide settings',{exact:true}).click();
+    await tuner.getByRole('button',{name:'Refresh listings'}).click();
+    await tuner.getByText('Guide refresh requested.').waitFor();
+    await row.locator(':scope > summary').click();
+    await tuner.getByText('Programme guide settings',{exact:true}).click();
+    const imageDir=process.env.ANTENNARR_UI_SCREENSHOTS;
+    if (imageDir) await mkdir(imageDir,{recursive:true});
+    for(const size of viewportSizes) {
+      await page.setViewportSize(size);
+      await tuner.getByRole('button',{name:'Connect to Jellyfin'}).scrollIntoViewIfNeeded();
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
+      if(imageDir) await page.screenshot({path:join(imageDir,'lineup-'+size.width+'.png')});
+    }
+    assert.deepEqual(errors,[]);
+    console.log('PASS production server UI: wizard, client URLs, matching M3U/XMLTV channel IDs, guide actions, and responsive layout');
+  } finally { await context.close(); }
+}
+
+const server = process.argv[2] === '--server' ? process.argv[3] : '';
+try {
+  if (server) await runReal(server);
+  else for(const viewport of viewportSizes) await run(viewport);
+} finally { await browser.close(); }
+if (!server) {
+  const runner=fileURLToPath(new URL('./alpha12/browser.py',import.meta.url));
+  execFileSync('python3',['-B',runner,process.execPath],{stdio:'inherit'});
+}

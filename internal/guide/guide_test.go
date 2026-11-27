@@ -15,6 +15,7 @@ import (
 
 	"antennarr/internal/budget"
 	"antennarr/internal/catalog"
+	"antennarr/internal/ingest"
 )
 
 func listing(title string) Programme { return Programme{Start: 1000, Stop: 2000, Title: title} }
@@ -309,4 +310,64 @@ func TestUnknownGuideReservesItsWholeOrigin(t *testing.T) {
 		t.Fatal("guide reservation leaked")
 	}
 	closeLive()
+}
+
+func TestPortalGuideWithoutTvgIDAndDuplicateExternalURL(t *testing.T) {
+	store, e := catalog.Open(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer store.Close()
+	id, e := store.SaveChannel(catalog.Channel{ID: "portal-news", ProfileID: "primary", Name: "Fixture TV", Region: "GB", Number: "904", Enabled: true})
+	if e != nil {
+		t.Fatal(e)
+	}
+	cfg := ingest.PortalAccount{PortalURL: "https://portal.example", MAC: "02:00:00:00:11:22", PlaylistURL: "https://portal.example/subscriber/list", GuideURL: "https://guide.example/subscriber/listings"}
+	aid, e := store.SavePortalCatalogue(cfg, []ingest.PortalChannel{{Key: "k", Name: "Fixture TV", URL: "https://portal.example/live"}})
+	if e != nil {
+		t.Fatal(e)
+	}
+	_, e = store.DB.Exec("INSERT INTO roster(channel_id,stream_id,account_id,admitted,verified,due) SELECT ?,id,account_id,0,1,1 FROM streams WHERE account_id=?", id, aid)
+	if e != nil {
+		t.Fatal(e)
+	}
+	ctx := context.Background()
+	calls := 0
+	now := time.Now().UTC()
+	s, _ := New(store, &http.Client{Transport: transport(func(r *http.Request) (*http.Response, error) {
+		if r.URL.String() != cfg.GuideURL {
+			t.Fatalf("unexpected metadata destination %q", r.URL.Host)
+		}
+		calls++
+		xml := fmt.Sprintf(`<tv><channel id="provider-unknown"><display-name>Fixture TV</display-name></channel><programme channel="provider-unknown" start="%s" stop="%s"><title>Local service news</title></programme></tv>`, now.Add(-time.Minute).Format("20060102150405 -0700"), now.Add(time.Hour).Format("20060102150405 -0700"))
+		return &http.Response{Request: r, StatusCode: 200, Body: io.NopCloser(strings.NewReader(xml))}, nil
+	})})
+	s.Budget = budget.New(4, 3)
+	if e = s.Refresh(ctx); e != nil {
+		t.Fatal(e)
+	}
+	out, e := s.Programmes(ctx, "primary")
+	if e != nil || len(out[id]) != 1 || calls != 1 {
+		t.Fatal(e, out[id], calls)
+	}
+	if e = s.SetFeed(ctx, "primary", cfg.GuideURL); e != nil {
+		t.Fatal(e)
+	}
+	release, ok := s.Budget.Reserve(aid, "portal.example", 1, true)
+	if !ok {
+		t.Fatal("portal unavailable")
+	}
+	if e = s.Refresh(ctx); e != nil {
+		t.Fatal(e)
+	}
+	release()
+	if calls != 1 {
+		t.Fatal("external URL bypassed busy portal account")
+	}
+	if e = s.Refresh(ctx); e != nil {
+		t.Fatal(e)
+	}
+	if calls != 2 {
+		t.Fatal("expected one download shared by portal and explicit feed", calls)
+	}
 }

@@ -34,3 +34,7 @@ docker load -i "$download/antennarr-$VERSION-linux-arm64.docker.tar.gz"
 test "$(docker image inspect --format '{{.Id}}' "$ANTENNARR_TEST_IMAGE")" = "$(jq -r .image_id BUILD.json)"
 cd "$GITHUB_WORKSPACE"
 python3 packaging/test-permissions.py
+
+# Only remove the temporary release marker while it still names the tested commit.
+git -c credential.helper= -c 'credential.https://github.com.helper=!gh auth git-credential' push \
+  --force-with-lease="refs/heads/release-candidate/$VERSION:$GITHUB_SHA" origin ":refs/heads/release-candidate/$VERSION"
