@@ -31,9 +31,9 @@ These are release acceptance requirements. They are not implemented or proven me
 ## Branches and support
 
 - `main` develops the next/current minor line, identified by `RELEASE_LINE`.
-- `release/1.0` maintains 1.0 with compatible fixes while 1.1 is developed. Carry relevant fixes forward into `main`; do not merge unfinished features into maintenance branches.
+- `release/1.0` preserves the final 1.0 release, v1.0.9. New fixes and features go to 1.1.
 - Feature branches and pull requests target the appropriate line. Both lines run source checks.
-- Declare an end-of-support date for 1.0 when stable 1.1 is released. No date has been committed yet. Keep historical downloads after maintenance ends.
+- The 1.0 downloads remain available for existing installations.
 
 ## Release tags
 
