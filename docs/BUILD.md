@@ -1,6 +1,6 @@
-# Build Antennarr 1.1 beta
+# Build Antennarr 1.1
 
-Start on each build machine with the same release tag. Keep build output outside the checkout so it stays out of the Docker build context.
+Use the same tag on each build machine. The example uses the published 1.1 preview. Keep build output outside the checkout so it stays out of the Docker build context.
 
 ```sh
 git clone --branch v1.1.0-beta.2 --depth 1 https://github.com/fxPPC/Antennarr.git
@@ -36,7 +36,7 @@ sh scripts/fixtures.sh "$ANTENNARR_TEST_FIXTURES"
 sh packaging/test-runtime-media.sh
 ```
 
-The release workflow records the manifest digest of each tested architecture, scans each candidate, and publishes their multi-platform image. The beta uses its explicit version tag. The stable 1.0 line remains the default. [Release procedure](RELEASING.md)
+The release workflow records the manifest digest of each tested architecture, scans each candidate, and publishes their multi-platform image. Each release gets a version tag. The `testing` tag follows published previews. The stable 1.0 line remains the default. [Release procedure](RELEASING.md)
 
 ## macOS disk image
 
