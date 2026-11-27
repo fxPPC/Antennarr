@@ -1,3 +1,15 @@
+# v1.1.0
+
+**In development.** The current public downloads are [stable 1.0 and the 1.1 preview](https://github.com/fxPPC/Antennarr/releases).
+
+## Changes since 1.0
+
+- Add multiple city tuners to one installation. Each has its own Plex address, guide location, and editable channels. The default port range supports six tuners, with shared viewer and source limits.
+- Set up a new installation with the first-run wizard. The web UI lets you browse each tuner, find channels with thin rosters, and check their feeds. Channels with the fewest working feeds get priority when Antennarr fills rosters.
+- Run the app on Apple silicon or Intel Macs, and on ARM64 or x64 Windows. Each download bundles FFmpeg and FFprobe. Use the menu bar or notification area to check activity, open settings, start at login, or quit. Docker remains the best-supported platform.
+
+Before upgrading, download a full backup under **Admin → Backup & restore**. Keep the existing data mount, network, port mappings, and Plex tuner address. Returning to 1.0 requires restoring that backup. [Upgrade guide](https://github.com/fxPPC/Antennarr/blob/main/docs/MULTI-TUNER.md#upgrading-an-existing-plex-installation)
+
 # v1.1.0-beta.2
 
 - Choose from 16 city presets. The new choices are Toronto, Madrid, Paris, Rome, Warsaw, Lisbon, São Paulo, Stockholm, Copenhagen, and Oslo. The 261 new channels each matched at least eight distinct provider catalogues in the test sample. Each preset uses a Plex guide for its city. On a fresh installation, six tuner slots share the same account and viewer limits.
