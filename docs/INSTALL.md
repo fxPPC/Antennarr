@@ -35,7 +35,21 @@ docker compose -f compose.portable.yaml -f compose.range.yaml pull
 docker compose -f compose.portable.yaml -f compose.range.yaml up -d --no-build
 ```
 
-The base template alone provides the legacy listener layout for existing deployments. For an existing private Plex Docker network with a fresh range installation, set `PLEX_NETWORK` to the network name and `ANTENNARR_PLEX_HOST=antennarr`. Include `-f compose.network.yaml` **before** `-f compose.range.yaml` in both commands so the range overlay supplies the advertised address. Plex in a separate container needs a reachable address on that network or the LAN. [Build from source](BUILD.md)
+The base template alone provides the legacy listener layout for existing deployments. Keep any existing Compose overlays on upgrade. [Build from source](BUILD.md)
+
+### Plex on a shared Docker network
+
+If both containers use the same user-defined bridge network, Plex can reach all six tuner ports by container name. For a fresh installation, replace `YOUR_PLEX_NETWORK` with that network’s name and choose a local data directory.
+
+```sh
+docker run -d --name antennarr --network YOUR_PLEX_NETWORK --restart unless-stopped \
+  -p 127.0.0.1:39192:39192 \
+  -e ANTENNARR_PORT_RANGE=39192-39198 -e ANTENNARR_BASE_URL=http://antennarr \
+  --log-driver json-file --log-opt max-size=5m --log-opt max-file=2 \
+  -v /YOUR/APPDATA/antennarr:/data antennarr/antennarr:v1.1.0
+```
+
+Open the web UI on the Docker host at `http://127.0.0.1:39192`. For the first tuner, Plex on that network uses `http://antennarr:39193`.
 
 ## NAS permissions
 
