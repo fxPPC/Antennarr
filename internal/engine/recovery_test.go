@@ -237,7 +237,7 @@ func TestChannelCleanupDoesNotWaitForDatabaseHistory(t *testing.T) {
 
 func TestReplacementWithoutStandbyRecordsFailover(t *testing.T) {
 	cat := &fixtureCatalogue{candidates: []catalog.Candidate{{StreamID: 1, AccountID: 1, Limit: 1, URL: "first"}, {StreamID: 2, AccountID: 2, Limit: 1, URL: "next"}}}
-	var active, closed atomic.Int32
+	var active, closed, inspections, replacementPackets atomic.Int32
 	source := progressingFixture(&active, &closed)
 	fault := make(chan struct{})
 	replacementStarted := make(chan struct{})
@@ -257,9 +257,19 @@ func TestReplacementWithoutStandbyRecordsFailover(t *testing.T) {
 		}()
 		return source(child, url, emit)
 	}, Inspect: func(context.Context, []byte) (media.Info, error) {
-		return media.Info{Codec: "h264", AudioCodec: "aac"}, nil
-	},
-		NewOutput: func(_ context.Context, emit func([]byte), _ int) (Output, error) { return &testOutput{emit: emit}, nil }}
+		codec := "h264"
+		if inspections.Add(1) > 1 {
+			codec = "mpeg2video"
+		}
+		return media.Info{Codec: codec, AudioCodec: "aac"}, nil
+	}, NewOutput: func(_ context.Context, emit func([]byte), version int) (Output, error) {
+		return &testOutput{emit: func(b []byte) {
+			if version == 1 && len(b) > 0 {
+				replacementPackets.Add(1)
+			}
+			emit(b)
+		}}, nil
+	}}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	done := make(chan error, 1)
 	go func() { done <- e.Run(ctx, "one-slot", func([]byte) {}) }()
@@ -277,7 +287,7 @@ func TestReplacementWithoutStandbyRecordsFailover(t *testing.T) {
 				}
 				triggered = true
 			}
-			if status[0].Primary == 2 {
+			if status[0].Primary == 2 && replacementPackets.Load() > 0 {
 				if !triggered || status[0].Failovers != 1 {
 					t.Fatalf("missing failover after loss of sole primary: %+v", status[0])
 				}
@@ -286,5 +296,5 @@ func TestReplacementWithoutStandbyRecordsFailover(t *testing.T) {
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
-	t.Fatal("second source never became primary")
+	t.Fatal("replacement never delivered packets through a new output for its codec")
 }
