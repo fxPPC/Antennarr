@@ -33,7 +33,7 @@ func TestOperatorPortalEntitlementsAndFreshLinks(t *testing.T) {
 		case "/stalker_portal/api/itv_subscription/" + mac:
 			return portalResponse(200, `{"status":"OK","results":[{"mac":"`+mac+`","sub_ch":["45","51"]}]}`), nil
 		case "/stalker_portal/api/itv":
-			return portalResponse(200, `{"status":"OK","results":[{"id":"45","number":"1","name":"Local One"},{"id":50,"number":2,"name":"Local Two"},{"id":51,"number":3,"name":"Ambiguous"},{"id":52,"number":3,"name":"Ambiguous"}]}`), nil
+			return portalResponse(200, `{"status":"OK","results":[{"id":"45","number":"1","name":"Local One"},{"id":"45","number":"1","name":"Local One"},{"id":50,"number":2,"name":"Local Two"},{"id":51,"number":3,"name":"Ambiguous"},{"id":52,"number":3,"name":"Ambiguous"}]}`), nil
 		case "/stalker_portal/server/tools/m3u.php":
 			return portalResponse(200, "#EXTM3U x-tvg-url=\"https://guide.example/lineup.xml\"\n#EXTINF:0 tvg-id=\"local\",1. Local One\nhttps://streams.example/live?key="+version+"\n#EXTINF:0,2. Local Two\nhttps://streams.example/two\n#EXTINF:0,3. Ambiguous\nhttps://streams.example/three\n"), nil
 		}
@@ -88,5 +88,43 @@ func TestPortalExportValidationsAndCredentialScope(t *testing.T) {
 	_, err := base.Channels(context.Background(), client)
 	if err == nil || strings.Contains(err.Error(), "signature") {
 		t.Fatal("unredacted or accepted redirect")
+	}
+}
+
+// Repetition is common when the operator combines multiple package lists.
+func TestPortalDuplicateAndConflictingPlaylistEntries(t *testing.T) {
+	a := PortalAccount{PortalURL: "https://provider.example", MAC: "02:00:00:00:00:01", PlaylistURL: "https://provider.example/subscriber/list"}
+	row := func(station, link string) string {
+		return "#EXTINF:0," + station + "\nhttps://feeds.example/" + link + "\n"
+	}
+	for _, tc := range []struct {
+		name, rows string
+		want       int
+	}{
+		{"identical", row("One", "one") + row("One", "one"), 1},
+		{"different URLs", row("One", "one") + row("One", "alternate") + row("Two", "two"), 1},
+		{"ambiguous then repeated", row("One", "one") + row("One", "alternate") + row("One", "one") + row("Two", "two"), 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) { return portalResponse(200, "#EXTM3U\n"+tc.rows), nil })}
+			rows, err := a.Channels(context.Background(), c)
+			if err != nil || len(rows) != tc.want {
+				t.Fatalf("found %d playable channels, want %d; error %v", len(rows), tc.want, err)
+			}
+			if tc.name != "identical" && rows[0].Name != "Two" {
+				t.Fatal("conflict was accepted")
+			}
+		})
+	}
+}
+
+func TestPortalIncompleteSnapshot(t *testing.T) {
+	cfg := PortalAccount{PortalURL: "https://provider.example", MAC: "02:00:00:00:00:01", PlaylistURL: "https://provider.example/registered/playlist"}
+	for _, tail := range []string{"#EXTINF:0,Upcoming", "not an HTTP URL", "#EXTINF:0,Upcoming\n#EXTINF:0,Next\nhttps://media.example/n.ts", "#EXTINF:0,Upcoming\nhttps://"} {
+		body := "#EXTM3U\n#EXTINF:0,One\nhttps://media.example/one.ts\n" + tail
+		c := &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) { return portalResponse(200, body), nil })}
+		if rows, err := cfg.Channels(context.Background(), c); err == nil {
+			t.Fatalf("accepted an incomplete replacement with %d channels", len(rows))
+		}
 	}
 }
