@@ -108,7 +108,7 @@ func compactQualityToken(t string) string {
 	return compactQuality.ReplaceAllString(t, "$1")
 }
 
-var quality = regexp.MustCompile(`^(?:sd|hd|fhd|uhd|4k|8k|hevc|h264|h265|raw|backup|vip|1080[pi]?|720p?|480p?|2160p?|[0-9]+fps|(?:1080|720|2160)[pi][0-9]+(?:fps)?|hdr|hfr|avc|hvec|50hz|60hz)$`)
+var quality = regexp.MustCompile(`^(?:sd|hd|fhd|uhd|4k|8k|hevc|h264|h265|raw|backup|vip|1080[pi]?|720p?|480p?|2160[pi]?|[0-9]+fps|(?:1080|720|2160)[pi][0-9]+(?:fps)?|hdr|hfr|avc|hvec|50hz|60hz)$`)
 
 // Repeated separators usually mark catalogue sections, not playable feeds.
 var catalogueHeading = regexp.MustCompile(`^\s*[#=*]{3,}.*[#=*]{3,}\s*$`)
@@ -121,6 +121,10 @@ var backupMarker = regexp.MustCompile(`(?i)\[\s*bk\s*\]`)
 // must not match MTV and CNN. Regional words stay in the name; aliases and exclusions decide matches.
 func channelKey(name, region string) (string, string) {
 	name = normaliseName(name)
+	// Canonicalise the complete resolution phrase before splitting its words.
+	if strings.ContainsAny(name, "uU") {
+		name = ultraHDLabel.ReplaceAllString(name, "${1}UHD${2}")
+	}
 	name = fiveUSABrand.ReplaceAllString(name, "5USA")
 	name = racingUKBrand.ReplaceAllString(name, "RacingUK")
 	name = discoveryAcronym.ReplaceAllString(name, "$1 ID")

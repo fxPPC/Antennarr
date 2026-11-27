@@ -220,14 +220,28 @@ func TestTunerPlaybackQualityIsIndependent(t *testing.T) {
 }
 
 func TestUHDResolutionMarkers(t *testing.T) {
-	for _, label := range []string{"Sport [4K]", "Film 8k", "Music 2160i", "Match 2160p50fps", "ESPNUHD"} {
+	for _, label := range []string{"Sport [4K]", "Film 8k", "Music 2160i", "Match 2160p50fps", "NEWS_4K", "News [Ultra HD]", "News_Ultra-HD", "Sport UltraHD", "Sport ⁴ᵏ", "ESPNUHD"} {
 		if !IsUHD(label) {
 			t.Errorf("expected UHD marker in %q", label)
 		}
 	}
-	for _, label := range []string{"4Kids", "24Kitchen", "Radio 2160", "Sport 1080p", "4Kidz HD"} {
+	for _, label := range []string{"4Kids", "24Kitchen", "Radio 2160", "Sport 1080p", "4Kidz HD", "SKY 4Kids", "BBC Four", "É4K", "News Ultra Comedy HD", "UltraHDTV", "Ultra | HD"} {
 		if IsUHD(label) {
 			t.Errorf("unexpected UHD marker in %q", label)
+		}
+	}
+}
+
+func TestUHDDecorationsPreserveChannelIdentity(t *testing.T) {
+	for _, tc := range []struct{ label, station string }{
+		{"NEWS_4K", "News"}, {"News_2160p60", "News"}, {"News 2160i", "News"},
+		{"News [Ultra HD]", "News"}, {"News_Ultra-HD", "News"}, {"News UltraHD", "News"},
+		{"SKY 4Kids", "Sky 4Kids"}, {"BBC Four", "BBC Four"}, {"News Ultra Comedy HD", "News Ultra Comedy"},
+	} {
+		got, _ := channelKey(tc.label, "")
+		want, _ := channelKey(tc.station, "")
+		if got != want {
+			t.Errorf("%q resolved to %q, want %q", tc.label, got, want)
 		}
 	}
 }

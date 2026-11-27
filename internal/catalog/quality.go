@@ -3,21 +3,30 @@ package catalog
 import (
 	"database/sql"
 	"database/sql/driver"
+	"html"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"golang.org/x/text/unicode/norm"
 	"modernc.org/sqlite"
 )
 
 // Preserve joined UHD labels such as ESPNUHD. Other resolution markers must
 // be complete tokens so that channel names like 4Kids and 24Kitchen stay HD-eligible.
-var resolutionMarker = regexp.MustCompile(`(?i)\b(?:[48]k|2160[pi](?:[0-9]{2,3}(?:fps)?)?)\b`)
+const qualityBoundary = `[^\p{L}\p{M}\p{N}]`
+
+var resolutionMarker = regexp.MustCompile(`(?i)(?:^|` + qualityBoundary + `)(?:[48]k|2160[pi](?:[0-9]{2,3}(?:fps)?)?)(?:$|` + qualityBoundary + `)`)
+var ultraHDLabel = regexp.MustCompile(`(?i)(^|` + qualityBoundary + `)ultra[\s_\p{Z}\p{Pd}]*hd($|` + qualityBoundary + `)`)
 
 func IsUHD(name string) bool {
-	return strings.Contains(strings.ToUpper(name), "UHD") || (strings.ContainsAny(name, "248") && resolutionMarker.MatchString(name))
+	name = norm.NFKC.String(html.UnescapeString(name))
+	upper := strings.ToUpper(name)
+	return strings.Contains(upper, "UHD") ||
+		(strings.Contains(upper, "ULTRA") && ultraHDLabel.MatchString(name)) ||
+		(strings.ContainsAny(name, "248") && resolutionMarker.MatchString(name))
 }
 
 func init() {
