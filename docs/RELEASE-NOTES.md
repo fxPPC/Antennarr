@@ -9,6 +9,8 @@ Bring your authorised IPTV streams into Plex with separate local lineups, tested
 - Recover from a failed feed even when its replacement needs a later keyframe. Repeatedly full accounts yield their roster slots and wait longer between checks. Stream diagnostics distinguish denied requests, timeouts, and invalid media.
 - Run the app on Apple silicon or Intel Macs, and on ARM64 or x64 Windows. Each download bundles FFmpeg and FFprobe. Use the menu bar or notification area to check activity, open settings, start at login, or quit. Docker remains the best-supported platform. [Choose a desktop installer](https://github.com/fxPPC/Antennarr/blob/v1.1.0/docs/NATIVE.md)
 
+Verification of overlapping DVR recordings and playback recovery on real Plex clients remains open. [Test coverage](https://github.com/fxPPC/Antennarr/blob/v1.1.0/docs/V1.1-PLAN.md)
+
 Before upgrading, download a full backup under **Admin → Backup & restore**. Keep the existing data mount, network, port mappings, and Plex tuner address. Returning to 1.0 requires restoring that backup. [Upgrade guide](https://github.com/fxPPC/Antennarr/blob/v1.1.0/docs/MULTI-TUNER.md#upgrading-an-existing-plex-installation)
 
 Grype reports five findings in glibc 2.44-r29 on Linux amd64 and ARM64 (three medium and two low). Wolfi records fixes for two of them in 2.44-r25. Publication requires both final scans to match the approved review. [Wolfi advisory database](https://packages.wolfi.dev/os/security.json) · [Security review](https://github.com/fxPPC/Antennarr/blob/v1.1.0/scripts/release-security-reviews.json)
