@@ -1,6 +1,6 @@
 # macOS and Windows
 
-Docker on Linux remains the best-supported installation. The standalone apps are part of the opt-in 1.1 beta. Each includes Antennarr, FFmpeg, FFprobe, and the media libraries it needs.
+Docker on Linux remains the best-supported installation. The 1.1 desktop apps include Antennarr, FFmpeg, FFprobe, and their media libraries. The downloads below are the published beta 2 installers. [All releases](https://github.com/fxPPC/Antennarr/releases)
 
 | Computer | Download |
 | --- | --- |
@@ -12,7 +12,7 @@ Docker on Linux remains the best-supported installation. The standalone apps are
 ## Install and set up
 
 - **Mac:** Open the disk image, drag **Antennarr** onto **Applications**, eject the disk image, and open Antennarr from Applications. Its icon appears in the menu bar.
-- **Windows:** Run the installer for your processor. Open **Antennarr Beta** from Start. Its icon appears in the notification area, sometimes under hidden icons.
+- **Windows:** Run the installer for your processor. Open **Antennarr** from Start (**Antennarr Beta** in beta 2). Its icon appears in the notification area, sometimes under hidden icons.
 
 The beta has no Apple notarisation or Windows publisher signature. The release includes SHA-256 checksums for each installer. [GitHub release and checksums](https://github.com/fxPPC/Antennarr/releases/tag/v1.1.0-beta.2)
 
