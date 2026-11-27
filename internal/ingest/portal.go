@@ -64,7 +64,8 @@ func (a *PortalAccount) Normalise() error {
 		return errors.New("enter the public HTTPS portal base URL")
 	}
 	raw, _ := Canonical(a.PortalURL)
-	a.PortalURL = strings.TrimRight(raw, "/")
+	// Operators also give subscribers the standard middleware web client URL.
+	a.PortalURL = strings.TrimSuffix(strings.TrimRight(raw, "/"), "/c")
 	if (a.Username == "") != (a.Password == "") || strings.Contains(a.Username, ":") || len(a.Username) > 256 || len(a.Password) > 2048 {
 		return errors.New("enter both subscriber credentials or leave both blank")
 	}

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -178,7 +179,7 @@ func (s *Service) inputs(ctx context.Context) (inputs, error) {
 	portalURLs := map[int64]string{}
 	for _, r := range roster {
 		c := in.channels[r.ChannelID]
-		if c == nil || r.Limit <= 0 {
+		if c == nil {
 			continue
 		}
 		host := catalog.ProviderKey(r.Provider)
@@ -287,7 +288,7 @@ func (s *Service) fetch(ctx context.Context, j *job, now int64) (map[string]*sta
 		if provider == "" {
 			provider = j.origin
 		}
-		release, ok := s.Budget.Reserve(account, provider, limit, false)
+		release, ok := s.Budget.ReserveGuide(account, provider, limit)
 		if !ok {
 			return nil, "", errors.New("guide deferred")
 		}
@@ -301,12 +302,24 @@ func (s *Service) fetch(ctx context.Context, j *job, now int64) (map[string]*sta
 	if resp.StatusCode != http.StatusOK {
 		return nil, "", errors.New("guide source unavailable")
 	}
-	stations, e := parseXMLTV(resp.Body, now)
 	origin := j.origin
 	if resp.Request != nil && resp.Request.URL != nil {
 		origin = catalog.ProviderKey(resp.Request.URL.Host)
 	}
+	stations, e := parseSource(contextReader{ctx, resp.Body}, now, &origin)
 	return stations, origin, e
+}
+
+type contextReader struct {
+	ctx    context.Context
+	reader io.Reader
+}
+
+func (r contextReader) Read(p []byte) (int, error) {
+	if e := r.ctx.Err(); e != nil {
+		return 0, e
+	}
+	return r.reader.Read(p)
 }
 
 type inventory map[string]map[string]Candidate
@@ -336,6 +349,12 @@ func (s *Service) Refresh(parent context.Context) error {
 	}
 	choices := map[string]map[string]Candidate{}
 	list := inventory{}
+	// Guide feeds with many ambiguously named stations can otherwise make a
+	// single origin dominate comparison work. A pin remains selectable from the
+	// external station index, regardless of the number of competing matches.
+	type originKey struct{ channel, origin string }
+	perOrigin := map[originKey][]string{}
+	ambiguous := map[originKey]bool{}
 	for _, j := range in.jobs {
 		if e := ctx.Err(); e != nil {
 			return e
@@ -361,7 +380,9 @@ func (s *Service) Refresh(parent context.Context) error {
 				targets[c] = true
 			}
 			for p := range j.profiles {
-				list[p][sid] = candidate
+				sample := candidate
+				sample.programmes = nil
+				list[p][sid] = sample
 				for _, name := range append([]string{id}, st.names...) {
 					for _, c := range in.labels[p][norm(name)] {
 						targets[c] = true
@@ -388,7 +409,27 @@ func (s *Service) Refresh(parent context.Context) error {
 				if choices[ch] == nil {
 					choices[ch] = map[string]Candidate{}
 				}
-				choices[ch][sid] = candidate
+				if _, seen := choices[ch][sid]; seen {
+					continue
+				}
+				key := originKey{ch, origin}
+				if !ambiguous[key] {
+					group := perOrigin[key]
+					if len(group) < 8 {
+						perOrigin[key] = append(group, sid)
+					} else {
+						ambiguous[key] = true
+						for _, other := range group {
+							if other != c.pin {
+								delete(choices[ch], other)
+							}
+						}
+						delete(perOrigin, key)
+					}
+				}
+				if !ambiguous[key] || c.pin == sid {
+					choices[ch][sid] = candidate
+				}
 			}
 		}
 	}
@@ -399,6 +440,28 @@ func (s *Service) Refresh(parent context.Context) error {
 }
 
 func (s *Service) publish(ctx context.Context, in inputs, choices map[string]map[string]Candidate, list inventory, now int64) error {
+	// Calculate and serialise consensus outside the SQLite write transaction.
+	// Publishing below then swaps the entire completed generation atomically.
+	updated := map[string][]byte{}
+	for id, c := range in.channels {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		candidates := make([]Candidate, 0, len(choices[id]))
+		for _, v := range choices[id] {
+			candidates = append(candidates, v)
+		}
+		sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
+		resolved, conflict := resolveContext(ctx, candidates, c.old.Schedule, c.pin, now)
+		if len(resolved) == 0 && len(candidates) == 0 && len(c.old.Schedule) == 0 && len(c.old.Candidates) == 0 {
+			continue
+		}
+		data, err := json.Marshal(snapshot{Schedule: resolved, Candidates: candidates, Conflict: conflict, Checked: now})
+		if err != nil {
+			return err
+		}
+		updated[id] = data
+	}
 	tx, e := s.store.DB.BeginTx(ctx, nil)
 	if e != nil {
 		return e
@@ -416,24 +479,12 @@ func (s *Service) publish(ctx context.Context, in inputs, choices map[string]map
 			valid[p] = current == in.feeds[p]
 		}
 	}
-	for id, c := range in.channels {
+	for id, data := range updated {
+		c := in.channels[id]
 		if !valid[c.ch.ProfileID] {
 			continue
 		}
-		candidates := make([]Candidate, 0, len(choices[id]))
-		for _, v := range choices[id] {
-			candidates = append(candidates, v)
-		}
-		sort.Slice(candidates, func(i, j int) bool { return candidates[i].ID < candidates[j].ID })
-		resolved, conflict := resolve(candidates, c.old.Schedule, c.pin, now)
-		if len(resolved) == 0 && len(candidates) == 0 && len(c.old.Schedule) == 0 && len(c.old.Candidates) == 0 {
-			continue
-		}
-		data, err := json.Marshal(snapshot{Schedule: resolved, Candidates: candidates, Conflict: conflict, Checked: now})
-		if err != nil {
-			return err
-		}
-		_, err = tx.ExecContext(ctx, `INSERT INTO guide_channels(channel_id,pin,snapshot) SELECT id,?,? FROM channels WHERE id=? AND profile_id=? ON CONFLICT(channel_id) DO UPDATE SET snapshot=excluded.snapshot WHERE guide_channels.pin=excluded.pin`, c.pin, string(data), id, c.ch.ProfileID)
+		_, err := tx.ExecContext(ctx, `INSERT INTO guide_channels(channel_id,pin,snapshot) SELECT id,?,? FROM channels WHERE id=? AND profile_id=? ON CONFLICT(channel_id) DO UPDATE SET snapshot=excluded.snapshot WHERE guide_channels.pin=excluded.pin`, c.pin, string(data), id, c.ch.ProfileID)
 		if err != nil {
 			return err
 		}

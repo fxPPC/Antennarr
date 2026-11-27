@@ -2,6 +2,7 @@
 package guide
 
 import (
+	"context"
 	"crypto/sha256"
 	"fmt"
 	"sort"
@@ -87,14 +88,20 @@ func programmeOrder(a, b Programme) bool {
 // Votes are evaluated per broadcast. Multiple stations/qualities on an origin
 // contribute at most one vote, and an internally divided origin abstains.
 func resolve(candidates []Candidate, old []Programme, pin string, now int64) ([]Programme, bool) {
+	return resolveContext(context.Background(), candidates, old, pin, now)
+}
+func resolveContext(ctx context.Context, candidates []Candidate, old []Programme, pin string, now int64) ([]Programme, bool) {
 	var proposed []proposal
-	conflict := false
+	var disputed []int64
 	seen := map[slotKey]bool{}
 	for _, c := range candidates {
 		if pin != "" && c.ID != pin {
 			continue
 		}
 		for _, p := range c.programmes {
+			if ctx.Err() != nil {
+				return nil, false
+			}
 			if p.Stop <= now {
 				continue
 			}
@@ -138,7 +145,7 @@ func resolve(candidates []Candidate, old []Programme, pin string, now int64) ([]
 				p.State = "single"
 				proposed = append(proposed, proposal{p, 1})
 			default:
-				conflict = true
+				disputed = append(disputed, midpoint)
 			}
 		}
 	}
@@ -168,9 +175,13 @@ func resolve(candidates []Candidate, old []Programme, pin string, now int64) ([]
 		p := item.p
 		i := sort.Search(len(out), func(i int) bool { return out[i].Stop > p.Start })
 		if i < len(out) && out[i].Start < p.Stop {
-			if p.State == "single" && out[i].State == "cached" && agrees(key(out[i]), key(p)) {
-				out[i].State = "single"
-				out[i].Origins = 1
+			if p.State == "single" && out[i].State == "cached" {
+				if agrees(key(out[i]), key(p)) {
+					out[i].State = "single"
+					out[i].Origins = 1
+				} else {
+					disputed = append(disputed, p.Start+(p.Stop-p.Start)/2)
+				}
 			}
 			continue
 		}
@@ -178,5 +189,11 @@ func resolve(candidates []Candidate, old []Programme, pin string, now int64) ([]
 		copy(out[i+1:], out[i:])
 		out[i] = p
 	}
-	return out, conflict
+	for _, midpoint := range disputed {
+		on, _ := nowNext(out, midpoint)
+		if on == nil || (on.State != "confirmed" && on.State != "pinned") {
+			return out, true
+		}
+	}
+	return out, false
 }

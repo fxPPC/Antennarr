@@ -1,6 +1,9 @@
 package catalog
 
-import "context"
+import (
+	"context"
+	"strings"
+)
 
 // GuideRoster contains only verified roster associations. Account secrets are
 // opened separately for the account actually selected for an XMLTV request.
@@ -15,7 +18,7 @@ func (s *Store) GuideRosters(ctx context.Context) ([]GuideRoster, error) {
  FROM roster r JOIN streams s ON s.id=r.stream_id JOIN accounts a ON a.id=r.account_id
  JOIN active_channels c ON c.id=r.channel_id
  WHERE c.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked')
- ORDER BY a.id,r.channel_id,s.tvg_id`)
+ ORDER BY max(0,a.connection_limit-a.external_connections) DESC,a.id,r.channel_id,s.tvg_id`)
 	if e != nil {
 		return nil, e
 	}
@@ -41,7 +44,8 @@ func GuideAllowed(ch Channel, id, name string) bool {
 	if country != "" && ((label.guide.country != "" && country != label.guide.country) || (label.country != "" && country != label.country)) {
 		return false
 	}
-	if !m.stationMatches(label) || m.excludes(label) || guideConflict([]channelMatcher{m}, m, label) {
+	stationMatches := m.stationMatches(label) || (ch.Station != "" && strings.EqualFold(ch.Station, id) && m.nameMatches(label))
+	if !stationMatches || m.excludes(label) || guideConflict([]channelMatcher{m}, m, label) {
 		return false
 	}
 	// Some XMLTV guides identify a delay only in the display name.

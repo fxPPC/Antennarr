@@ -3,6 +3,7 @@ package engine
 import (
 	"antennarr/internal/budget"
 	"antennarr/internal/catalog"
+	"antennarr/internal/ingest"
 	"antennarr/internal/media"
 	"antennarr/internal/stream"
 	"context"
@@ -66,6 +67,11 @@ func TestLiveGhostPromotionAndReplenishment(t *testing.T) {
 	var active, peak atomic.Int32
 	var faultAt atomic.Int64
 	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/account/catalogue" {
+			w.Header().Set("Content-Type", "audio/x-mpegurl")
+			fmt.Fprintln(w, "#EXTM3U\n#EXTINF:0 tvg-id=\"fixture\",Fixture TV\nhttp://authorised-fixture.example/1")
+			return
+		}
 		n := active.Add(1)
 		defer active.Add(-1)
 		for {
@@ -75,6 +81,9 @@ func TestLiveGhostPromotionAndReplenishment(t *testing.T) {
 			}
 		}
 		id := r.URL.Path
+		if id == "/live/subscriber/fixture/2.ts" {
+			id = "/2"
+		}
 		delay := time.Duration(0)
 		if id == "/2" {
 			delay = 250 * time.Millisecond
@@ -125,7 +134,8 @@ func TestLiveGhostPromotionAndReplenishment(t *testing.T) {
 	}))
 	defer source.Close()
 	target, _ := url.Parse(source.URL)
-	g, e := media.NewGateway(&http.Client{Transport: fixtureTransport{target, http.DefaultTransport}})
+	client := &http.Client{Transport: fixtureTransport{target, http.DefaultTransport}}
+	g, e := media.NewGateway(client)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -134,8 +144,43 @@ func TestLiveGhostPromotionAndReplenishment(t *testing.T) {
 	for i := 1; i <= 5; i++ {
 		cat.candidates = append(cat.candidates, catalog.Candidate{StreamID: int64(i), AccountID: int64(i), Provider: fmt.Sprint(i), Limit: 1, URL: fmt.Sprintf("http://authorised-fixture.example/%d", i)})
 	}
+	// Exercise subscriber-URL renewal and a switch to an Xtream feed through
+	// the release media gateway and the existing single-slot account budget.
+	store, err := catalog.Open(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	ch, err := store.SaveChannel(catalog.Channel{Number: "1", Name: "Fixture TV", Enabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	account := ingest.PortalAccount{PortalURL: "https://authorised-fixture.example", MAC: "02:00:00:00:00:01", PlaylistURL: "https://authorised-fixture.example/account/catalogue"}
+	channels, err := account.Channels(context.Background(), client)
+	if err != nil || len(channels) != 1 {
+		t.Fatal("portal export", channels, err)
+	}
+	if _, err = store.SavePortalCatalogue(account, channels); err != nil {
+		t.Fatal(err)
+	}
+	portal, err := store.Candidates(ch, false)
+	if err != nil || len(portal) != 1 {
+		t.Fatal("portal candidate", portal, err)
+	}
+	cat.candidates[0] = portal[0]
+	xtream, err := ingest.FromURL("http://authorised-fixture.example/live/subscriber/fixture/2.ts", "Fixture TV", "fixture")
+	if err != nil || xtream.Kind != "xtream" {
+		t.Fatal("Xtream candidate", err)
+	}
+	cat.candidates[1].URL = xtream.URL
 	limits := budget.New(10, 5)
-	eng := &Engine{Catalogue: cat, Budget: limits, Binary: binary, Copy: func(ctx context.Context, u string, emit func([]byte)) error { return g.Copy(ctx, binary, u, emit) }, Inspect: func(ctx context.Context, b []byte) (media.Info, error) { return media.Inspect(ctx, binary, b) }}
+	eng := &Engine{Catalogue: cat, Budget: limits, Binary: binary, Copy: func(ctx context.Context, u string, emit func([]byte)) error {
+		resolved, err := store.ResolvePortalStream(ctx, client, u)
+		if err != nil {
+			return err
+		}
+		return g.Copy(ctx, binary, resolved, emit)
+	}, Inspect: func(ctx context.Context, b []byte) (media.Info, error) { return media.Inspect(ctx, binary, b) }}
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
 	defer cancel()
 	out := filepath.Join(t.TempDir(), "failover.ts")

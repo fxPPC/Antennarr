@@ -7,6 +7,7 @@ import (
 	"errors"
 	"golang.org/x/text/encoding/charmap"
 	"io"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -58,6 +59,13 @@ func first(ss []string, n int) string {
 }
 
 func parseXMLTV(r io.Reader, now int64) (map[string]*station, error) {
+	return parseSource(r, now, nil)
+}
+
+// The optional XMLTV source-data-url / source-info-url identifies a shared
+// listings origin even when separate IPTV providers serve mirrors. These
+// attributes provide provenance only; they are never fetched.
+func parseSource(r io.Reader, now int64, origin *string) (map[string]*station, error) {
 	raw := &io.LimitedReader{R: r, N: maxGuideBytes + 1}
 	buf := bufio.NewReader(raw)
 	magic, _ := buf.Peek(2)
@@ -110,6 +118,30 @@ func parseXMLTV(r io.Reader, now int64) (map[string]*station, error) {
 			if depth == 0 {
 				if root || tag.Name.Local != "tv" {
 					return nil, errors.New("invalid XMLTV root")
+				}
+				if origin != nil {
+					var data, info string
+					for _, attr := range tag.Attr {
+						if attr.Name.Space != "" {
+							continue
+						}
+						u, err := url.Parse(attr.Value)
+						if err != nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") {
+							continue
+						}
+						host := strings.ToLower(strings.TrimSuffix(u.Hostname(), "."))
+						switch attr.Name.Local {
+						case "source-data-url":
+							data = host
+						case "source-info-url":
+							info = host
+						}
+					}
+					if data != "" {
+						*origin = data
+					} else if info != "" {
+						*origin = info
+					}
 				}
 				root = true
 				depth++
@@ -195,6 +227,9 @@ func parseXMLTV(r io.Reader, now int64) (map[string]*station, error) {
 				continue
 			}
 			fixed = append(fixed, p)
+		}
+		if len(fixed) > 4096 {
+			return nil, errors.New("XMLTV station exceeds schedule limit")
 		}
 		s.programmes = fixed
 	}

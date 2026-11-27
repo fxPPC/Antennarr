@@ -7,7 +7,7 @@ permissions:
   contents: read
 concurrency:
   group: alpha12-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.ref == 'refs/heads/testing/v1.2' }}
 env:
   VERSION: v1.2.0-alpha.1
   BASELINE: v1.1.0

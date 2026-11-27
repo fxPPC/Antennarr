@@ -95,6 +95,13 @@ func TestPortalAccountLinkRotationAndPlaybackPriority(t *testing.T) {
 		t.Fatal("unexpected interrupted refresh result", w.Code)
 	}
 	stall.Store(false)
+	reply.Store("#EXTM3U\n#EXT-X-TARGETDURATION:6\n#EXTINF:6.0,\nhttps://cdn.example/part.ts")
+	if w = post(refresh, payload); w.Code != 502 {
+		t.Fatal("malformed replacement accepted", w.Code)
+	}
+	if saved, err := store.Candidates(ch, false); err != nil || len(saved) != 1 || saved[0].StreamID != rows[0].StreamID {
+		t.Fatal("malformed export erased saved state")
+	}
 	reply.Store("#EXTM3U\n")
 	if _, e = store.ResolvePortalStream(context.Background(), client, ref); e == nil {
 		t.Fatal("removed channel played")

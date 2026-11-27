@@ -199,3 +199,114 @@ func TestLiveTunePreemptsGuideReservation(t *testing.T) {
 	}
 	defer release()
 }
+
+func TestGuideBudgetDuringContinuousPlayback(t *testing.T) {
+	b := budget.New(4, 3)
+	stop, ok := b.Reserve(11, "portal.example", 1, true)
+	if !ok {
+		t.Fatal("live reservation")
+	}
+	defer stop()
+	if _, ok = b.ReserveGuide(11, "portal.example", 1); ok {
+		t.Fatal("single-connection account reused")
+	}
+	if _, ok = b.ReserveGuide(-1, "portal.example", 1); ok {
+		t.Fatal("unattributed guide reused busy portal")
+	}
+	free, ok := b.ReserveGuide(12, "other.example", 1)
+	if !ok {
+		t.Fatal("independent listings starved by continuous playback")
+	}
+	free()
+}
+
+func TestRosterGuideCollectionAndIndependentOrigins(t *testing.T) {
+	store, e := catalog.Open(t.TempDir())
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer store.Close()
+	ctx := context.Background()
+	id, e := store.SaveChannel(catalog.Channel{ID: "rostered", ProfileID: "primary", Name: "Test Service", Region: "US", Number: "501", Enabled: true})
+	if e != nil {
+		t.Fatal(e)
+	}
+	hosts := []string{"a.example", "a.example", "a.example", "b.example", "c.example"}
+	for i, host := range hosts {
+		key := fmt.Sprint(i + 10)
+		secret := fmt.Sprintf(`{"Kind":"xtream","Endpoint":"https://%s","Username":"user%s","Password":"test"}`, host, key)
+		_, e = store.DB.Exec(`INSERT INTO accounts(id,identity,provider,kind,secret,state,created) VALUES(?,?,?,'xtream',?,'healthy',0)`, i+10, key, host, secret)
+		if e != nil {
+			t.Fatal(e)
+		}
+		_, e = store.DB.Exec(`INSERT INTO streams(id,account_id,identity,name,tvg_id,secret) VALUES(?,?,?,'Test Service','1','{}')`, i+10, i+10, key)
+		if e != nil {
+			t.Fatal(e)
+		}
+		_, e = store.DB.Exec(`INSERT INTO roster VALUES(?,?,?,0,1,1)`, id, i+10, i+10)
+		if e != nil {
+			t.Fatal(e)
+		}
+	}
+	now := time.Now().UTC()
+	start, stop := now.Add(-time.Hour).Format("20060102150405 -0700"), now.Add(time.Hour).Format("20060102150405 -0700")
+	counts := map[string]int{}
+	client := &http.Client{Transport: transport(func(r *http.Request) (*http.Response, error) {
+		h := r.URL.Host
+		counts[h]++
+		title, name := "Live now", "Test Service"
+		if h == "a.example" {
+			title = "Wrong"
+		}
+		if h == "external.example" {
+			name = "Unrelated station"
+			title = "Other"
+		}
+		xml := fmt.Sprintf(`<tv><channel id="1"><display-name>%s</display-name></channel><programme channel="1" start="%s" stop="%s"><title>%s</title></programme></tv>`, name, start, stop, title)
+		return &http.Response{Request: r, StatusCode: 200, Body: io.NopCloser(strings.NewReader(xml))}, nil
+	})}
+	s, _ := New(store, client)
+	if e = s.SetFeed(ctx, "primary", "https://external.example/guide"); e != nil {
+		t.Fatal(e)
+	}
+	if e = s.Refresh(ctx); e != nil {
+		t.Fatal(e)
+	}
+	out, e := s.Programmes(ctx, "primary")
+	if e != nil || len(out[id]) != 1 || out[id][0].Title != "Live now" || out[id][0].Origins != 2 {
+		t.Fatalf("out %v err %v", out[id], e)
+	}
+	if len(counts) != 4 || counts["a.example"] != 1 {
+		t.Fatal(counts)
+	}
+	w := httptest.NewRecorder()
+	s.Admin(w, httptest.NewRequest("GET", "/api/guide/channel?profile_id=primary&id="+id, nil))
+	if strings.Contains(w.Body.String(), "Unrelated station") || !strings.Contains(w.Body.String(), `"state":"confirmed"`) {
+		t.Fatal(w.Body.String())
+	}
+}
+
+func TestDeclaredGuideOriginAndLegacyCharset(t *testing.T) {
+	raw := []byte("<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><tv source-info-url=\"https://publisher.example/\" source-data-url=\"https://listings.example/f.xml?private=1\"><channel id=\"test\"><display-name>Caf\xe9</display-name></channel></tv>")
+	origin := "mirror.example"
+	rows, e := parseSource(bytes.NewReader(raw), 0, &origin)
+	if e != nil || origin != "listings.example" || rows["test"].displayName() != "Café" {
+		t.Fatal(origin, rows, e)
+	}
+}
+func TestUnknownGuideReservesItsWholeOrigin(t *testing.T) {
+	b := budget.New(4, 3)
+	release, ok := b.ReserveGuide(-1, "portal.example", 1)
+	if !ok {
+		t.Fatal("guide did not reserve")
+	}
+	if _, ok = b.Reserve(9, "portal.example", 1, false); ok {
+		t.Fatal("unattributed guide and account check overlapped")
+	}
+	release()
+	closeLive, ok := b.Reserve(9, "portal.example", 1, true)
+	if !ok {
+		t.Fatal("guide reservation leaked")
+	}
+	closeLive()
+}

@@ -30,6 +30,9 @@ func (s *Store) PortalAccount(id int64) (ingest.PortalAccount, error) {
 	var account ingest.PortalAccount
 	var secret []byte
 	err := s.DB.QueryRow("SELECT secret FROM accounts WHERE id=? AND kind='portal' AND state NOT IN ('manually_blocked','retired')", id).Scan(&secret)
+	if errors.Is(err, sql.ErrNoRows) {
+		return account, sql.ErrNoRows
+	}
 	if err != nil {
 		return account, errors.New("portal account unavailable")
 	}

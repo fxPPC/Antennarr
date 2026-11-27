@@ -65,7 +65,8 @@ func (s *Store) PruneCatalogue(protected []int64) (CleanupResult, error) {
 		return out, err
 	}
 	if _, err = tx.Exec(`CREATE TEMP TABLE excess_streams AS SELECT s.id FROM streams s
- WHERE NOT EXISTS(SELECT 1 FROM reserve_keep k WHERE k.id=s.id)
+ WHERE NOT EXISTS(SELECT 1 FROM accounts a WHERE a.id=s.account_id AND a.kind='portal')
+ AND NOT EXISTS(SELECT 1 FROM reserve_keep k WHERE k.id=s.id)
  AND NOT EXISTS(SELECT 1 FROM reserve_account_keep k WHERE k.id=s.id)
  AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id)
  AND NOT EXISTS(SELECT 1 FROM mappings m WHERE m.stream_id=s.id AND m.origin='manual')

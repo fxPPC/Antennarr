@@ -14,7 +14,7 @@ func portalResponse(code int, body string) *http.Response {
 
 func TestOperatorPortalEntitlementsAndFreshLinks(t *testing.T) {
 	const mac = "02:00:00:00:00:01"
-	a := PortalAccount{PortalURL: "https://tv.example/stalker_portal", MAC: mac, Username: "subscriber-api", Password: "unit-test"}
+	a := PortalAccount{PortalURL: "https://tv.example/stalker_portal/c/", MAC: mac, Username: "subscriber-api", Password: "unit-test"}
 	version := "one"
 	inactive := false
 	calls := 0
