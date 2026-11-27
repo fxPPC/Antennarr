@@ -20,7 +20,7 @@ def request(path, method="GET", data=None, token=None):
 
 def main():
     description = {
-        "description": "Turn authorised Xtream account lists into HDHomeRun-compatible tuners for Plex Live TV & DVR.",
+        "description": "HDHomeRun-compatible tuners for Plex Live TV & DVR. v1.0.9 is the final 1.0 release. Future updates will be on 1.1.",
         "full_description": Path("docs/DOCKER-HUB.md").read_text(),
     }
     token = request("auth/token", "POST", {
