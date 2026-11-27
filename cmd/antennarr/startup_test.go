@@ -1,7 +1,11 @@
 package main
 
 import (
+	"antennarr/internal/catalog"
+	"bytes"
 	"encoding/json"
+	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -71,5 +75,33 @@ func TestNativeMediaRequiresCompanionProbe(t *testing.T) {
 	}
 	if got, err := ffmpegBinary(); err != nil || got != binary {
 		t.Fatal(got, err)
+	}
+}
+
+func TestCatalogueStartupLog(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "database")
+	if err := os.Mkdir(dir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "antennarr.db"), bytes.Repeat([]byte("private database contents"), 32), 0600); err != nil {
+		t.Fatal(err)
+	}
+	store, err := catalog.OpenWithDefaults(root)
+	if err == nil {
+		store.Close()
+		t.Fatal("opened invalid SQLite database")
+	}
+	var buf bytes.Buffer
+	previous := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	defer slog.SetDefault(previous)
+	startupError("catalogue unavailable", root, errors.Join(err, &os.PathError{Op: "open", Path: "private filename", Err: syscall.EACCES}))
+	var record map[string]any
+	if err := json.Unmarshal(buf.Bytes(), &record); err != nil {
+		t.Fatal(err)
+	}
+	if record["stage"] != "enable WAL" || record["sqlite_code"] != float64(26) || record["errno"] != float64(syscall.EACCES) || strings.Contains(buf.String(), "private filename") || strings.Contains(buf.String(), "private database contents") {
+		t.Fatalf("unexpected startup log: %s", buf.String())
 	}
 }
