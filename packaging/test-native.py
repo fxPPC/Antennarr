@@ -710,7 +710,7 @@ def exercise(package, root, os_name, arch):
         assert api(admin_base, "/api/settings", {"scans_paused": True})["settings"]["scans_paused"]
         channel = {"id": "mpeg2", "number": "9999", "name": "Native fixture", "enabled": True}
         catalogue = {p["id"]: p for p in api(admin_base, "/api/presets")}
-        additions = {"be-brussels": (16, "1000"), "ch-zurich": (17, "8001"),
+        additions = {"be-brussels": (16, "1000"), "ch-zurich": (16, "8001"),
                      "ar-buenos-aires": (9, "C1064"), "co-bogota": (13, "110111")}
         for preset_id, expected_guide in additions.items():
             preset = catalogue[preset_id]

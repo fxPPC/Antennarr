@@ -23,7 +23,7 @@ Fresh installations start empty. Each saved tuner has its own lineup and Plex ad
 | Buenos Aires | 9 | C1064 | Cablevisión - Capital Federal |
 | Bogotá | 13 | 110111 | Claro TV Colombia (DTH) |
 | Brussels | 16 | 1000 | Proximus |
-| Zürich | 17 | 8001 | Sunrise TV (Deutschschweiz) |
+| Zürich | 16 | 8001 | Sunrise TV (Deutschschweiz) |
 
 The default port range accommodates six tuners at once.
 
