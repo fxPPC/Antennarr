@@ -6,6 +6,8 @@ Antennarr turns authorised Xtream account lists into HDHomeRun-compatible tuners
 
 ## Choose a release
 
+**v1.0.9 is the final 1.0 release. Future updates will be on the 1.1 release line.**
+
 | Release | Docker Hub tag | Linux platforms | Fresh installation |
 | --- | --- | --- | --- |
 | Stable 1.0 | `1.0` or `latest`; pin `v1.0.9` for the exact release | amd64, ARM64 | One US tuner with 150 editable channels |

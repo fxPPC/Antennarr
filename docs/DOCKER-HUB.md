@@ -2,6 +2,8 @@
 
 Antennarr turns authorised Xtream account lists into HDHomeRun-compatible tuners for Plex Live TV & DVR. It tests feeds and keeps alternatives for each channel. Plex supplies the guide and records programmes. Bring your own sources.
 
+**v1.0.9 is the final 1.0 release. Future updates will be on the 1.1 release line.**
+
 | Choose | Pull command | Fresh installation |
 | --- | --- | --- |
 | Stable 1.0 (default) | `docker pull antennarr/antennarr:1.0` | One US tuner with 150 editable channels |
