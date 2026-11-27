@@ -525,20 +525,53 @@ def installed(archive, root):
         active_firewall_test = firewall_requested()
         if active_firewall_test and not ctypes.windll.shell32.IsUserAnAdmin():
             raise RuntimeError("Testing the private firewall rule requires an elevated disposable runner.")
+        previous_installer = os.environ.get("ANTENNARR_TEST_PREVIOUS_INSTALLER")
+        if previous_installer and not active_firewall_test:
+            raise RuntimeError("Upgrade rehearsal requires a disposable Windows runner.")
+        first = Path(previous_installer) if previous_installer else archive
         try:
             invalid = subprocess.run([archive, *flags, "/PORTRANGE=40000-40007", "/TASKS=", "/DIR=" + str(package)],
                                      timeout=60, env=install_env)
             assert invalid.returncode != 0 and not uninstaller.exists() and not range_path.exists()
-            subprocess.run([archive, *flags, "/LOG=" + str(root / "install.log"), "/TASKS=", "/DIR=" + str(package)],
+            subprocess.run([first, *flags, "/LOG=" + str(root / "install.log"), "/TASKS=", "/DIR=" + str(package)],
                            check=True, timeout=120, env=install_env)
             assert uninstaller.is_file() and firewall_state()["rule"] is None
             assert range_path.read_text().strip() == "39192-39198"
             if active_firewall_test:
                 if not state["privateEnabled"]:
                     set_private_firewall(True)
-                subprocess.run([archive, *flags, "/LOG=" + str(root / "lanfirewall.log"), "/TASKS=lanfirewall", "/DIR=" + str(package)],
+                subprocess.run([first, *flags, "/LOG=" + str(root / "lanfirewall.log"), "/TASKS=startlogin,lanfirewall", "/DIR=" + str(package)],
                                check=True, timeout=120, env=install_env)
                 verify_windows_rule(server, 39192)
+            if previous_installer:
+                # The released installer uses a per-user Start folder and Run value.
+                group = Path(os.environ["APPDATA"]) / "Microsoft/Windows/Start Menu/Programs/Antennarr Beta"
+                legacy = group / "Antennarr Beta.lnk"
+                assert legacy.is_file()
+                run_key = r"Software\Microsoft\Windows\CurrentVersion\Run"
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key) as run:
+                    login = winreg.QueryValueEx(run, "Antennarr Beta")[0]
+                assert login == f'"{package / "Antennarr.exe"}" --login-item'
+                base_url = "http://127.0.0.1:39192"
+                with running(server, install_env, base_url, root / "beta.log"):
+                    api(base_url, "/api/settings", {"scans_paused": True})
+                    profile = api(base_url, "/api/profiles", {"preset_id": "in-mumbai"})
+                    api(base_url, "/api/profiles/" + profile["id"], {"name": "Beta upgrade tuner", "enabled": True})
+                    saved = api(base_url, "/api/profiles")[0]
+                # No directory or task overrides: Setup must find the previous installation itself.
+                subprocess.run([archive, *flags], check=True, timeout=120, env=install_env)
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as entry:
+                    expected_version = archive.name.removeprefix("antennarr-").split("-windows-")[0]
+                    assert winreg.QueryValueEx(entry, "DisplayVersion")[0] == expected_version
+                assert not legacy.exists() and (group / "Antennarr.lnk").is_file()
+                with winreg.OpenKey(winreg.HKEY_CURRENT_USER, run_key) as run:
+                    assert winreg.QueryValueEx(run, "Antennarr Beta")[0] == login
+                verify_windows_rule(server, 39192)
+                with running(server, install_env, base_url, root / "upgraded.log"):
+                    assert api(base_url, "/api/settings")["scans_paused"]
+                    upgraded = api(base_url, "/api/profiles")[0]
+                    assert all(upgraded[k] == saved[k] for k in ("id", "device_id", "tuner_url", "enabled", "name"))
+                print("Beta 2 in-place upgrade preserved the tuner, settings, login entry, and private firewall rule.")
             base = free_port_range()
             selected = f"{base}-{base + 6}"
             subprocess.run([archive, *flags, "/LOG=" + str(root / "range.log"), "/PORTRANGE=" + selected,
@@ -653,8 +686,14 @@ def exercise(package, root, os_name, arch):
             assert b"Antennarr" in response.read()
         assert api(admin_base, "/api/settings", {"scans_paused": True})["settings"]["scans_paused"]
         channel = {"id": "mpeg2", "number": "9999", "name": "Native fixture", "enabled": True}
-        assert api(admin_base, "/api/profiles") == []
-        for preset in ("in-mumbai", "de-berlin", "nl-amsterdam", "mx-mexico-city", "us-nyc", "uk-london"):
+        presets = ["in-mumbai", "de-berlin", "nl-amsterdam", "mx-mexico-city", "us-nyc", "uk-london"]
+        existing = api(admin_base, "/api/profiles")
+        if os_name == "windows" and os.environ.get("ANTENNARR_TEST_PREVIOUS_INSTALLER"):
+            assert len(existing) == 1 and existing[0]["preset_id"] == presets[0]
+            presets = presets[1:]
+        else:
+            assert not existing
+        for preset in presets:
             profile = api(admin_base, "/api/profiles", {"preset_id": preset})
             api(admin_base, "/api/profiles/" + profile["id"], {"enabled": True})
         profiles = api(admin_base, "/api/profiles")

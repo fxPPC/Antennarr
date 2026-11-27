@@ -143,6 +143,21 @@ jobs:
         with:
           name: native-${{ matrix.target }}
           path: downloads
+      - name: Fetch the released Windows beta for the upgrade test
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          $name = "antennarr-v1.1.0-beta.2-$env:TARGET-setup.exe"
+          $sha = @{
+            'windows-amd64' = '4857dfe12659ec9a71e603e577d38b40651f53908e0d8d764f04c028cbf8b7cc'
+            'windows-arm64' = 'da6919a55ca743cbc23fd76e5dc64571b1fae45a9e81beb472cbc53addf07a85'
+          }
+          $path = Join-Path $env:RUNNER_TEMP $name
+          Invoke-WebRequest "https://github.com/fxPPC/Antennarr/releases/download/v1.1.0-beta.2/$name" -OutFile $path
+          if ((Get-FileHash $path -Algorithm SHA256).Hash -ne $sha[$env:TARGET]) { throw "Invalid checksum for $name" }
+          "ANTENNARR_TEST_PREVIOUS_INSTALLER=$path" >> $env:GITHUB_ENV
       - name: Extract, launch, tune, and restart the app on its target platform
         shell: bash
         env:
