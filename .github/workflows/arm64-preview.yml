@@ -51,10 +51,13 @@ jobs:
           sh scripts/fixtures.sh "$ANTENNARR_TEST_FIXTURES"
           python3 packaging/test-permissions.py
           sh packaging/test-runtime-media.sh
+      - name: Install pinned Grype from the release archive
+        id: scanner
+        run: sh scripts/install-ci-grype.sh
       - uses: anchore/scan-action@11983a512817154c80a9db660c1a184be7513ed6
         with:
           image: antennarr:preview
-          grype-version: v0.121.3
+          grype-version: ${{ steps.scanner.outputs.version }}
           fail-build: false
           output-format: json
           output-file: /tmp/preview-scan.json

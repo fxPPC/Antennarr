@@ -111,11 +111,14 @@ jobs:
           output-file: /tmp/sbom-${{ matrix.arch }}.spdx.json
           upload-artifact: false
           upload-release-assets: false
+      - name: Install pinned Grype from the release archive
+        id: scanner
+        run: sh scripts/install-ci-grype.sh
       - name: Scan runtime packages
         uses: anchore/scan-action@11983a512817154c80a9db660c1a184be7513ed6 # v7.4.3
         with:
           image: antennarr:candidate
-          grype-version: v0.121.3
+          grype-version: ${{ steps.scanner.outputs.version }}
           fail-build: false
           output-format: json
           output-file: /tmp/image-vulnerabilities.json
