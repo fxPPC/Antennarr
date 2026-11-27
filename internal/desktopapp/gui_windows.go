@@ -176,7 +176,7 @@ func runTray(s *session) error {
 	var data notifyIconData
 	data.Size = uint32(unsafe.Sizeof(data))
 	data.Flags, data.CallbackMessage, data.ID, data.Icon = 0x01|0x02|0x04|0x80, callbackMessage, 1, icon
-	tip, _ := windows.UTF16FromString("Antennarr Beta")
+	tip, _ := windows.UTF16FromString("Antennarr")
 	copy(data.Tip[:], tip)
 	registered := false
 	opened := loginLaunch()
@@ -243,7 +243,7 @@ func runTray(s *session) error {
 	}
 	defer user32.NewProc("UnregisterClassW").Call(uintptr(unsafe.Pointer(name)), instance)
 	// A hidden top-level window can receive Explorer's taskbar restart broadcast.
-	hwnd, _, err := user32.NewProc("CreateWindowExW").Call(0x80, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(wide("Antennarr Beta"))), 0, 0, 0, 0, 0, 0, 0, instance, 0)
+	hwnd, _, err := user32.NewProc("CreateWindowExW").Call(0x80, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(wide("Antennarr"))), 0, 0, 0, 0, 0, 0, 0, instance, 0)
 	if hwnd == 0 {
 		return err
 	}

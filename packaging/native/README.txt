@@ -1,6 +1,6 @@
 Antennarr @VERSION@ for desktop
 
-Docker is the recommended installation. This opt-in 1.1 beta includes FFmpeg,
+Docker is the recommended installation. This download includes FFmpeg,
 FFprobe, and their runtime dependencies. No separate tool installation is needed.
 
 Start
@@ -26,7 +26,8 @@ Data and updates
   The launcher saves settings, accounts, rosters, and desktop.log here:
   @DATA@
   To use another writable local directory, set ANTENNARR_DATA before launch.
-  Use separate appdata for stable and beta. Before an update, download a full
+  The folder retains its original name for upgrades from the beta. Use separate
+  data directories if running two installations. Before upgrading, download a full
   backup from Admin and keep it private. Quit the desktop app, replace the old
   application, then reopen it. Disable Start at Login before moving
   the installation to a different path, then enable it again from the new copy.

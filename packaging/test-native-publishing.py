@@ -22,10 +22,12 @@ class ReleaseOutputTests(unittest.TestCase):
         self.asset.write_bytes(b"verified asset")
         self.output = self.base / "somewhere" / "release files"
 
-    def test_release_tag_uses_canonical_beta_numbers(self):
+    def test_release_tag_uses_canonical_numbers(self):
+        self.assertEqual(builder.release_version("v1.1.0"), "v1.1.0")
+        self.assertEqual(builder.release_version("v1.1.12"), "v1.1.12")
         self.assertEqual(builder.release_version("v1.1.0-beta.1"), "v1.1.0-beta.1")
         self.assertEqual(builder.release_version("v1.1.18-beta.12"), "v1.1.18-beta.12")
-        for bad in ("v1.1.0-beta.0", "v1.1.00-beta.2", "v1.1.2-beta.01",
+        for bad in ("v1.1.00", "v1.1.0/", "v1.1.1-rc.1", "v1.1.0-beta.0", "v1.1.00-beta.2", "v1.1.2-beta.01",
                     "v1.1.2-beta.３", "v1.0.7", "v1.1.0-beta.1/other", "../v1.1.0-beta.1"):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 builder.release_version(bad)

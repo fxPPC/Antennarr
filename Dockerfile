@@ -10,7 +10,7 @@ RUN --mount=type=bind,source=packaging/runtime,target=/cache \
 # Apply the original package-installation layer to its original Wolfi base.
 # The layer contains ordinary filesystem entries and retains the APK database.
 FROM cgr.dev/chainguard/wolfi-base@sha256:4cf5932a0f95a88af352f77e4efa67480cab0e1f7a48f0eddca3cce003a7c0fb AS runtime-base
-ARG VERSION=v1.1.0-beta.2
+ARG VERSION=v1.1.0
 ARG REVISION=unknown
 LABEL org.opencontainers.image.title="Antennarr" org.opencontainers.image.version="${VERSION}" org.opencontainers.image.licenses="GPL-3.0-or-later" org.opencontainers.image.source="https://github.com/fxPPC/Antennarr" org.opencontainers.image.revision="${REVISION}"
 RUN --mount=type=bind,from=runtime-snapshot,source=/wolfi-runtime.tar.gz,target=/tmp/wolfi-runtime.tar.gz \

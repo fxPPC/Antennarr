@@ -55,6 +55,7 @@ def plan(version, ref, line, releases, promote=False):
     return {
         "version": version,
         "prerelease": prerelease,
+        "native_apps": line == "1.1" and (not prerelease or "-beta." in version),
         "minor_tag": "" if prerelease else line,
         "promote_latest": promote,
     }

@@ -6,7 +6,7 @@ on:
       version:
         description: New version (vMAJOR.MINOR.PATCH, optionally -alpha.N, -beta.N, or -rc.N)
         required: true
-        default: v1.1.0-beta.2
+        default: v1.1.0
       promote_latest:
         description: Make this stable release the recommended version (never for prereleases or older maintenance lines)
         type: boolean
@@ -22,6 +22,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
       prerelease: ${{ steps.version.outputs.prerelease }}
+      native_apps: ${{ steps.version.outputs.native_apps }}
       minor_tag: ${{ steps.version.outputs.minor_tag }}
       promote_latest: ${{ steps.version.outputs.promote_latest }}
     steps:
@@ -48,7 +49,7 @@ jobs:
           jq -r 'to_entries[] | "\(.key)=\(.value)"' /tmp/release-plan.json >> "$GITHUB_OUTPUT"
   native-apps:
     needs: preflight
-    if: startsWith(inputs.version, 'v1.1.') && contains(inputs.version, '-beta.')
+    if: needs.preflight.outputs.native_apps == 'true'
     uses: ./.github/workflows/native-downloads.yml
     with:
       version: ${{ needs.preflight.outputs.version }}
@@ -144,7 +145,7 @@ jobs:
     needs: [preflight, candidate, native-apps]
     if: >-
       !cancelled() && needs.preflight.result == 'success' && needs.candidate.result == 'success'
-      && (needs.native-apps.result == 'success' || needs.native-apps.result == 'skipped')
+      && (needs.native-apps.result == 'success' || (needs.preflight.outputs.native_apps == 'false' && needs.native-apps.result == 'skipped'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: release

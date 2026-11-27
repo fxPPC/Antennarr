@@ -16,9 +16,10 @@
   #error AppArch must be amd64 or arm64
 #endif
 
+; Keep the original identity and install location for in-place desktop upgrades.
 [Setup]
 AppId=Antennarr.Beta
-AppName=Antennarr Beta
+AppName=Antennarr
 AppVersion={#AppVersion}
 AppPublisher=Antennarr
 AppPublisherURL=https://github.com/fxPPC/Antennarr
@@ -26,7 +27,7 @@ ArchitecturesAllowed={#NativeArch}
 ArchitecturesInstallIn64BitMode={#NativeArch}
 PrivilegesRequired=lowest
 DefaultDirName={localappdata}\Programs\Antennarr Beta
-DefaultGroupName=Antennarr Beta
+DefaultGroupName=Antennarr
 DisableProgramGroupPage=yes
 UninstallDisplayIcon={app}\Antennarr.ico
 SetupIconFile={#PayloadDir}\Antennarr.ico
@@ -50,11 +51,14 @@ Name: "lanfirewall"; Description: "Allow Plex to reach the tuner on my private l
 [Files]
 Source: "{#PayloadDir}\*"; DestDir: "{app}"; Flags: recursesubdirs createallsubdirs ignoreversion
 
+[InstallDelete]
+Type: files; Name: "{group}\Antennarr Beta.lnk"
+
 [Icons]
-Name: "{group}\Antennarr Beta"; Filename: "{app}\Antennarr.exe"; IconFilename: "{app}\Antennarr.ico"
+Name: "{group}\Antennarr"; Filename: "{app}\Antennarr.exe"; IconFilename: "{app}\Antennarr.ico"
 
 [Run]
-Filename: "{app}\Antennarr.exe"; Description: "Start Antennarr Beta"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\Antennarr.exe"; Description: "Start Antennarr"; Flags: postinstall nowait skipifsilent
 
 [Code]
 const

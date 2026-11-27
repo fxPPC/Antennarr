@@ -595,7 +595,7 @@ def smoke(archive, root):
     os_name = {"Darwin": "macos", "Windows": "windows"}[platform.system()]
     arch = {"x86_64": "amd64", "amd64": "amd64", "aarch64": "arm64", "arm64": "arm64"}[platform.machine().lower()]
     ext = r"(?:\.zip|\.dmg)" if os_name == "macos" else r"(?:\.zip|-setup\.exe)"
-    match = re.fullmatch(r"antennarr-v1\.1\.[0-9]+-beta\.[0-9]+-" + os_name + "-" + arch + ext, archive.name)
+    match = re.fullmatch(r"antennarr-v1\.1\.(?:0|[1-9][0-9]*)(?:-beta\.[1-9][0-9]*)?-" + os_name + "-" + arch + ext, archive.name)
     assert match, f"Expected a release for {os_name}-{arch}, received {archive.name}"
     with installed(archive, root) as package:
         exercise(package, root, os_name, arch)
