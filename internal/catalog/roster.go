@@ -118,7 +118,7 @@ func (s *Store) admit(channel string, id, verified int64) error {
 	due := verified
 	res, e := tx.Exec(`INSERT OR IGNORE INTO roster(channel_id,stream_id,account_id,admitted,verified,due)
  SELECT ?,s.id,s.account_id,?,?,? FROM streams s JOIN accounts a ON a.id=s.account_id JOIN mappings m ON m.stream_id=s.id JOIN active_channels ch ON ch.id=m.channel_id
- WHERE s.id=? AND m.channel_id=? AND m.enabled=1 AND ch.enabled=1 AND s.enabled=1 AND s.state='healthy' AND (? OR EXISTS(SELECT 1 FROM output_profiles p WHERE p.id=ch.profile_id AND json_extract(p.extensions,'$.preferred_height')=2160) OR instr(upper(s.name),'UHD')=0) AND a.state NOT IN ('inactive','retired','manually_blocked') AND (SELECT count(*) FROM roster WHERE channel_id=?)<?`, channel, time.Now().Unix(), verified, due, id, channel, s.UHDAllowed(), channel, p.Target)
+ WHERE s.id=? AND m.channel_id=? AND m.enabled=1 AND ch.enabled=1 AND s.enabled=1 AND s.state='healthy' AND (? OR EXISTS(SELECT 1 FROM output_profiles p WHERE p.id=ch.profile_id AND json_extract(p.extensions,'$.preferred_height')=2160) OR NOT is_uhd(s.name)) AND a.state NOT IN ('inactive','retired','manually_blocked') AND (SELECT count(*) FROM roster WHERE channel_id=?)<?`, channel, time.Now().Unix(), verified, due, id, channel, s.UHDAllowed(), channel, p.Target)
 	if e != nil {
 		return e
 	}
@@ -141,11 +141,11 @@ func (s *Store) ReconcileRosters() error {
 	return nil
 }
 func (s *Store) RosterMembers(channel string) ([]Candidate, error) {
-	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,r.verified,instr(upper(s.name),'UHD')>0,s.height FROM roster r JOIN streams s ON s.id=r.stream_id JOIN accounts a ON a.id=s.account_id JOIN mappings m ON m.channel_id=r.channel_id AND m.stream_id=r.stream_id JOIN channels ch ON ch.id=r.channel_id WHERE r.channel_id=? AND ch.enabled=1 AND m.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked')`
+	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,r.verified,is_uhd(s.name),s.height FROM roster r JOIN streams s ON s.id=r.stream_id JOIN accounts a ON a.id=s.account_id JOIN mappings m ON m.channel_id=r.channel_id AND m.stream_id=r.stream_id JOIN channels ch ON ch.id=r.channel_id WHERE r.channel_id=? AND ch.enabled=1 AND m.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked')`
 	args := []any{channel}
 	uhd := s.UHDAllowed() || s.PreferredHeight(channel) == 2160
 	if !uhd {
-		q += " AND instr(upper(s.name),'UHD')=0"
+		q += " AND NOT is_uhd(s.name)"
 	}
 	q += " ORDER BY r.verified DESC,s.id LIMIT 200"
 	out, e := s.readCandidates(q, args...)
@@ -185,7 +185,7 @@ func (s *Store) readCandidates(q string, args ...any) ([]Candidate, error) {
 
 // QueueCandidates only fetches a bounded window. No media or provider API is requested here.
 func (s *Store) QueueCandidates(channel string, limit int) ([]Candidate, error) {
-	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,s.last_success,instr(upper(s.name),'UHD')>0,s.height FROM mappings m JOIN streams s ON s.id=m.stream_id JOIN accounts a ON a.id=s.account_id WHERE m.channel_id=? AND EXISTS(SELECT 1 FROM active_channels c WHERE c.id=m.channel_id AND c.enabled=1) AND m.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked') AND a.connection_limit>a.external_connections AND NOT EXISTS(SELECT 1 FROM provider_rates p WHERE p.provider=a.rate_key AND max(p.next_probe,p.blocked_until)>?) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.account_id=a.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM work_leases l WHERE l.kind IN ('stream','deferred') AND l.resource=s.id AND l.until>?)`
+	q := `SELECT s.id,s.account_id,a.provider,a.connection_limit-a.external_connections,s.secret,s.codec,s.score,s.last_success,is_uhd(s.name),s.height FROM mappings m JOIN streams s ON s.id=m.stream_id JOIN accounts a ON a.id=s.account_id WHERE m.channel_id=? AND EXISTS(SELECT 1 FROM active_channels c WHERE c.id=m.channel_id AND c.enabled=1) AND m.enabled=1 AND s.enabled=1 AND a.state NOT IN ('inactive','retired','manually_blocked') AND s.state NOT IN ('retired','manually_blocked') AND a.connection_limit>a.external_connections AND NOT EXISTS(SELECT 1 FROM provider_rates p WHERE p.provider=a.rate_key AND max(p.next_probe,p.blocked_until)>?) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.stream_id=s.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM roster r WHERE r.account_id=a.id AND r.channel_id=m.channel_id) AND NOT EXISTS(SELECT 1 FROM work_leases l WHERE l.kind IN ('stream','deferred') AND l.resource=s.id AND l.until>?)`
 	now := time.Now().Unix()
 	args := []any{channel, now * 1000, now}
 	p, e := s.EffectivePolicy(channel)
@@ -194,14 +194,14 @@ func (s *Store) QueueCandidates(channel string, limit int) ([]Candidate, error) 
 	}
 	uhd := s.UHDAllowed() || s.PreferredHeight(channel) == 2160
 	if !uhd {
-		q += " AND instr(upper(s.name),'UHD')=0"
+		q += " AND NOT is_uhd(s.name)"
 	}
 	q += " ORDER BY "
 	if p.Preference == "diversity" {
 		q += `EXISTS(SELECT 1 FROM roster r JOIN accounts ra ON ra.id=r.account_id WHERE r.channel_id=m.channel_id AND ra.rate_key=a.rate_key),`
 	}
 	if uhd {
-		q += "(instr(upper(s.name),'UHD')>0) DESC,"
+		q += "(is_uhd(s.name)) DESC,"
 	}
 	// Within the selected preferences, try unfailed streams first and spread
 	// memberships across accounts. These are ranking rules: scarce channels

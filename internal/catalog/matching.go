@@ -432,7 +432,7 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 		uhdRoom[ch.ChannelID] = room[ch.ChannelID]
 	}
 	if len(room) > 0 {
-		rows, err := s.DB.Query(`SELECT m.channel_id, sum(instr(upper(s.name),'UHD')=0),sum(instr(upper(s.name),'UHD')>0) FROM mappings m JOIN streams s ON s.id=m.stream_id WHERE m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked') GROUP BY m.channel_id`)
+		rows, err := s.DB.Query(`SELECT m.channel_id, sum(NOT is_uhd(s.name)),sum(is_uhd(s.name)) FROM mappings m JOIN streams s ON s.id=m.stream_id WHERE m.enabled=1 AND s.enabled=1 AND s.state NOT IN ('retired','manually_blocked') GROUP BY m.channel_id`)
 		if err != nil {
 			return nil, err
 		}
@@ -470,12 +470,13 @@ func (s *Store) RelevantEntries(entries []ingest.Entry) ([]ingest.Entry, error) 
 	for _, entry := range entries {
 		label := sourceLabelWithID(entry.Name, entry.Region, entry.TVGID)
 		candidateRoom := room
-		if IsUHD(entry.Name) {
+		uhd := IsUHD(entry.Name)
+		if uhd {
 			candidateRoom = uhdRoom
 		}
 		accepted := false
 		for _, c := range resolveProfileGroups(groups, label, entry.TVGID, known) {
-			if !active[c.channel.ID] || (IsUHD(entry.Name) && !uhdProfiles[c.channel.ProfileID]) {
+			if !active[c.channel.ID] || (uhd && !uhdProfiles[c.channel.ProfileID]) {
 				continue
 			}
 			if anchor == nil {

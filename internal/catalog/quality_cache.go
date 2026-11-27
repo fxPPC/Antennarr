@@ -76,7 +76,7 @@ func (s *Store) restoreQualityRoster(tx *sql.Tx, mode bool, now int64, profile .
 		due := v.Verified // Schema-8 verification value; pass work owns scheduling.
 		_, e = tx.Exec(`INSERT OR IGNORE INTO roster(channel_id,stream_id,account_id,admitted,verified,due)
  SELECT ?,s.id,s.account_id,?,?,? FROM streams s JOIN accounts a ON a.id=s.account_id JOIN mappings m ON m.stream_id=s.id JOIN channels c ON c.id=m.channel_id
- WHERE s.id=? AND s.account_id=? AND m.channel_id=? AND m.enabled=1 AND c.enabled=1 AND s.enabled=1 AND s.state='healthy' AND s.failures=? AND a.state IN ('healthy','unverified') AND (a.expires=0 OR a.expires>?) AND (? OR instr(upper(s.name),'UHD')=0)
+ WHERE s.id=? AND s.account_id=? AND m.channel_id=? AND m.enabled=1 AND c.enabled=1 AND s.enabled=1 AND s.state='healthy' AND s.failures=? AND a.state IN ('healthy','unverified') AND (a.expires=0 OR a.expires>?) AND (? OR NOT is_uhd(s.name))
  AND NOT EXISTS(SELECT 1 FROM work_leases l WHERE l.resource=s.id AND ((l.kind='cooldown' AND l.until>?) OR (l.kind='quality_invalid' AND l.until>=?)))`, v.Channel, v.Admitted, v.Verified, due, v.Stream, v.Account, v.Channel, v.Failures, now, mode, now, cache.SavedAt+3600)
 		if e != nil {
 			return e
