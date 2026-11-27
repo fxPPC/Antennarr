@@ -1,6 +1,7 @@
 package roster
 
 import (
+	"antennarr/internal/activity"
 	"antennarr/internal/budget"
 	"antennarr/internal/catalog"
 	"antennarr/internal/config"
@@ -20,6 +21,7 @@ type fakeProbe struct {
 	calls   atomic.Int32
 	success bool
 	cancel  bool
+	reason  string
 }
 
 func (p *fakeProbe) Probe(ctx context.Context, _ string, _ string, _ time.Duration) media.ProbeResult {
@@ -27,7 +29,7 @@ func (p *fakeProbe) Probe(ctx context.Context, _ string, _ string, _ time.Durati
 	if p.cancel {
 		<-ctx.Done()
 	}
-	return media.ProbeResult{Success: p.success, Reason: "fixture"}
+	return media.ProbeResult{Success: p.success, Reason: p.reason}
 }
 
 type countTransport struct{ calls atomic.Int32 }
@@ -348,4 +350,33 @@ func TestPausedScansSkipAllBackgroundWork(t *testing.T) {
 		t.Fatal(state)
 	}
 	s.Prepare(context.Background(), "empty-channel")
+}
+
+func TestMediaProbeFailuresReachActivity(t *testing.T) {
+	for _, tc := range []struct {
+		reason, kind, outcome string
+		status                int
+	}{
+		{"source rejected access (HTTP 401)", "access_denied", "failed", 401},
+		{"source connection timed out", "timeout", "timeout", 0},
+		{"source returned invalid media", "media_invalid", "failed", 0},
+	} {
+		t.Run(tc.kind, func(t *testing.T) {
+			s, _, cs, p, _ := fixture(t)
+			s.Activity = activity.New()
+			p.success, p.reason = false, tc.reason
+			var v config.Settings
+			v.Defaults()
+			s.probe(context.Background(), cs[0], v)
+			recent := s.Activity.Snapshot().Recent
+			if len(recent) != 1 || recent[0].Phase != "media" || recent[0].FailureKind != tc.kind || recent[0].HTTPStatus != tc.status || recent[0].Outcome != tc.outcome {
+				t.Fatal(recent)
+			}
+			var accountFailures, streamFailures int
+			err := s.Store.DB.QueryRow("SELECT a.failures,s.consecutive_failures FROM streams s JOIN accounts a ON a.id=s.account_id WHERE s.id=?", cs[0].StreamID).Scan(&accountFailures, &streamFailures)
+			if err != nil || accountFailures != 0 || streamFailures != 1 {
+				t.Fatal("media failures must only strike the stream", accountFailures, streamFailures, err)
+			}
+		})
+	}
 }

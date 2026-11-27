@@ -8,6 +8,7 @@ import (
 
 func TestProcessDiagnosticsAreBoundedAndRedacted(t *testing.T) {
 	for _, tc := range []struct{ raw, want string }{
+		{"https://user:secret@example.test/live/private.ts: Server returned 401 Unauthorized", "source rejected access (HTTP 401)"},
 		{"https://user:secret@example.test/live/private.ts: Server returned 403 Forbidden", "source rejected access (HTTP 403)"},
 		{"https://secret.example/a: Server returned 5XX Server Error", "source server error (HTTP 5xx)"},
 		{"Stream map '0:a:0' matches no streams", "source missing required video or audio"},

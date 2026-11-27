@@ -283,4 +283,32 @@ func TestFullAccountDiscoveryWaitsBeforeRetry(t *testing.T) {
 	if err != nil || b.ID != a.ID {
 		t.Fatal(b, err)
 	}
+	if err = s.AccountFull(a.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.QueueAccount(now+3602, time.Hour); err != sql.ErrNoRows {
+		t.Fatal("repeatedly full account consumed another discovery turn", err)
+	}
+	if _, err = s.QueueAccount(now+21602, time.Hour); err != nil {
+		t.Fatal("repeatedly full account did not return", err)
+	}
+	if err = s.CatalogueChecked(a.ID, now); err != nil {
+		t.Fatal(err)
+	}
+	if err = s.AccountFull(a.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.QueueAccount(now+3602, time.Hour); err != nil {
+		t.Fatal("successful discovery did not reset congestion backoff", err)
+	}
+	// Upgraded databases have no stored retry deadline for an existing full account.
+	if _, err = s.DB.Exec("UPDATE accounts SET next_check=0,last_check=? WHERE id=?", now, a.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = s.QueueAccount(now+3599, time.Hour); err != sql.ErrNoRows {
+		t.Fatal("legacy full account retried early", err)
+	}
+	if _, err = s.QueueAccount(now+3600, time.Hour); err != nil {
+		t.Fatal("legacy full account did not return", err)
+	}
 }

@@ -173,15 +173,12 @@ func (s *Service) probe(parent context.Context, c catalog.Candidate, v config.Se
 		return
 	}
 	if !result.Success {
-		kind := "media_invalid"
-		if result.TimedOut {
-			kind = "timeout"
+		kind, status := result.FailureDetail()
+		job.Detail("media", kind, status)
+		if kind == "timeout" {
+			outcome = "timeout"
 		}
-		job.Detail("media", kind, 0)
 		slog.Debug("media probe result", "account_id", c.AccountID, "stream_id", c.StreamID, "failure_kind", kind, "duration_ms", result.DurationMS, "startup_ms", result.StartupMS, "reason", result.Reason)
-	}
-	if result.TimedOut {
-		outcome = "timeout"
 	}
 	if result.Success {
 		outcome = "healthy"

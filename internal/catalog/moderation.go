@@ -20,7 +20,7 @@ func ProviderKey(provider string) string {
 }
 
 func (s *Store) CatalogueChecked(account, now int64) error {
-	_, e := s.DB.Exec("UPDATE accounts SET catalogue_checked=?,failures=0,state='healthy',next_check=0 WHERE id=? AND state NOT IN ('retired','manually_blocked')", now, account)
+	_, e := s.DB.Exec("UPDATE accounts SET catalogue_checked=?,failures=0,state='healthy',next_check=0,last_failure_kind='',last_failure_phase='',last_failure_status=0 WHERE id=? AND state NOT IN ('retired','manually_blocked')", now, account)
 	return e
 }
 
