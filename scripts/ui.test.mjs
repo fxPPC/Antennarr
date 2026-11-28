@@ -139,3 +139,32 @@ test('a playing channel needs a receiving standby even with a full roster',()=>{
   assert.equal(matchesChannelFilter('missing',{state:'confirmed'},{count:0},null),false);
   assert.equal(matchesChannelFilter('conflict',{state:'conflict'},null,null),true);
 });
+
+test('failed tuner switches keep old controls hidden and retry from normal polling', async t => {
+  const {route,refresh} = await import('../internal/admin/ui/output.js?retry');
+  const nodes = new Map();
+  t.mock.method(globalThis,'fetch',async path=>{
+    const url = new URL(path,'http://ui.test');
+    if(url.pathname === '/api/guide') {
+      attempts.push(url.searchParams.get('profile_id'));
+      return new Response('Temporary failure',{status:503});
+    }
+    const data = {'/api/profiles':[{id:'other',enabled:true}],'/api/presets':[],'/api/listeners':{},
+      '/api/roster':{channels:[]},'/api/channels':[],'/api/monitor':{live:[]}};
+    return Response.json(data[url.pathname]);
+  });
+  const attempts = [], previousLocation=globalThis.location, previousDocument=globalThis.document;
+  globalThis.location = {hash:'#output?tuner=other'};
+  globalThis.document = {querySelector(key){
+    if (!nodes.has(key)) nodes.set(key,{});
+    return nodes.get(key);
+  }};
+  t.after(()=>{
+    if(previousLocation) globalThis.location=previousLocation; else delete globalThis.location;
+    if(previousDocument) globalThis.document=previousDocument; else delete globalThis.document;
+  });
+  for(const run of [route,refresh,route]) await assert.rejects(run(),/Temporary failure/);
+  assert.deepEqual(attempts,['other','other','other']);
+  assert.equal(nodes.get('#tuner-view').hidden,true);
+  assert.match(nodes.get('#tuner-load-state').textContent,/Retrying/);
+});

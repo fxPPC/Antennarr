@@ -18,7 +18,8 @@
   </form>
 </details><div id="input-summary" class="status-metrics"></div><details><summary>Accounts and input queue</summary><form id="queue-filter" class="row"><label>Provider, status, account ID, or stream ID<input name="q" maxlength="120" placeholder="Provider, account:42, or stream:123"></label><button>Search</button></form><div id="queue-list"></div><div id="queue-pages" class="row"></div><button type="button" id="clear-import-queue" class="danger">Clear import queue</button><p id="clear-queue-result" role="status"></p></details><details><summary>Input and checking settings</summary><form id="input-settings" class="settings-grid"></form><form id="retirement-settings" class="settings-grid"></form><p class="muted">A stream failure immediately removes its roster place. Retired sources are permanently deleted during idle cleanup. These thresholds control failure-based retirement; 0 disables it. Failed streams return randomly to the queue without a stream cooldown; provider pacing still applies. Unchecked accounts are never marked failed.</p></details></section>
 <section id="output" hidden>
-  <a id="tuners-back" href="#output" hidden>← All tuners</a><h2 id="tuners-title">Tuners</h2><div id="tuner-directory"></div>
+  <a id="tuners-back" href="#output" hidden>← All tuners</a><h2 id="tuners-title">Tuners</h2><p id="tuner-load-state" role="status" hidden></p>
+  <div id="tuner-view"><div id="tuner-directory"></div>
   <p id="tuners-intro" class="muted">Each tuner has its own channel lineup and guide settings. Viewers, accounts, and connection limits are shared across Antennarr.</p>
   <p id="tuner-capacity" class="muted"><span></span> <a href="#admin?ports=1">Network ports</a></p>
   <details><summary>Output settings</summary>
@@ -64,6 +65,7 @@
     <p class="muted">Presets are editable starting points. Adding a preset creates a disabled tuner; check its guide and private connection address before enabling it.</p>
     <div id="output-presets" class="preset-grid"></div>
   </details>
+  </div>
 </section>
 <section id="status" hidden><h2 id="status-heading" tabindex="-1">Status</h2>
 <aside id="setup-guide" aria-labelledby="setup-heading" hidden>

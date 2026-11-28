@@ -116,10 +116,60 @@ async function run(viewport) {
   await form.getByRole('button',{name:'Connect portal account'}).click();
   await form.getByText('Account saved · 42 channels imported.').waitFor();
   assert.equal(receivedPortal.mac,'00:11:22:33:44:55');
+  await switchTuners(page,profile,channels,roster);
   assert.deepEqual(errors,[]);
   await page.close();
   console.log('PASS real browser UI ' + viewport.width + 'x' + viewport.height);
 }
+// Exercise both a failed selected tuner and a superseded request that finishes late.
+async function switchTuners(page,first,channels,roster) {
+  const second={...first,id:'other',name:'Second tuner',tuner_url:'http://tv.test:39194'};
+  const scoped=channels.map(c=>({...c,id:'other-'+c.id,profile_id:second.id}));
+  await page.route('**/api/profiles',r=>r.fulfill({json:[first,second]}));
+  await page.route('**/api/channels?profile_id=other',r=>r.fulfill({json:scoped}));
+  await page.route('**/api/roster?profile_id=other',r=>r.fulfill({json:{
+    channels:roster.channels.map(r=>({...r,channel_id:'other-'+r.channel_id}))}}));
+  let unavailable=true;
+  await page.route('**/api/guide?profile_id=other',r=>unavailable
+    ? r.fulfill({status:503,body:'Guide temporarily unavailable'}) : r.fulfill({json:{channels:{}}}));
+  const go = hash=>page.evaluate(h=>{location.hash=h;},hash);
+  const content=page.locator('#tuner-view');
+  const playlist=content.getByRole('textbox',{name:'M3U playlist URL'});
+  await go('output?tuner=primary&connect=jellyfin');
+  await playlist.waitFor();
+  assert.equal(await playlist.inputValue(),first.tuner_url+'/playlist.m3u');
+  await go('output?tuner=other&connect=jellyfin');
+  await page.getByText('Unable to load this lineup. Retrying shortly.').waitFor();
+  assert.equal(await content.isVisible(),false);
+  unavailable=false;
+  await page.evaluate(()=>import('/admin/ui/output.js').then(m=>m.refresh()));
+  await playlist.waitFor();
+  assert.equal(await playlist.inputValue(),second.tuner_url+'/playlist.m3u');
+  // Parameter-only navigation also changes the open client setup panel.
+  await go('output?tuner=other&connect=plex');
+  await content.getByRole('textbox',{name:'Tuner address',exact:true}).waitFor();
+  await go('output?tuner=other&connect=jellyfin');
+  await playlist.waitFor();
+
+  let resume;
+  const delayed=new Promise(resolve=>{resume=resolve;});
+  await page.route('**/api/guide?profile_id=primary',async r=>{
+    await delayed; await r.fulfill({json:{channels:{}}});
+  });
+  const waiting=page.waitForRequest('**/api/guide?profile_id=primary');
+  const staleReply=page.waitForResponse('**/api/guide?profile_id=primary');
+  await go('output?tuner=primary&connect=jellyfin');
+  await waiting;
+  try {
+    await go('output?tuner=other&connect=jellyfin');
+    await playlist.waitFor();
+    assert.equal(await playlist.inputValue(),second.tuner_url+'/playlist.m3u');
+  } finally { resume(); }
+  await (await staleReply).finished();
+  await page.evaluate(()=>import('/admin/ui/output.js').then(m=>m.refresh()));
+  assert.equal(await playlist.inputValue(),second.tuner_url+'/playlist.m3u');
+}
+
 async function runReal(admin) {
   const context = await browser.newContext({viewport:viewportSizes[1],httpCredentials:{username:'admin',password:'admin'}});
   const page = await context.newPage();
