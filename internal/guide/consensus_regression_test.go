@@ -224,3 +224,46 @@ func TestXMLTVBritishClockChangeWithNamedOffsets(t *testing.T) {
 		t.Fatal("ambiguous zone was coerced to UTC")
 	}
 }
+
+func TestEpisodeNamespaceTurnoverKeepsMetadataTogether(t *testing.T) {
+	previous := listing("Detectives")
+	previous.EpisodeSystem, previous.Episode = "onscreen", "S01E01"
+	previous.Subtitle, previous.Description = "Old episode", "Old synopsis"
+	replacement := func(origin, number string) Candidate {
+		c := evidence(origin, "Detectives")
+		p := &c.programmes[0]
+		p.EpisodeSystem, p.Episode = "xmltv_ns", number
+		p.Subtitle, p.Description = "Replacement episode", "A detailed description of the replacement episode"
+		return c
+	}
+	unconfirmed := replacement("other", "0.2.")
+	unconfirmed.programmes[0].Subtitle = ""
+	for _, tc := range []struct {
+		name     string
+		votes    []Candidate
+		switchID bool
+	}{
+		{"two matching independent sources switch namespace", []Candidate{replacement("a", "0.2."), replacement("b", "0.2.")}, true},
+		{"one source and one abstention preserve all incumbent details", []Candidate{replacement("a", "0.2."), evidence("b", "Detectives")}, false},
+		{"an unconfirmed alternate cannot replace the cached synopsis", []Candidate{unconfirmed, evidence("sparse", "Detectives")}, false},
+		{"two conflicting IDs preserve incumbent details", []Candidate{replacement("a", "0.2."), replacement("b", "0.3.")}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for range 2 {
+				out, _ := resolve(tc.votes, []Programme{previous}, "", 1200)
+				if len(out) != 1 {
+					t.Fatalf("missing broadcast: %+v", out)
+				}
+				want := previous
+				if tc.switchID {
+					want = replacement("any", "0.2.").programmes[0]
+				}
+				got := out[0]
+				if got.Episode != want.Episode || got.EpisodeSystem != want.EpisodeSystem || got.Subtitle != want.Subtitle || got.Description != want.Description {
+					t.Fatalf("expected coherent episode %+v, got %+v", want, got)
+				}
+				slices.Reverse(tc.votes)
+			}
+		})
+	}
+}

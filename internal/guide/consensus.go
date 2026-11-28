@@ -165,12 +165,10 @@ func preferredScheme(a, b string) bool {
 }
 
 // XMLTV episode identifiers from different systems are not directly
-// comparable. Preserve an established namespace; for a new listing choose
-// the best represented one, preferring standard xmltv_ns on a tie.
+// comparable. Prefer an established namespace while it is still reported.
+// Otherwise use the best represented one; chooseDetail requires two
+// independent matching IDs to replace an incumbent from another namespace.
 func episodeScheme(votes []Programme, prior Programme) string {
-	if prior.Episode != "" {
-		return prior.EpisodeSystem
-	}
 	counts := make(map[string]int)
 	best, scheme := 0, ""
 	for _, row := range votes {
@@ -178,6 +176,9 @@ func episodeScheme(votes []Programme, prior Programme) string {
 			continue
 		}
 		name := row.EpisodeSystem
+		if prior.Episode != "" && name == prior.EpisodeSystem {
+			return name
+		}
 		counts[name]++
 		if counts[name] > best || (counts[name] == best && preferredScheme(name, scheme)) {
 			best = counts[name]
@@ -207,13 +208,15 @@ func reconcileDetails(p Programme, votes []Programme, previous *Programme) (Prog
 		prior = Programme{}
 	}
 	p.Subtitle, p.Description = prior.Subtitle, prior.Description
-	if conflict && selected.number == "" {
+	// The attempted namespace switch lacked corroboration. The retained
+	// ID still belongs to its previously accepted subtitle and description.
+	if conflict && (selected.number == "" || selected.system != scheme) {
 		return p, true
 	}
 	subtitles := make(map[string]int)
 	display := map[string]string{norm(prior.Subtitle): prior.Subtitle}
 	for _, row := range votes {
-		if row.Episode != "" && row.EpisodeSystem == scheme && episodeOf(row) != selected {
+		if row.Episode != "" && episodeOf(row) != selected {
 			continue
 		}
 		if name := norm(row.Subtitle); name != "" {
@@ -229,7 +232,7 @@ func reconcileDetails(p Programme, votes []Programme, previous *Programme) (Prog
 		p.Description = ""
 	}
 	for _, row := range votes {
-		if row.Episode != "" && row.EpisodeSystem == scheme && episodeOf(row) != selected {
+		if row.Episode != "" && episodeOf(row) != selected {
 			continue
 		}
 		if row.Subtitle != "" && norm(row.Subtitle) != subtitle {
