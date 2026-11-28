@@ -11,4 +11,9 @@ concurrency:
   cancel-in-progress: true
 jobs:
   checks:
+    if: github.event_name != 'pull_request' || github.base_ref != 'testing/v1.2'
     uses: ./.github/workflows/source-checks.yml
+
+  testing-pr:
+    if: github.event_name == 'pull_request' && github.base_ref == 'testing/v1.2'
+    uses: ./.github/workflows/testing-pr.yml

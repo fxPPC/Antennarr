@@ -6,6 +6,7 @@ on:
         type: string
         required: true
   pull_request:
+    branches-ignore: [testing/v1.2]
     paths:
       - '.github/workflows/native-downloads.yml'
       - 'packaging/*native*'
