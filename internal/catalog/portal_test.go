@@ -198,6 +198,21 @@ func TestPortalReinstatementAfterLateValidation(t *testing.T) {
 			if err = s.DB.QueryRow("SELECT state FROM streams WHERE id=? AND enabled=1", stream).Scan(&state); err != nil || state != "unverified" {
 				t.Fatal("legacy withdrawal was not repaired", state, err)
 			}
+			if err = s.SaveRemovalPolicy(RemovalPolicy{StreamFailures: 1}); err != nil {
+				t.Fatal(err)
+			}
+			if err = s.Record(stream, Result{Success: false}); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = s.SavePortalCatalogue(a, nil); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = s.SavePortalCatalogue(a, rows); err != nil {
+				t.Fatal(err)
+			}
+			if err = s.DB.QueryRow("SELECT state FROM streams WHERE id=?", stream).Scan(&state); err != nil || state != "retired" {
+				t.Fatal("subscription turnover undid configured stream retirement", state, err)
+			}
 		})
 	}
 }

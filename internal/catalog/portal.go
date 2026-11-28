@@ -114,7 +114,7 @@ func (s *Store) SavePortalCatalogue(a ingest.PortalAccount, channels []ingest.Po
 		}
 		changed = append(changed, sid)
 	}
-	if _, err = tx.Exec("UPDATE streams SET enabled=0,state='portal_unsubscribed' WHERE account_id=? AND enabled=1 AND id NOT IN (SELECT id FROM portal_imported_streams)", id); err != nil {
+	if _, err = tx.Exec("UPDATE streams SET enabled=0,state='portal_unsubscribed' WHERE account_id=? AND enabled=1 AND state NOT IN ('retired','manually_blocked') AND id NOT IN (SELECT id FROM portal_imported_streams)", id); err != nil {
 		return 0, err
 	}
 	if _, err = tx.Exec("DELETE FROM roster WHERE account_id=? AND stream_id NOT IN (SELECT id FROM portal_imported_streams)", id); err != nil {
