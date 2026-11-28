@@ -183,7 +183,7 @@ func (a PortalAccount) subscribedStations(ctx context.Context, client *http.Clie
 	labels := map[string]string{}
 	for _, s := range stations {
 		display := s.Number.String() + ". " + strings.TrimSpace(s.Name)
-		if _, found := labels[display]; found || !entitled[s.ID.String()] || s.ID == "" || s.Name == "" {
+		if previous, found := labels[display]; (found && previous != s.ID.String()) || !entitled[s.ID.String()] || s.ID == "" || s.Name == "" {
 			labels[display] = ""
 		} else {
 			labels[display] = s.ID.String()
@@ -235,22 +235,22 @@ func (a *PortalAccount) Channels(ctx context.Context, client *http.Client) ([]Po
 	if fields := strings.Fields(lines[0]); len(fields) == 0 || fields[0] != "#EXTM3U" {
 		return nil, errors.New("portal export is not an extended M3U playlist")
 	}
-	a.PlaylistGuide = ""
+	var advertisedGuide string
 	for _, m := range attr.FindAllStringSubmatch(lines[0], -1) {
 		if m[1] == "x-tvg-url" || m[1] == "url-tvg" {
 			for _, candidate := range strings.Split(m[2], ",") {
 				if candidate = strings.TrimSpace(candidate); validGuide(candidate) {
-					a.PlaylistGuide = candidate
+					advertisedGuide = candidate
 					break
 				}
 			}
-			if a.PlaylistGuide != "" {
+			if advertisedGuide != "" {
 				break
 			}
 		}
 	}
 	var out []PortalChannel
-	seen := map[string]bool{}
+	seen := map[string]int{}
 	ambiguous := map[string]bool{}
 	name, tvg := "", ""
 	described, usable := false, false
@@ -260,8 +260,14 @@ func (a *PortalAccount) Channels(ctx context.Context, client *http.Client) ([]Po
 			return nil, errors.New("use a channel catalogue rather than an HLS stream")
 		}
 		if strings.HasPrefix(s, "#EXTINF:") {
+			if name != "" {
+				return nil, errors.New("portal export contains a channel without a playback URL")
+			}
 			described = true
 			name, tvg = portalName(s), ""
+			if name == "" || len(name) > 512 {
+				return nil, errors.New("invalid channel description in portal export")
+			}
 			for _, m := range attr.FindAllStringSubmatch(s, -1) {
 				if m[1] == "tvg-id" {
 					tvg = m[2]
@@ -275,11 +281,14 @@ func (a *PortalAccount) Channels(ctx context.Context, client *http.Client) ([]Po
 		described = true
 		station, id := name, tvg
 		name, tvg = "", ""
-		if station == "" || len(station) > 512 || len(id) > 256 {
-			continue
+		if station == "" || len(id) > 256 {
+			return nil, errors.New("incomplete channel description in portal export")
 		}
 		u, err := url.Parse(s)
-		if err != nil || len(s) > 8192 || u.User != nil || netguard.URL(u) != nil {
+		if err != nil || len(s) > 8192 || u.Scheme == "" || (u.Scheme == "https" || u.Scheme == "http") && u.Hostname() == "" {
+			return nil, errors.New("invalid playback URL in portal export")
+		}
+		if u.User != nil || netguard.URL(u) != nil {
 			continue
 		}
 		usable = true
@@ -294,15 +303,21 @@ func (a *PortalAccount) Channels(ctx context.Context, client *http.Client) ([]Po
 		}
 		h := sha256.Sum256([]byte(key))
 		key = hex.EncodeToString(h[:])
-		if seen[key] {
-			ambiguous[key] = true
+		channel := PortalChannel{key, station, id, u.String()}
+		if previous, exists := seen[key]; exists {
+			if out[previous] != channel {
+				ambiguous[key] = true
+			}
 			continue
 		}
-		seen[key] = true
-		out = append(out, PortalChannel{key, station, id, u.String()})
+		seen[key] = len(out)
+		out = append(out, channel)
 		if len(out) > 20000 {
 			return nil, errors.New("portal channel limit exceeded")
 		}
+	}
+	if name != "" {
+		return nil, errors.New("portal export ended before the last playback URL")
 	}
 	if described && !usable {
 		return nil, errors.New("no usable HTTP channels in portal response")
@@ -313,5 +328,6 @@ func (a *PortalAccount) Channels(ctx context.Context, client *http.Client) ([]Po
 			filtered = append(filtered, c)
 		}
 	}
+	a.PlaylistGuide = advertisedGuide
 	return filtered, nil
 }
