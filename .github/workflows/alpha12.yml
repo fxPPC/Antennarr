@@ -2,16 +2,17 @@ name: GitHub ARM64 alpha
 run-name: ARM64 alpha at ${{ github.sha }}
 on:
   push:
-    branches: [testing/v1.2, release-candidate/v1.2.0-alpha.1]
+    branches: [testing/v1.2, release-candidate/v1.2.0-alpha.2]
 permissions:
   contents: read
 concurrency:
   group: native-arm64-${{ github.ref }}
   cancel-in-progress: ${{ github.ref == 'refs/heads/testing/v1.2' }}
 env:
-  VERSION: v1.2.0-alpha.1
+  VERSION: v1.2.0-alpha.2
   BASELINE: v1.1.0
-  ANTENNARR_TEST_IMAGE: antennarr:v1.2.0-alpha.1
+  PREVIOUS_ALPHA: v1.2.0-alpha.1
+  ANTENNARR_TEST_IMAGE: antennarr:v1.2.0-alpha.2
   ANTENNARR_TEST_FIXTURES: /tmp/alpha12-media
 jobs:
   checks:
@@ -33,6 +34,7 @@ jobs:
         run: |
           test "$(uname -m)" = aarch64
           git merge-base --is-ancestor "$BASELINE^{commit}" "$GITHUB_SHA"
+          git merge-base --is-ancestor "$PREVIOUS_ALPHA^{commit}" "$GITHUB_SHA"
           test "$(cat RELEASE_LINE)" = 1.2
           python3 - <<'PY'
           import os, pathlib, runpy
@@ -46,6 +48,7 @@ jobs:
           test -z "$(gofmt -l cmd internal)"
           python3 scripts/test-release-policy.py
           python3 scripts/alpha12/test-publication.py
+          python3 scripts/alpha12/test-jellyfin-startup.py
           python3 scripts/test-docker-preview.py
           python3 scripts/test-image-vulnerabilities.py
           node --test scripts/ui.test.mjs
@@ -73,6 +76,27 @@ jobs:
           go -C "$RUNNER_TEMP/baseline" build -o "$RUNNER_TEMP/stable-server" ./cmd/antennarr
           go build -o "$RUNNER_TEMP/alpha-server" ./cmd/antennarr
           python3 scripts/alpha12/upgrade.py "$RUNNER_TEMP/stable-server" "$RUNNER_TEMP/alpha-server"
+      - name: Upgrade a catalogue created by the published alpha 1 image
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/alpha-one" "$RUNNER_TEMP/previous-image"
+          git archive "$PREVIOUS_ALPHA" | tar -x -C "$RUNNER_TEMP/alpha-one"
+          cd "$RUNNER_TEMP/previous-image"
+          archive="antennarr-$PREVIOUS_ALPHA-linux-arm64.docker.tar.gz"
+          gh release download "$PREVIOUS_ALPHA" --repo "$GITHUB_REPOSITORY" -p SHA256SUMS -p "$archive"
+          sha256sum --check --ignore-missing SHA256SUMS
+          docker load -i "$archive"
+          image="antennarr:$PREVIOUS_ALPHA"
+          revision=$(git -C "$GITHUB_WORKSPACE" rev-parse "$PREVIOUS_ALPHA^{commit}")
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image")" = "$revision"
+          cid=$(docker create "$image")
+          trap 'docker rm "$cid" >/dev/null' EXIT
+          docker cp "$cid:/usr/local/bin/antennarr" "$RUNNER_TEMP/alpha-one-server"
+          cd "$GITHUB_WORKSPACE"
+          python3 scripts/alpha12/upgrade.py --previous-alpha-source "$RUNNER_TEMP/alpha-one" \
+            "$RUNNER_TEMP/alpha-one-server" "$RUNNER_TEMP/alpha-server"
   candidate:
     if: github.event.deleted == false && github.ref == 'refs/heads/testing/v1.2'
     runs-on: ubuntu-24.04-arm
@@ -153,7 +177,7 @@ jobs:
           compression-level: 0
           retention-days: 3
   publish:
-    if: github.event.deleted == false && github.ref == 'refs/heads/release-candidate/v1.2.0-alpha.1'
+    if: github.event.deleted == false && github.ref == 'refs/heads/release-candidate/v1.2.0-alpha.2'
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 25
     permissions:
@@ -192,6 +216,7 @@ jobs:
           docker load -i "antennarr-$VERSION-linux-arm64.docker.tar.gz"
           test "$(docker image inspect --format '{{.Id}}' "$ANTENNARR_TEST_IMAGE")" = "$(jq -r .image_id BUILD.json)"
           test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$ANTENNARR_TEST_IMAGE")" = linux/arm64
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.version"}}' "$ANTENNARR_TEST_IMAGE")" = "$VERSION"
           test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$ANTENNARR_TEST_IMAGE")" = "$GITHUB_SHA"
           cd "$GITHUB_WORKSPACE"
           python3 packaging/test-permissions.py

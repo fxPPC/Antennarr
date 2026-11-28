@@ -8,7 +8,7 @@ import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / 'publish-github-alpha.sh'
 SHA = 'a' * 40
-VERSION = 'v1.2.0-alpha.1'
+VERSION = 'v1.2.0-alpha.2'
 
 
 class PublicationTests(unittest.TestCase):
@@ -37,6 +37,9 @@ esac
 
     def test_testing_branch_builds_without_publishing(self):
         self.assertEqual(self.rejected('refs/heads/testing/v1.2', SHA, 'v1.1.0'), [])
+
+    def test_previous_alpha_marker_does_not_publish_this_candidate(self):
+        self.assertEqual(self.rejected('refs/heads/release-candidate/v1.2.0-alpha.1', SHA, 'v1.1.0'), [])
 
     def test_outdated_candidate_stops_before_release_requests(self):
         calls = self.rejected('refs/heads/release-candidate/' + VERSION, 'b' * 40, 'v1.1.0')

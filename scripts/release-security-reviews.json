@@ -2480,5 +2480,50 @@
         "severity": "Low"
       }
     ]
+  },
+  "v1.2.0-alpha.2": {
+    "reviewed_on": "2026-11-27",
+    "decision": "Linux ARM64 only. The v1.1.0 runtime inputs remain locked to the signed Wolfi glibc 2.44-r29 ARM64 APK (SHA-256 80c3e195b50c63ea5bb4f4bf70bcbb7ddb2eef6940e5c2bc0c5271d2d447a8bb). Its recipe pins upstream commit c7f65355ebd788c705ef6dddd6030bab679f7791, containing the fixes for CVE-2026-100290, CVE-2026-115819, CVE-2026-121758, and CVE-2026-126765. CVE-2026-124024 requires the IBM1390 or IBM1399 conversion module. The alpha 2 candidate must match the signed APK’s libc and contain no converter modules. Publish only after fresh runtime verification and a fresh exact scan of the tested image. Any changed findings or reported fixes require further review.",
+    "references": [
+      "https://lore-kernel.gnuweeb.org/all/20261126174957.3194898-1-peter@korsgaard.com/T/",
+      "https://github.com/CVEProject/cvelistV5/blob/main/cves/2026/124xxx/CVE-2026-124024.json",
+      "https://github.com/bminor/glibc/blob/master/iconvdata/gconv-modules-extra.conf",
+      "https://github.com/fxPPC/Antennarr/releases/download/v1.1.0/wolfi-updates-linux-arm64.tar.gz",
+      "https://github.com/fxPPC/Antennarr/releases/download/v1.2.0-alpha.1/runtime-review.json",
+      "https://github.com/fxPPC/Antennarr/releases/download/v1.2.0-alpha.1/alpha12-vulnerabilities.json"
+    ],
+    "require_exact": true,
+    "findings": [
+      {
+        "id": "CVE-2026-100290",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Low"
+      },
+      {
+        "id": "CVE-2026-115819",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-121758",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-124024",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Medium"
+      },
+      {
+        "id": "CVE-2026-126765",
+        "package": "glibc-2.44",
+        "version": "2.44-r29",
+        "severity": "Low"
+      }
+    ]
   }
 }

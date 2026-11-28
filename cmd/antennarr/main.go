@@ -413,7 +413,7 @@ func run(parent context.Context, logOutput io.Writer, report func(desktopstats.C
 		}
 		_ = srv.Shutdown(shutdown)
 	}()
-	slog.Info("tuner starting", "version", "v1.2.0-alpha.1", "schema", catalog.SchemaVersion, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
+	slog.Info("tuner starting", "version", "v1.2.0-alpha.2", "schema", catalog.SchemaVersion, "replenish_while_playing", c.Settings.ReplenishWhilePlaying, "stage", "ready", "maximum_viewers", c.Settings.MaxOutgoingStreams, "profiles", len(profiles))
 	if err = srv.Serve(primaryListener); err != nil && err != http.ErrServerClosed {
 		slog.Error("HTTP server failed")
 		return false, errServerStopped

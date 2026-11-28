@@ -6,7 +6,7 @@ api="repos/$GITHUB_REPOSITORY"
 test "$GITHUB_REF" = "refs/heads/release-candidate/$VERSION"
 test "$(gh api "$api/git/ref/heads/testing/v1.2" --jq .object.sha)" = "$GITHUB_SHA"
 test "$(gh api "$api/releases/latest" --jq .tag_name)" = "$BASELINE"
-test -s "$GITHUB_WORKSPACE/docs/V1.2-ALPHA.1.md"
+test -s "$GITHUB_WORKSPACE/docs/V1.2-ALPHA.2.md"
 
 # Resume a draft from an interrupted upload only for this exact version and commit.
 # A published release is immutable; reruns only verify its contents.
@@ -14,7 +14,7 @@ view=$(gh api --paginate --slurp "$api/releases?per_page=100" |
   jq -c --arg v "$VERSION" 'flatten | map(select(.tag_name == $v)) | first // {}')
 if [[ "$view" == '{}' ]]; then
   gh release create "$VERSION" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --prerelease --latest=false \
-    --title "Antennarr $VERSION (Linux ARM64)" --notes-file "$GITHUB_WORKSPACE/docs/V1.2-ALPHA.1.md"
+    --title "Antennarr $VERSION (Linux ARM64)" --notes-file "$GITHUB_WORKSPACE/docs/V1.2-ALPHA.2.md"
 else
   jq -e --arg c "$GITHUB_SHA" '.prerelease and (.target_commitish == $c)' <<< "$view" >/dev/null
 fi
