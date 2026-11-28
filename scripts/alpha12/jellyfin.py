@@ -122,10 +122,11 @@ def start(stack, name, image, network, *options):
 
 
 def jellyfin_setup(base):
-    wait("Jellyfin startup", lambda: request(base, "/System/Info/Public"))
     password = secrets.token_urlsafe(24)
     client = 'MediaBrowser Client="Antennarr acceptance", Device="ARM64", DeviceId="alpha-dvr-test", Version="1"'
     headers = {"Authorization": client}
+    # The public info endpoint can answer while the wizard still returns 503.
+    wait("Jellyfin startup wizard", lambda: request(base, "/Startup/Configuration", headers=headers) is not None)
     request(base, "/Startup/Configuration", {"ServerName": "Antennarr DVR fixture", "UICulture": "en-GB",
             "MetadataCountryCode": "GB", "PreferredMetadataLanguage": "en"}, headers)
     request(base, "/Startup/User", headers=headers)  # Initialises the first local user.

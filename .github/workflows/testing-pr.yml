@@ -24,6 +24,7 @@ jobs:
       - name: Run native source and controlled media tests
         run: |
           test "$(uname -m)" = aarch64
+          python3 scripts/alpha12/test-jellyfin-startup.py
           sudo apt-get update
           sudo apt-get install -y ffmpeg
           test -z "$(gofmt -l cmd internal)"
