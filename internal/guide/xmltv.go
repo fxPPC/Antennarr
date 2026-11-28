@@ -29,12 +29,38 @@ func (s *station) displayName() string {
 	return s.id
 }
 func xmlTime(s string) (int64, bool) {
-	for _, layout := range []string{"20060102150405 -0700", "200601021504 -0700", "20060102150405", "200601021504"} {
-		if t, e := time.Parse(layout, strings.TrimSpace(s)); e == nil {
-			return t.Unix(), true
-		}
+	parts := strings.Fields(s)
+	if len(parts) < 1 || len(parts) > 2 {
+		return 0, false
 	}
-	return 0, false
+	var layout string
+	switch len(parts[0]) {
+	case 14:
+		layout = "20060102150405"
+	case 12:
+		layout = "200601021504"
+	default:
+		return 0, false
+	}
+	value := parts[0]
+	if len(parts) == 2 {
+		zone := parts[1]
+		// XMLTV defines BST as +0100. Resolve only explicitly recognised
+		// named zones: Go otherwise accepts unknown abbreviations as zero.
+		switch strings.ToUpper(zone) {
+		case "BST":
+			zone = "+0100"
+		case "UTC", "GMT", "Z":
+			zone = "+0000"
+		}
+		layout += " -0700"
+		value += " " + zone
+	}
+	t, err := time.Parse(layout, value)
+	if err != nil {
+		return 0, false
+	}
+	return t.Unix(), true
 }
 func bounded(s string, n int) string {
 	s = strings.TrimSpace(s)

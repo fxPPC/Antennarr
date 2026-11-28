@@ -56,6 +56,7 @@ const preference = [
 ];
 export async function init() {
   if (ready) return;
+  const s = await api('/api/settings');
   $('#export-lineup').onclick = async () => {
     const trigger = $('#export-lineup');
     trigger.disabled = true;
@@ -92,7 +93,6 @@ export async function init() {
   };
   help($('#channel-form').elements.station.parentElement, 'Optional exact station ID, such as WNBC. Both primary and backup sources must identify it in their name or guide ID. Generic network labels are insufficient; fewer feeds may qualify. Match the station to the guide selected in Plex.', 'Required station ID');
   $('#output-profile').onchange = event => selectProfile(event.target.value, true);
-  const s = await api('/api/settings');
   const f = $('#output-settings');
   f.before(el('p','Roster checks run continuously in passes. Once each eligible stream has had a turn, the next pass begins. Provider pacing and playback priority still apply.'));
   f.replaceChildren();
@@ -149,7 +149,6 @@ export async function init() {
     selectProfile(operationProfile(), true)
   };
   $('#output-search').onsubmit=e=>{e.preventDefault();location.hash=channelURL(view().tuner,{q:e.currentTarget.elements.q.value.trim()})};
-  await loadChannels();
   for (const [id, reset] of [['clear-all-channels', false], ['reset-preset-channels', true]]) {
     $('#' + id).onclick = async () => {
       try {
@@ -169,27 +168,59 @@ export async function init() {
 }
 // Rebuilding after a mutation retains open tuner/channel sections. Periodic
 // refreshes update counters in place and do not reset edits or keyboard focus.
-function loadChannels() {
-  if (loadingProfiles) return loadingProfiles;
-  loadingProfiles = renderProfiles().finally(() => { loadingProfiles = null; });
-  return loadingProfiles;
+function tunerViewKey(scope = view()) {
+  return JSON.stringify([scope.tuner, scope.coverage, scope.searching]);
 }
-async function renderProfiles() {
+
+function loadChannels() {
+  const scope = view(), key = tunerViewKey(scope);
+  if (loadingProfiles?.key === key) return loadingProfiles.promise;
+  const request = {key};
+  loadingProfiles = request;
+  const current = () => loadingProfiles === request && tunerViewKey() === key;
+  const switched = viewKey !== key;
+  const content = $('#tuner-view'), status = $('#tuner-load-state');
+  if (switched) {
+    viewKey = '';
+    searchGeneration++;
+    content.hidden = true;
+    $('#tuners-title').textContent = 'Tuners';
+    $('#tuners-back').hidden = !scope.tuner && !scope.coverage;
+    status.textContent = 'Loading tuner lineup…';
+    status.hidden = false;
+  }
+  request.promise = renderProfiles(scope,current).then(() => {
+    if (!current()) return;
+    viewKey = key;
+    content.hidden = false;
+    status.hidden = true;
+  }).catch(error => {
+    if (!current()) return;
+    if (switched) status.textContent = 'Unable to load this lineup. Retrying shortly.';
+    throw error;
+  }).finally(() => {
+    if (loadingProfiles === request) loadingProfiles = null;
+  });
+  return request.promise;
+}
+
+async function renderProfiles(scope,current) {
   refreshGeneration++;
   const openChannels = new Set([...channelCards].filter(([, value]) => value.card.open).map(([id]) => id));
   const [loadedProfiles, loadedPresets, loadedListeners] = await Promise.all([
     api('/api/profiles'), api('/api/presets'), api('/api/listeners')
   ]);
-  const {tuner: requested, coverage, searching} = view();
+  if (!current()) return;
+  const {tuner: requested, coverage, searching} = scope;
   const scoped = requested ? loadedProfiles.filter(p => p.id === requested) :
     coverage ? loadedProfiles.filter(p => p.enabled) : searching ? loadedProfiles : [];
-  viewKey = JSON.stringify([requested, coverage, searching]);
   const [channelLists, savedRosters, guides, monitor] = await Promise.all([
     Promise.all(scoped.map(profile => api(profilePath('/api/channels', profile.id)))),
     Promise.all(scoped.map(profile => api(profilePath('/api/roster', profile.id)))),
     Promise.all(scoped.map(profile => api(profilePath('/api/guide',profile.id)))),
     scoped.length ? api('/api/monitor') : null
   ]);
+  if (!current()) return;
   applyGuideSnapshot(guides,monitor);
   // Disabled tuners still show saved counts and policy overrides. The default
   // roster summary remains restricted to work eligible for background checks.
@@ -285,7 +316,9 @@ async function renderProfiles() {
       } finally { toggle.disabled = false; }
     };
     tuner.append(result);
-    tuner.append(clientConnections(profile,routeParams().has('connect') ? (routeParams().get('connect') === 'jellyfin' ? 'Jellyfin' : 'Plex') : ''));
+    const connect = active && routeParams().has('connect')
+      ? (routeParams().get('connect') === 'jellyfin' ? 'Jellyfin' : 'Plex') : '';
+    tuner.append(clientConnections(profile,connect));
     const tunerSettings = el('details',undefined,'tuner-settings');
     tunerSettings.append(el('summary','Playback and tuner settings'));
     const resolution = select(tunerSettings, 'preferred_height', 'Preferred playback quality', String(profile.preferred_height || 0),
@@ -563,6 +596,10 @@ async function renderEntries(ch, root) {
   }
 }
 export async function refresh(forceGuide = false) {
+  if (viewKey !== tunerViewKey() || loadingProfiles) {
+    await loadChannels();
+    return;
+  }
   const ticket = ++refreshGeneration;
   if (forceGuide) guideReadAt = 0;
   const {tuner, coverage} = view();
@@ -599,12 +636,15 @@ function paintRoster(node, roster) {
 
 // Search only saved metadata; displaying results never opens an upstream feed.
 export async function route() {
-  const {tuner, coverage, searching} = view();
-  const key=JSON.stringify([tuner,coverage,searching]);
-  if (loadingProfiles) await loadingProfiles;
-  if (key !== JSON.stringify(Object.values(view()))) return;
-  if (viewKey !== key) await loadChannels();
+  const scope = view(), key = tunerViewKey(scope), tuner = scope.tuner;
+  if (viewKey !== key || loadingProfiles) await loadChannels();
+  if (tunerViewKey() !== key) return;
   await filterChannels();
+  if (tuner && routeParams().has('connect')) {
+    const client = routeParams().get('connect') === 'jellyfin' ? 'jellyfin' : 'plex';
+    const control = profileCards.get(tuner)?.querySelector('[data-client="' + client + '"]');
+    if (control?.getAttribute('aria-expanded') === 'false') control.click();
+  }
   if(routeParams().has('add')) { $('#add-tuners').open=true; $('#add-tuners').scrollIntoView(); }
 
   const row=channelCards.get(routeParams().get('edit'));

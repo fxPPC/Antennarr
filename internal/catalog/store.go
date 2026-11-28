@@ -540,6 +540,15 @@ func (s *Store) SaveChannel(c Channel) (string, error) {
 	if e = saveStation(tx, c.ID, c.Station); e != nil {
 		return "", e
 	}
+	// Accepted automatic listings belong to the station that supplied them.
+	// A renumber or label change preserves the guide, as does an explicit
+	// operator pin. A different station/region starts its own automatic guide.
+	if exists > 0 && (previousStation != c.Station || !strings.EqualFold(previousRegion, c.Region)) {
+		if _, e = tx.Exec("DELETE FROM guide_channels WHERE channel_id=? AND pin=''", c.ID); e != nil {
+			return "", e
+		}
+	}
+
 	if refresh {
 		previous := Channel{ID: c.ID, ProfileID: c.ProfileID, Name: previousName, Region: previousRegion, Station: previousStation}
 		json.Unmarshal([]byte(previousAliases), &previous.Aliases)

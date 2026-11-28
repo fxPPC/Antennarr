@@ -81,6 +81,7 @@ export function clientConnections(profile, initial = '') {
   for (const client of ['Plex','Jellyfin']) {
     const b = el('button','Connect to ' + client);
     b.type = 'button';
+    b.dataset.client = client.toLowerCase();
     b.setAttribute('aria-expanded','false');
     b.onclick = () => show(active === client ? '' : client);
     group.append(b);

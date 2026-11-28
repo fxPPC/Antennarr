@@ -42,6 +42,18 @@ func (s *Store) PortalAccount(id int64) (ingest.PortalAccount, error) {
 	return account, nil
 }
 
+// Older REST imports keyed a station by its provider's numeric ID alone.
+// Preserve those persisted references only while the saved station matches.
+func samePortalStation(db interface{ QueryRow(string, ...any) *sql.Row }, ref string, c ingest.PortalChannel) (bool, error) {
+	var matches bool
+	err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM streams WHERE identity=? AND name=? AND tvg_id=?)", fingerprint(ref), c.Name, c.TVGID).Scan(&matches)
+	return matches, err
+}
+
+func portalStationKey(c ingest.PortalChannel) string {
+	return fingerprint(c.Key + "\x00" + c.Name + "\x00" + c.TVGID)
+}
+
 // An entire authorised catalogue is replaced in one transaction. Published
 // candidate identifiers survive refreshes and rotating signed media links.
 func (s *Store) SavePortalCatalogue(a ingest.PortalAccount, channels []ingest.PortalChannel) (int64, error) {
@@ -74,7 +86,17 @@ func (s *Store) SavePortalCatalogue(a ingest.PortalAccount, channels []ingest.Po
 	}
 	changed := make([]int64, 0, len(channels))
 	for _, c := range channels {
-		ref := "portal:" + strconv.FormatInt(id, 10) + "/" + c.Key
+		prefix := "portal:" + strconv.FormatInt(id, 10) + "/"
+		ref := prefix + c.Key
+		if a.PlaylistURL == "" {
+			match, err := samePortalStation(tx, ref, c)
+			if err != nil {
+				return 0, err
+			}
+			if !match {
+				ref = prefix + portalStationKey(c)
+			}
+		}
 		record, _ := json.Marshal(ingest.Entry{Kind: "portal", Name: c.Name, TVGID: c.TVGID, URL: ref, Endpoint: a.PortalURL})
 		var sid int64
 		err = tx.QueryRow(`INSERT INTO streams(id,account_id,identity,name,tvg_id,secret)
@@ -127,9 +149,22 @@ func (s *Store) ResolvePortalStream(ctx context.Context, client *http.Client, re
 		return "", err
 	}
 	for _, c := range channels {
-		if c.Key == key {
+		if a.PlaylistURL == "" && portalStationKey(c) == key {
 			return c.URL, nil
 		}
+		if c.Key != key {
+			continue
+		}
+		if a.PlaylistURL == "" {
+			match, err := samePortalStation(s.DB, ref, c)
+			if err != nil {
+				return "", err
+			}
+			if !match {
+				break
+			}
+		}
+		return c.URL, nil
 	}
 	return "", errors.New("channel is no longer available on this subscription")
 }

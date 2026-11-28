@@ -57,16 +57,192 @@ type slotKey struct {
 func key(p Programme) slotKey {
 	return slotKey{p.Start, p.Stop, strings.ToLower(strings.Join(strings.Fields(p.Title), " ")), strings.ToLower(p.Subtitle), p.Episode, p.EpisodeSystem}
 }
-func agrees(a, b slotKey) bool {
+func sameBroadcast(a, b slotKey) bool {
 	const tolerance = 90
-	return a.title == b.title && (a.subtitle == "" || b.subtitle == "" || a.subtitle == b.subtitle) &&
-		(a.episode == "" || b.episode == "" || a.system != b.system || a.episode == b.episode) &&
-		a.start <= b.start+tolerance && b.start <= a.start+tolerance && a.stop <= b.stop+tolerance && b.stop <= a.stop+tolerance
+	return a.title == b.title && a.start <= b.start+tolerance && b.start <= a.start+tolerance && a.stop <= b.stop+tolerance && b.stop <= a.stop+tolerance
+}
+func agrees(a, b slotKey) bool {
+	return sameBroadcast(a, b) && (a.subtitle == "" || b.subtitle == "" || a.subtitle == b.subtitle) && (a.episode == "" || b.episode == "" || a.system != b.system || a.episode == b.episode)
 }
 
 type proposal struct {
-	p        Programme
-	priority int
+	p              Programme
+	priority       int
+	detailConflict bool
+}
+
+// An origin must tell one consistent story about this time, even if none of
+// its variants vote for the proposed title. Compare all variants so a sparse
+// third row cannot bridge two contradictory episodes.
+func matchingBallots(candidates []Candidate, midpoint int64, target slotKey) ([]Programme, int) {
+	groups := make(map[string][]*Programme)
+	for _, c := range candidates {
+		if p, _ := nowNext(c.programmes, midpoint); p != nil {
+			groups[c.Source] = append(groups[c.Source], p)
+		}
+	}
+	var votes []Programme
+	eligible := 0
+	for _, rows := range groups {
+		var representative Programme
+		divided := false
+		supports := true
+		for i, row := range rows {
+			k := key(*row)
+			if !sameBroadcast(target, k) {
+				supports = false
+			}
+			for _, other := range rows[:i] {
+				if !agrees(k, key(*other)) {
+					divided = true
+					break
+				}
+			}
+			if divided {
+				break
+			}
+			if row.Episode != "" && (representative.Episode == "" || preferredScheme(row.EpisodeSystem, representative.EpisodeSystem)) {
+				representative.Episode = row.Episode
+				representative.EpisodeSystem = row.EpisodeSystem
+			}
+			if row.Subtitle != "" && (representative.Subtitle == "" || row.Subtitle < representative.Subtitle) {
+				representative.Subtitle = row.Subtitle
+			}
+			if len(row.Description) > len(representative.Description) || (len(row.Description) == len(representative.Description) && row.Description < representative.Description) {
+				representative.Description = row.Description
+			}
+		}
+		if divided {
+			continue
+		}
+		eligible++
+		if supports {
+			votes = append(votes, representative)
+		}
+	}
+	return votes, eligible
+}
+
+type episodeID struct{ number, system string }
+
+func episodeOf(p Programme) episodeID {
+	if p.Episode == "" {
+		return episodeID{}
+	}
+	return episodeID{p.Episode, p.EpisodeSystem}
+}
+
+// Empty metadata abstains. Revising a known value needs two independent
+// positive votes; a first, unopposed value may populate an empty guide.
+func chooseDetail[T comparable](counts map[T]int, incumbent T) (T, bool) {
+	var zero T
+	total, best := 0, 0
+	winner := incumbent
+	for value, n := range counts {
+		total += n
+		if n > best {
+			best = n
+			winner = value
+		}
+	}
+	if total == 0 {
+		return incumbent, false
+	}
+	if best*2 <= total || (winner != incumbent && incumbent != zero && best < 2) {
+		return incumbent, true
+	}
+	return winner, false
+}
+
+func preferredScheme(a, b string) bool {
+	if a == b {
+		return false
+	}
+	if a == "xmltv_ns" || b == "xmltv_ns" {
+		return a == "xmltv_ns"
+	}
+	return a < b
+}
+
+// XMLTV episode identifiers from different systems are not directly
+// comparable. Prefer an established namespace while it is still reported.
+// Otherwise use the best represented one; chooseDetail requires two
+// independent matching IDs to replace an incumbent from another namespace.
+func episodeScheme(votes []Programme, prior Programme) string {
+	counts := make(map[string]int)
+	best, scheme := 0, ""
+	for _, row := range votes {
+		if row.Episode == "" {
+			continue
+		}
+		name := row.EpisodeSystem
+		if prior.Episode != "" && name == prior.EpisodeSystem {
+			return name
+		}
+		counts[name]++
+		if counts[name] > best || (counts[name] == best && preferredScheme(name, scheme)) {
+			best = counts[name]
+			scheme = name
+		}
+	}
+	return scheme
+}
+
+func reconcileDetails(p Programme, votes []Programme, previous *Programme) (Programme, bool) {
+	prior := Programme{}
+	if previous != nil && sameBroadcast(key(p), key(*previous)) {
+		prior = *previous
+	}
+	scheme := episodeScheme(votes, prior)
+	counts := make(map[episodeID]int)
+	for _, row := range votes {
+		if row.Episode != "" && row.EpisodeSystem == scheme {
+			counts[episodeOf(row)]++
+		}
+	}
+	selected, conflict := chooseDetail(counts, episodeOf(prior))
+	p.Episode, p.EpisodeSystem = selected.number, selected.system
+	// A corrected episode must never inherit the previous episode's subtitle
+	// or synopsis. Two disagreeing episode IDs cannot identify a new episode.
+	if prior.Episode != "" && episodeOf(prior) != selected {
+		prior = Programme{}
+	}
+	p.Subtitle, p.Description = prior.Subtitle, prior.Description
+	// The attempted namespace switch lacked corroboration. The retained
+	// ID still belongs to its previously accepted subtitle and description.
+	if conflict && (selected.number == "" || selected.system != scheme) {
+		return p, true
+	}
+	subtitles := make(map[string]int)
+	display := map[string]string{norm(prior.Subtitle): prior.Subtitle}
+	for _, row := range votes {
+		if row.Episode != "" && episodeOf(row) != selected {
+			continue
+		}
+		if name := norm(row.Subtitle); name != "" {
+			subtitles[name]++
+			if display[name] == "" || row.Subtitle < display[name] {
+				display[name] = row.Subtitle
+			}
+		}
+	}
+	subtitle, split := chooseDetail(subtitles, norm(prior.Subtitle))
+	p.Subtitle = display[subtitle]
+	if norm(p.Subtitle) != norm(prior.Subtitle) {
+		p.Description = ""
+	}
+	for _, row := range votes {
+		if row.Episode != "" && episodeOf(row) != selected {
+			continue
+		}
+		if row.Subtitle != "" && norm(row.Subtitle) != subtitle {
+			continue
+		}
+		if len(row.Description) > len(p.Description) || (len(row.Description) == len(p.Description) && row.Description < p.Description) {
+			p.Description = row.Description
+		}
+	}
+	return p, conflict || split
 }
 
 func programmeOrder(a, b Programme) bool {
@@ -108,42 +284,30 @@ func resolveContext(ctx context.Context, candidates []Candidate, old []Programme
 			if pin != "" {
 				p.State = "pinned"
 				p.Origins = 1
-				proposed = append(proposed, proposal{p, 4})
+				proposed = append(proposed, proposal{p: p, priority: 4})
 				continue
 			}
 			k := key(p)
+			// All episode and subtitle evidence for this broadcast is
+			// reconciled together. Sparse metadata cannot nominate a duplicate.
+			k.subtitle, k.episode, k.system = "", "", ""
 			if seen[k] {
 				continue
 			}
 			seen[k] = true
 			midpoint := p.Start + (p.Stop-p.Start)/2
-			votes := map[string]bool{}
-			for _, other := range candidates {
-				on, _ := nowNext(other.programmes, midpoint)
-				if on == nil {
-					continue
-				}
-				same := agrees(k, key(*on))
-				if previous, exists := votes[other.Source]; exists {
-					votes[other.Source] = previous && same
-				} else {
-					votes[other.Source] = same
-				}
-			}
-			n := 0
-			for _, v := range votes {
-				if v {
-					n++
-				}
-			}
+			votes, eligible := matchingBallots(candidates, midpoint, k)
+			prior, _ := nowNext(old, midpoint)
+			p, split := reconcileDetails(p, votes, prior)
+			n := len(votes)
 			p.Origins = n
 			switch {
-			case n >= 2 && n*2 > len(votes):
+			case n >= 2 && n*2 > eligible:
 				p.State = "confirmed"
-				proposed = append(proposed, proposal{p, 3})
-			case len(votes) == 1 && n == 1:
+				proposed = append(proposed, proposal{p: p, priority: 3, detailConflict: split})
+			case eligible == 1 && n == 1:
 				p.State = "single"
-				proposed = append(proposed, proposal{p, 1})
+				proposed = append(proposed, proposal{p: p, priority: 1, detailConflict: split})
 			default:
 				disputed = append(disputed, midpoint)
 			}
@@ -158,7 +322,7 @@ func resolveContext(ctx context.Context, candidates []Candidate, old []Programme
 		}
 		p.State = "cached"
 		p.Origins = 0
-		proposed = append(proposed, proposal{p, 2})
+		proposed = append(proposed, proposal{p: p, priority: 2})
 	}
 	sort.SliceStable(proposed, func(i, j int) bool {
 		a, b := proposed[i], proposed[j]
@@ -171,6 +335,7 @@ func resolveContext(ctx context.Context, candidates []Candidate, old []Programme
 		return programmeOrder(a.p, b.p)
 	})
 	var out []Programme
+	detailConflict := false
 	for _, item := range proposed {
 		p := item.p
 		i := sort.Search(len(out), func(i int) bool { return out[i].Stop > p.Start })
@@ -179,6 +344,7 @@ func resolveContext(ctx context.Context, candidates []Candidate, old []Programme
 				if agrees(key(out[i]), key(p)) {
 					out[i].State = "single"
 					out[i].Origins = 1
+					detailConflict = detailConflict || item.detailConflict
 				} else {
 					disputed = append(disputed, p.Start+(p.Stop-p.Start)/2)
 				}
@@ -188,6 +354,7 @@ func resolveContext(ctx context.Context, candidates []Candidate, old []Programme
 		out = append(out, Programme{})
 		copy(out[i+1:], out[i:])
 		out[i] = p
+		detailConflict = detailConflict || item.detailConflict
 	}
 	for _, midpoint := range disputed {
 		on, _ := nowNext(out, midpoint)
@@ -195,5 +362,5 @@ func resolveContext(ctx context.Context, candidates []Candidate, old []Programme
 			return out, true
 		}
 	}
-	return out, false
+	return out, detailConflict
 }

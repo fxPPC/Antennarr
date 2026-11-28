@@ -56,12 +56,12 @@ func (s *Service) SetPin(ctx context.Context, profile, id, candidate string) err
 		return e
 	}
 	defer tx.Rollback()
-	var raw string
-	e = tx.QueryRowContext(ctx, `SELECT coalesce(g.snapshot,'{}') FROM channels c LEFT JOIN guide_channels g ON g.channel_id=c.id WHERE c.profile_id=? AND c.id=?`, profile, id).Scan(&raw)
+	var raw, previous string
+	e = tx.QueryRowContext(ctx, `SELECT coalesce(g.snapshot,'{}'),coalesce(g.pin,'') FROM channels c LEFT JOIN guide_channels g ON g.channel_id=c.id WHERE c.profile_id=? AND c.id=?`, profile, id).Scan(&raw, &previous)
 	if e != nil {
 		return e
 	}
-	if candidate != "" {
+	if candidate != "" && candidate != previous {
 		var snap snapshot
 		if e = json.Unmarshal([]byte(raw), &snap); e != nil {
 			return e
@@ -80,8 +80,18 @@ func (s *Service) SetPin(ctx context.Context, profile, id, candidate string) err
 				return errors.New("station is unavailable on this tuner")
 			}
 		}
+		// An explicit station change invalidates the previous station's
+		// listings immediately, including slots the new guide does not cover.
+		snap.Schedule = nil
+		snap.Conflict = false
+		snap.Checked = 0
+		data, err := json.Marshal(snap)
+		if err != nil {
+			return err
+		}
+		raw = string(data)
 	}
-	_, e = tx.ExecContext(ctx, "INSERT INTO guide_channels(channel_id,pin) VALUES(?,?) ON CONFLICT(channel_id) DO UPDATE SET pin=excluded.pin", id, candidate)
+	_, e = tx.ExecContext(ctx, "INSERT INTO guide_channels(channel_id,pin,snapshot) VALUES(?,?,?) ON CONFLICT(channel_id) DO UPDATE SET pin=excluded.pin,snapshot=excluded.snapshot", id, candidate, raw)
 	if e != nil {
 		return e
 	}

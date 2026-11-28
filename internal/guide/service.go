@@ -484,7 +484,14 @@ func (s *Service) publish(ctx context.Context, in inputs, choices map[string]map
 		if !valid[c.ch.ProfileID] {
 			continue
 		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO guide_channels(channel_id,pin,snapshot) SELECT id,?,? FROM channels WHERE id=? AND profile_id=? ON CONFLICT(channel_id) DO UPDATE SET snapshot=excluded.snapshot WHERE guide_channels.pin=excluded.pin`, c.pin, string(data), id, c.ch.ProfileID)
+		// The network refresh runs outside this transaction. A station edit,
+		// disable, or pin correction during the fetch invalidates its result.
+		_, err := tx.ExecContext(ctx, `INSERT INTO guide_channels(channel_id,pin,snapshot)
+    SELECT c.id,?,? FROM active_channels c WHERE c.id=? AND c.profile_id=? AND c.enabled=1
+    AND lower(c.region)=lower(?) AND c.name=?
+    AND coalesce((SELECT value FROM settings WHERE name='channel_station:'||c.id),'')=?
+    ON CONFLICT(channel_id) DO UPDATE SET snapshot=excluded.snapshot WHERE guide_channels.pin=excluded.pin`,
+			c.pin, string(data), id, c.ch.ProfileID, c.ch.Region, c.ch.Name, c.ch.Station)
 		if err != nil {
 			return err
 		}
