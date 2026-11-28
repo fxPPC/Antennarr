@@ -36,8 +36,12 @@ func TestSeedJellyfinDVR(t *testing.T) {
 	defer store.Close()
 	ctx := context.Background()
 	now := time.Now().UTC()
-	start := now.Add(-time.Minute).Format("20060102150405 -0700")
-	end := now.Add(3 * time.Minute).Format("20060102150405 -0700")
+	// Give the real DVR time to ingest both tuners, schedule a future recording,
+	// and refresh its guide after a channel edit before the timer fires.
+	const stamp = "20060102150405 -0700"
+	start := now.Add(-time.Minute).Format(stamp)
+	handoff := now.Add(2 * time.Minute).Format(stamp)
+	end := now.Add(210 * time.Second).Format(stamp)
 	data := map[string]string{}
 	client := &http.Client{Transport: transport(func(r *http.Request) (*http.Response, error) {
 		body, ok := data[r.URL.String()]
@@ -51,8 +55,8 @@ func TestSeedJellyfinDVR(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i, market := range []struct{ preset, name, station, region string }{
-		{"us-nyc", "New York Fixture", "NYFIX", "US"},
-		{"uk-london", "London Fixture", "LONFIX", "GB"},
+		{"us-nyc", "5 New York Fixture", "NYFIX", "US"},
+		{"uk-london", "News, London Fixture", "LONFIX", "GB"},
 	} {
 		profile, err := store.AddProfilePreset(market.preset)
 		if err != nil {
@@ -67,7 +71,11 @@ func TestSeedJellyfinDVR(t *testing.T) {
 			t.Fatal(err)
 		}
 		source := fmt.Sprintf("https://guide%d.example/listings.xml", i)
-		data[source] = fmt.Sprintf(`<tv><channel id="%s"><display-name>%s</display-name></channel><programme start="%s" stop="%s" channel="%s"><title>%s on Air</title></programme></tv>`, market.station, market.name, start, end, market.station, market.name)
+		data[source] = fmt.Sprintf(`<tv>
+            <channel id="%[1]s"><display-name>%[2]s</display-name></channel>
+            <programme start="%[3]s" stop="%[4]s" channel="%[1]s"><title>%[2]s Preview</title></programme>
+            <programme start="%[4]s" stop="%[5]s" channel="%[1]s"><title>%[2]s on Air</title></programme>
+        </tv>`, market.station, market.name, start, handoff, end)
 		if err = service.SetFeed(ctx, profile.ID, source); err != nil {
 			t.Fatal(err)
 		}
