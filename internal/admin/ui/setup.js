@@ -7,7 +7,7 @@ const steps = ['tuner', 'sources', 'plex'];
 const headings = ['Choose a tuner', 'Add a source', 'Connect your media server'];
 let profiles = [], presets = [], saved, step, lastOptions, listeners;
 let visiting = false, working = false, focusOnOpen = false, generation = 0;
-let invalidateTuners, connectionKey = '';
+let invalidateTuners, connectionKey = '', readError;
 
 // Installed tuners can have custom names and may have no city preset at all.
 export function tunerOptions(profiles, presets, availableSlots) {
@@ -134,17 +134,30 @@ async function load(ticket, focus = false) {
 function report(e) {
   const target = visiting && !$('#setup-guide').hidden ? $('#setup-message') : visiting ? $('#setup-outcome') : $('#setup-resume-result');
   target.textContent = e.message;
+  return target;
 }
 
 async function refresh(focus = false) {
   const ticket = ++generation;
-  try { await load(ticket, focus); } catch (e) { if (ticket === generation) report(e); }
+  try {
+    await load(ticket, focus);
+    if (ticket === generation && readError) {
+      if (readError.target.textContent === readError.message) readError.target.textContent = '';
+      readError = undefined;
+    }
+  } catch (e) {
+    if (ticket === generation) readError = {target:report(e), message:e.message};
+  }
 }
 
 export function visit(page) {
   visiting = page === 'status';
   generation++;
-  if (visiting) { void refresh(); } else { hide(); }
+  if (visiting) {
+    // A new visit needs its own successful read before polling can stay idle.
+    saved = undefined;
+    void refresh();
+  } else { hide(); }
 }
 
 let polling = false;

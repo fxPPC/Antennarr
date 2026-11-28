@@ -57,9 +57,11 @@ type slotKey struct {
 func key(p Programme) slotKey {
 	return slotKey{p.Start, p.Stop, strings.ToLower(strings.Join(strings.Fields(p.Title), " ")), strings.ToLower(p.Subtitle), p.Episode, p.EpisodeSystem}
 }
+
+const broadcastTolerance = 90
+
 func sameBroadcast(a, b slotKey) bool {
-	const tolerance = 90
-	return a.title == b.title && a.start <= b.start+tolerance && b.start <= a.start+tolerance && a.stop <= b.stop+tolerance && b.stop <= a.stop+tolerance
+	return a.title == b.title && a.start <= b.start+broadcastTolerance && b.start <= a.start+broadcastTolerance && a.stop <= b.stop+broadcastTolerance && b.stop <= a.stop+broadcastTolerance
 }
 func agrees(a, b slotKey) bool {
 	return sameBroadcast(a, b) && (a.subtitle == "" || b.subtitle == "" || a.subtitle == b.subtitle) && (a.episode == "" || b.episode == "" || a.system != b.system || a.episode == b.episode)
@@ -68,13 +70,15 @@ func agrees(a, b slotKey) bool {
 type proposal struct {
 	p              Programme
 	priority       int
+	exactTimes     int
+	incumbentTime  bool
 	detailConflict bool
 }
 
 // An origin must tell one consistent story about this time, even if none of
 // its variants vote for the proposed title. Compare all variants so a sparse
 // third row cannot bridge two contradictory episodes.
-func matchingBallots(candidates []Candidate, midpoint int64, target slotKey) ([]Programme, int) {
+func matchingBallots(candidates []Candidate, midpoint int64, target slotKey) ([]Programme, int, int) {
 	groups := make(map[string][]*Programme)
 	for _, c := range candidates {
 		if p, _ := nowNext(c.programmes, midpoint); p != nil {
@@ -82,13 +86,16 @@ func matchingBallots(candidates []Candidate, midpoint int64, target slotKey) ([]
 		}
 	}
 	var votes []Programme
-	eligible := 0
+	eligible, exactTimes := 0, 0
 	for _, rows := range groups {
 		var representative Programme
 		divided := false
-		supports := true
+		supports, exact := true, true
 		for i, row := range rows {
 			k := key(*row)
+			if k.start != target.start || k.stop != target.stop {
+				exact = false
+			}
 			if !sameBroadcast(target, k) {
 				supports = false
 			}
@@ -118,9 +125,12 @@ func matchingBallots(candidates []Candidate, midpoint int64, target slotKey) ([]
 		eligible++
 		if supports {
 			votes = append(votes, representative)
+			if exact {
+				exactTimes++
+			}
 		}
 	}
-	return votes, eligible
+	return votes, eligible, exactTimes
 }
 
 type episodeID struct{ number, system string }
@@ -296,7 +306,7 @@ func resolveContext(ctx context.Context, candidates []Candidate, old []Programme
 			}
 			seen[k] = true
 			midpoint := p.Start + (p.Stop-p.Start)/2
-			votes, eligible := matchingBallots(candidates, midpoint, k)
+			votes, eligible, exactTimes := matchingBallots(candidates, midpoint, k)
 			prior, _ := nowNext(old, midpoint)
 			p, split := reconcileDetails(p, votes, prior)
 			n := len(votes)
@@ -304,7 +314,8 @@ func resolveContext(ctx context.Context, candidates []Candidate, old []Programme
 			switch {
 			case n >= 2 && n*2 > eligible:
 				p.State = "confirmed"
-				proposed = append(proposed, proposal{p: p, priority: 3, detailConflict: split})
+				incumbentTime := prior != nil && p.Start == prior.Start && p.Stop == prior.Stop && key(*prior).title == k.title
+				proposed = append(proposed, proposal{p: p, priority: 3, exactTimes: exactTimes, incumbentTime: incumbentTime, detailConflict: split})
 			case eligible == 1 && n == 1:
 				p.State = "single"
 				proposed = append(proposed, proposal{p: p, priority: 1, detailConflict: split})
@@ -332,14 +343,27 @@ func resolveContext(ctx context.Context, candidates []Candidate, old []Programme
 		if a.p.Origins != b.p.Origins {
 			return a.p.Origins > b.p.Origins
 		}
+		// Agreement on the programme allows clock skew. Pick the best-supported
+		// actual interval before falling back to chronological order.
+		if a.exactTimes != b.exactTimes {
+			return a.exactTimes > b.exactTimes
+		}
+		if a.incumbentTime != b.incumbentTime {
+			return a.incumbentTime
+		}
 		return programmeOrder(a.p, b.p)
 	})
 	var out []Programme
+	var seams []proposal
 	detailConflict := false
 	for _, item := range proposed {
 		p := item.p
 		i := sort.Search(len(out), func(i int) bool { return out[i].Stop > p.Start })
 		if i < len(out) && out[i].Start < p.Stop {
+			if p.State == "confirmed" && out[i].State == "confirmed" &&
+				(p.Stop-out[i].Start <= broadcastTolerance || out[i].Stop-p.Start <= broadcastTolerance) {
+				seams = append(seams, item)
+			}
 			if p.State == "single" && out[i].State == "cached" {
 				if agrees(key(out[i]), key(p)) {
 					out[i].State = "single"
@@ -350,6 +374,33 @@ func resolveContext(ctx context.Context, candidates []Candidate, old []Programme
 				}
 			}
 			continue
+		}
+		out = append(out, Programme{})
+		copy(out[i+1:], out[i:])
+		out[i] = p
+		detailConflict = detailConflict || item.detailConflict
+	}
+	// First use any non-overlapping times actually supplied by the guides.
+	// If disjoint groups confirm consecutive shows with a small discrepancy
+	// at the junction, keep both using the higher-ranked neighbour's boundary.
+	for _, item := range seams {
+		p := item.p
+		midpoint := p.Start + (p.Stop-p.Start)/2
+		i := sort.Search(len(out), func(i int) bool { return out[i].Stop > midpoint })
+		if i < len(out) && out[i].Start <= midpoint {
+			continue // This broadcast already has a selected interval.
+		}
+		if i > 0 && out[i-1].Stop > p.Start {
+			if out[i-1].State != "confirmed" || out[i-1].Stop-p.Start > broadcastTolerance {
+				continue
+			}
+			p.Start = out[i-1].Stop
+		}
+		if i < len(out) && out[i].Start < p.Stop {
+			if out[i].State != "confirmed" || p.Stop-out[i].Start > broadcastTolerance {
+				continue
+			}
+			p.Stop = out[i].Start
 		}
 		out = append(out, Programme{})
 		copy(out[i+1:], out[i:])

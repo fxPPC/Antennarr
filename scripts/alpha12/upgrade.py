@@ -71,8 +71,8 @@ def previous_alpha_snapshot(app, profile, channel):
     account, = app.request("/api/input/accounts")["items"]
     compat.check((account["provider"], account["kind"], account["streams"]),
                  ("upgrade.example.invalid", "portal", 1), "subscriber account")
-    tuning = app.request("/api/profiles")
-    output = next(p for p in tuning if p["id"] == profile)["tuner_url"]
+    tuner = next(p for p in app.request("/api/profiles") if p["id"] == profile)
+    output = tuner["tuner_url"]
     with app.http.open(output + "/guide.xml", timeout=10) as response:
         xml = ElementTree.parse(response)
     ch, = xml.findall("channel")
@@ -85,7 +85,7 @@ def previous_alpha_snapshot(app, profile, channel):
         raise RuntimeError("M3U/XMLTV channel identity mismatch")
     compat.check([line for line in playlist.splitlines() if line.startswith("http")],
                  [output + "/stream/" + ch.get("id")], "M3U playback URL")
-    return {"profile": profile, "device": next(p["device_id"] for p in tuning if p["id"] == profile),
+    return {"profile": profile, "device": tuner["device_id"],
             "channel": ch.get("id"), "playlist": playlist, "account": account["id"],
             "title": title, "pin": summary["pin"], "start": show.get("start"), "stop": show.get("stop")}
 

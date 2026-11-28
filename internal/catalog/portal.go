@@ -102,8 +102,9 @@ func (s *Store) SavePortalCatalogue(a ingest.PortalAccount, channels []ingest.Po
 		err = tx.QueryRow(`INSERT INTO streams(id,account_id,identity,name,tvg_id,secret)
 		 VALUES((SELECT max(coalesce((SELECT max(id) FROM streams),0),coalesce((SELECT CAST(value AS INTEGER) FROM settings WHERE name='deleted_streams_highwater'),0))+1),?,?,?,?,?)
 		 ON CONFLICT(identity) DO UPDATE SET name=excluded.name,tvg_id=excluded.tvg_id,secret=excluded.secret,
-		 enabled=CASE WHEN streams.state='portal_unsubscribed' THEN 1 ELSE streams.enabled END,
-		 state=CASE WHEN streams.state='portal_unsubscribed' THEN 'unverified' ELSE streams.state END RETURNING id`,
+		 -- Alpha 1 could leave a withdrawn station disabled with the state of a late validation.
+		 enabled=CASE WHEN streams.enabled=0 AND streams.state IN ('portal_unsubscribed','healthy','suspect') THEN 1 ELSE streams.enabled END,
+		 state=CASE WHEN streams.enabled=0 AND streams.state IN ('portal_unsubscribed','healthy','suspect') THEN 'unverified' ELSE streams.state END RETURNING id`,
 			id, fingerprint(ref), c.Name, c.TVGID, record).Scan(&sid)
 		if err != nil {
 			return 0, err

@@ -168,3 +168,50 @@ test('failed tuner switches keep old controls hidden and retry from normal polli
   assert.equal(nodes.get('#tuner-view').hidden,true);
   assert.match(nodes.get('#tuner-load-state').textContent,/Retrying/);
 });
+
+test('setup retries a failed return to Status and leaves completed setup idle', async t => {
+  const {visit, poll} = await import('../internal/admin/ui/setup.js?return-retry');
+  const nodes = new Map();
+  const node = key => {
+    if (!nodes.has(key)) nodes.set(key, {hidden:false, prepend(){}, append(){}, querySelector(){return {};}});
+    return nodes.get(key);
+  };
+  const previous = globalThis.document;
+  globalThis.document = {querySelector:node};
+  t.after(()=>{if(previous) globalThis.document=previous; else delete globalThis.document;});
+  const saved = {state:'active',step:'sources',profile_id:'one',has_sources:false};
+  let attempts = 0;
+  t.mock.method(globalThis,'fetch',async path=>{
+    if(path === '/api/setup') {
+      if([2,4,7].includes(++attempts)) return new Response('Temporarily unavailable',{status:503});
+      return Response.json(attempts < 6 ? saved : {state:'complete'});
+    }
+    return Response.json({'/api/profiles':[{id:'one',enabled:true}],'/api/presets':[],
+      '/api/listeners':{},'/api/input/import':{}}[path]);
+  });
+  const settled = ()=>new Promise(resolve=>setImmediate(resolve));
+  visit('status'); await settled();
+  assert.equal(node('#setup-source-hint').textContent,'Import an authorised list or add your portal account to continue.');
+  visit('output'); visit('status'); await settled();
+  assert.equal(node('#setup-guide').hidden,true);
+  assert.match(node('#setup-outcome').textContent,/Temporarily unavailable/);
+  await poll();
+  assert.equal(attempts,3);
+  assert.equal(node('#setup-guide').hidden,false);
+  assert.equal(node('#setup-outcome').textContent,'');
+  await poll();
+  assert.match(node('#setup-message').textContent,/Temporarily unavailable/);
+  await poll();
+  assert.equal(node('#setup-message').textContent,'');
+  await poll();
+  assert.equal(node('#setup-guide').hidden,true);
+  node('#setup-outcome').textContent = 'Setup finished.';
+  await poll();
+  assert.equal(attempts,6);
+  assert.equal(node('#setup-outcome').textContent,'Setup finished.');
+  visit('output'); visit('status'); await settled();
+  assert.match(node('#setup-outcome').textContent,/Temporarily unavailable/);
+  await poll();
+  assert.equal(node('#setup-outcome').textContent,'');
+  assert.equal(attempts,8);
+});

@@ -84,8 +84,14 @@ func (s *Store) record(id int64, r Result, channels map[string]bool) error {
 	defer tx.Rollback()
 	var successes, failures, consecutive int
 	var oldStartup float64
-	if e = tx.QueryRow("SELECT successes,failures,consecutive_failures,startup_ms FROM streams WHERE id=?", id).Scan(&successes, &failures, &consecutive, &oldStartup); e != nil {
+	var streamState string
+	if e = tx.QueryRow("SELECT successes,failures,consecutive_failures,startup_ms,state FROM streams WHERE id=?", id).Scan(&successes, &failures, &consecutive, &oldStartup, &streamState); e != nil {
 		return e
+	}
+	// A playback or probe result may finish after the provider withdrew this station.
+	// Only a new subscriber catalogue can make the stream eligible again.
+	if streamState == "portal_unsubscribed" {
+		return nil
 	}
 	weight := 1
 	if r.PlaybackSeconds >= 30 {

@@ -120,3 +120,84 @@ func TestPortalProviderReusesStationID(t *testing.T) {
 		t.Fatal("newly reassigned station must earn its own roster verification", err)
 	}
 }
+
+func TestPortalReinstatementAfterLateValidation(t *testing.T) {
+	for _, success := range []bool{true, false} {
+		t.Run(fmt.Sprintf("success=%t", success), func(t *testing.T) {
+			s, err := Open(t.TempDir())
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer s.Close()
+			channel, err := s.SaveChannel(Channel{Number: "7", Name: "One", Enabled: true})
+			if err != nil {
+				t.Fatal(err)
+			}
+			a := ingest.PortalAccount{PortalURL: "https://provider.example", PlaylistURL: "https://provider.example/subscriber/list", MAC: "02:00:00:00:00:01"}
+			rows := []ingest.PortalChannel{{Key: fingerprint("fixture"), Name: "One", URL: "https://media.example/one"}}
+			account, err := s.SavePortalCatalogue(a, rows)
+			if err != nil {
+				t.Fatal(err)
+			}
+			candidates, err := s.Candidates(channel, false)
+			if err != nil || len(candidates) != 1 {
+				t.Fatal(candidates, err)
+			}
+			stream := candidates[0].StreamID
+			if err = s.EnableRosters(RosterPolicy{3, "stability", 5}); err != nil {
+				t.Fatal(err)
+			}
+			if err = s.Record(stream, Result{Success: true}); err != nil {
+				t.Fatal(err)
+			}
+			// A result can arrive after the subscription changes, for example
+			// when the last viewer finishes a previously admitted stream.
+			if _, err = s.SavePortalCatalogue(a, nil); err != nil {
+				t.Fatal(err)
+			}
+			if err = s.Record(stream, Result{Success: success}); err != nil {
+				t.Fatal(err)
+			}
+			var state string
+			if err = s.DB.QueryRow("SELECT state FROM streams WHERE id=?", stream).Scan(&state); err != nil || state != "portal_unsubscribed" {
+				t.Fatal("stale observation overwrote withdrawal", state, err)
+			}
+			roster, err := s.RosterMembers(channel)
+			if err != nil || len(roster) != 0 {
+				t.Fatal("withdrawn stream returned to roster", roster, err)
+			}
+			if _, err = s.SavePortalCatalogue(a, rows); err != nil {
+				t.Fatal(err)
+			}
+			candidates, err = s.Candidates(channel, false)
+			if err != nil || len(candidates) != 1 || candidates[0].AccountID != account || candidates[0].StreamID != stream {
+				t.Fatalf("restored subscription lost its original stream: %v %v", candidates, err)
+			}
+			healthy, err := s.Candidates(channel, true)
+			if err != nil || len(healthy) != 0 {
+				t.Fatalf("a restored stream must be validated again: %v %v", healthy, err)
+			}
+			if err = s.Record(stream, Result{Success: true}); err != nil {
+				t.Fatal(err)
+			}
+			roster, err = s.RosterMembers(channel)
+			if err != nil || len(roster) != 1 || roster[0].StreamID != stream {
+				t.Fatal("fresh validation did not readmit renewed station", roster, err)
+			}
+			// Alpha 1 snapshots may already have a late result's state on a disabled row.
+			legacyState := HealthState(1)
+			if success {
+				legacyState = HealthState(0)
+			}
+			if _, err = s.DB.Exec("UPDATE streams SET enabled=0,state=? WHERE id=?", legacyState, stream); err != nil {
+				t.Fatal(err)
+			}
+			if _, err = s.SavePortalCatalogue(a, rows); err != nil {
+				t.Fatal(err)
+			}
+			if err = s.DB.QueryRow("SELECT state FROM streams WHERE id=? AND enabled=1", stream).Scan(&state); err != nil || state != "unverified" {
+				t.Fatal("legacy withdrawal was not repaired", state, err)
+			}
+		})
+	}
+}

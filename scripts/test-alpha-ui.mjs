@@ -117,6 +117,26 @@ async function run(viewport) {
   await form.getByText('Account saved · 42 channels imported.').waitFor();
   assert.equal(receivedPortal.mac,'00:11:22:33:44:55');
   await switchTuners(page,profile,channels,roster);
+  setup = {state:'active',step:'sources',profile_id:'primary',has_sources:true};
+  await page.getByRole('link',{name:'Status',exact:true}).click();
+  const next = wizard.getByRole('button',{name:'Next'});
+  await next.waitFor();
+  await page.getByRole('link',{name:'Tuners',exact:true}).click();
+  await wizard.waitFor({state:'hidden'});
+  await page.route('**/api/setup',r=>r.fulfill({status:503,body:'Setup temporarily unavailable'}),{times:1});
+  await page.getByRole('link',{name:'Status',exact:true}).click();
+  await page.getByText('Setup temporarily unavailable',{exact:true}).waitFor();
+  // Let the normal five-second dashboard poll restore the wizard.
+  await next.waitFor({timeout:12000});
+  assert.equal(await page.locator('#setup-outcome').textContent(),'');
+  await next.focus();
+  await page.keyboard.press('Enter');
+  await wizard.getByRole('heading',{name:'Connect your media server'}).waitFor();
+  const connect = wizard.getByRole('button',{name:'Connect to Jellyfin'});
+  await connect.focus();
+  await page.keyboard.press('Space');
+  assert.equal(await wizard.getByRole('textbox',{name:'XMLTV guide URL'}).inputValue(),profile.tuner_url+'/guide.xml');
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);
   assert.deepEqual(errors,[]);
   await page.close();
   console.log('PASS real browser UI ' + viewport.width + 'x' + viewport.height);

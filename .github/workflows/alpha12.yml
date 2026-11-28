@@ -176,6 +176,56 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 3
+  stress:
+    name: Archived ARM64 image, trial ${{ matrix.trial }}
+    needs: candidate
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        trial: [1, 2]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5
+        with:
+          go-version: '1.27.4'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: alpha12-arm64
+          path: ${{ runner.temp }}/candidate
+      - name: Verify and load the archived image
+        run: |
+          test "$(uname -m)" = aarch64
+          cd "$RUNNER_TEMP/candidate"
+          sha256sum --check SHA256SUMS
+          test "$(jq -r .commit BUILD.json)" = "$GITHUB_SHA"
+          docker load -i "antennarr-$VERSION-linux-arm64.docker.tar.gz"
+          image_id=$(jq -er .image_id BUILD.json)
+          test "$(docker image inspect --format '{{.Id}}' "$ANTENNARR_TEST_IMAGE")" = "$image_id"
+          test "$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$image_id")" = linux/arm64
+          test "$(docker image inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image_id")" = "$GITHUB_SHA"
+          echo "TESTED_IMAGE_ID=$image_id" >> "$GITHUB_ENV"
+      - name: Repeat the guide, portal, and playback race regressions
+        run: |
+          go test -race -shuffle=on -count=5 -timeout=8m \
+            -run 'Test(StationReassignmentDuringGuideFetch|DividedOriginAbstainsFromEntireBallot|EpisodeNamespaceTurnoverKeepsMetadataTogether|CorroboratedProgrammeTimesSurviveSkewAndTurnover|AdjacentConfirmedProgrammesCanDisagreeOnTheirSeam|PortalIncompleteSnapshot|PortalProviderReusesStationID|PortalReinstatementAfterLateValidation|MixedPlaybackCancellationsReleaseExactlyTheirOwnViewer)$' \
+            ./internal/guide ./internal/ingest ./internal/catalog ./internal/tuner
+      - name: Record through a source failure with a fresh Jellyfin server
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          report="$RUNNER_TEMP/jellyfin-stress.json"
+          python3 scripts/alpha12/jellyfin.py --image "$TESTED_IMAGE_ID" --report "$report"
+          jq -e --arg image "$TESTED_IMAGE_ID" '.candidate_image_id == $image and .recording_decoded and .failovers > 0' "$report"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: alpha12-dvr-trial-${{ matrix.trial }}
+          path: ${{ runner.temp }}/jellyfin-stress.json
+          if-no-files-found: error
+          retention-days: 3
   publish:
     if: github.event.deleted == false && github.ref == 'refs/heads/release-candidate/v1.2.0-alpha.2'
     runs-on: ubuntu-24.04-arm
